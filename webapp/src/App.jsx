@@ -132,7 +132,7 @@ function ResultsTable({ results }) {
         <tbody>
           {rows.map(({ label, key, format }) => (
             <tr key={key} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700">{label}</th>
+              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">{label}</th>
               <td className="py-3 px-4 text-sm text-right text-emerald-700">{format(results.totals[key].direct)}</td>
               <td className="py-3 px-4 text-sm text-right text-blue-700">{format(results.totals[key].indirect)}</td>
               <td className="py-3 px-4 text-sm text-right text-purple-700">{format(results.totals[key].induced)}</td>
@@ -398,6 +398,15 @@ function WizardStep({ stepNum, totalSteps, title, subtitle, children, onBack, on
   );
 }
 
+// Property type options with descriptions
+const PROPERTY_TYPE_OPTIONS = [
+  { value: '', label: 'Select property type...', description: '' },
+  { value: '721120', label: 'Resort with Hotel & Casino', description: 'Integrated casino-hotel (e.g., Las Vegas Strip properties)' },
+  { value: '713210', label: 'Stand-alone Casino', description: 'Traditional casino without integrated hotel' },
+  { value: '713290', label: 'Slot Parlors / Bingo Halls', description: 'Limited gaming venues (card rooms, bingo halls)' },
+  { value: '722410', label: 'Bars/Restaurants with Slots', description: 'Establishments with gaming as ancillary activity' }
+];
+
 // Main App Component
 export default function App() {
   // Wizard state
@@ -407,14 +416,22 @@ export default function App() {
   // Input state
   const [state, setState] = useState('Nevada');
   const [casinoName, setCasinoName] = useState('');
+  const [propertyType, setPropertyType] = useState('721120'); // Default to Casino Hotel
+  const [inputMode, setInputMode] = useState('department'); // 'total' or 'department'
   const [revenues, setRevenues] = useState({
     gaming: 100,
     food: null,
     lodging: null,
-    other: null
+    other: null,
+    total: null
   });
-  const [knownEmployment, setKnownEmployment] = useState(null);
-  const [knownWages, setKnownWages] = useState(null);
+  // Department-level known data: { gaming: {emp, wages}, food: {...}, lodging: {...}, other: {...} }
+  const [knownData, setKnownData] = useState({
+    gaming: { emp: null, wages: null },
+    food: { emp: null, wages: null },
+    lodging: { emp: null, wages: null },
+    other: { emp: null, wages: null }
+  });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isGeneratingPPTX, setIsGeneratingPPTX] = useState(false);
 
@@ -422,18 +439,21 @@ export default function App() {
   const [hasOtherRevenue, setHasOtherRevenue] = useState(false);
   const [hasKnownData, setHasKnownData] = useState(false);
 
-  // Calculate results (always use gambling-specific multipliers)
+  // Calculate results using property-type-specific multipliers
   const results = useMemo(() => {
     return calculateCombinedImpact(
       revenues,
       multiplierData.multipliers,
       multiplierData.gambling,
       state,
-      true,  // Always use gambling-specific
-      knownEmployment,
-      knownWages
+      true,  // Use gambling-specific (fallback if no property type)
+      knownData,  // Department-level known data object
+      null,       // Legacy parameter (not used with new format)
+      propertyType || null,
+      multiplierData.propertyTypes || null,
+      inputMode
     );
-  }, [revenues, state, knownEmployment, knownWages]);
+  }, [revenues, state, knownData, propertyType, inputMode]);
 
   // State options
   const stateOptions = multiplierData.states.map(s => ({ value: s, label: s }));
@@ -466,6 +486,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
     try {
       // Dynamic import for code splitting - PPTX generator loaded on demand
       const { downloadPPTX } = await import('./utils/pptxGenerator');
+      const propertyTypeLabel = PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || null;
       await downloadPPTX(
         results,
         {
@@ -473,8 +494,10 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
           casinoName,
           useGamblingSpecific: true,
           revenues,
-          knownEmployment,
-          knownWages
+          knownData,  // Department-level known data
+          propertyType,
+          propertyTypeLabel,
+          inputMode
         },
         authorInfo
       );
@@ -495,9 +518,15 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
     setWizardStep(0);
     setState('Nevada');
     setCasinoName('');
-    setRevenues({ gaming: 100, food: null, lodging: null, other: null });
-    setKnownEmployment(null);
-    setKnownWages(null);
+    setPropertyType('721120');
+    setInputMode('department');
+    setRevenues({ gaming: 100, food: null, lodging: null, other: null, total: null });
+    setKnownData({
+      gaming: { emp: null, wages: null },
+      food: { emp: null, wages: null },
+      lodging: { emp: null, wages: null },
+      other: { emp: null, wages: null }
+    });
     setHasOtherRevenue(false);
     setHasKnownData(false);
   };
@@ -508,17 +537,19 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
   if (!wizardComplete) {
     const totalSteps = 4;
 
-    // Step 1: State Selection and Casino Name
+    // Step 1: State Selection, Property Type, and Casino Name
     if (wizardStep === 0) {
+      const selectedPropertyType = PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType);
+
       return (
         <WizardStep
           stepNum={1}
           totalSteps={totalSteps}
           title="Tell us about your project"
-          subtitle="Select the state and optionally name the casino or project."
+          subtitle="Select the state, property type, and optionally name the casino or project."
           onNext={() => setWizardStep(1)}
           showBack={false}
-          canProceed={!!state}
+          canProceed={!!state && !!propertyType}
         >
           <div className="space-y-4">
             <SelectField
@@ -526,6 +557,13 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
               value={state}
               onChange={setState}
               options={stateOptions}
+            />
+            <SelectField
+              label="Property Type"
+              value={propertyType}
+              onChange={setPropertyType}
+              options={PROPERTY_TYPE_OPTIONS.map(p => ({ value: p.value, label: p.label }))}
+              helpText={selectedPropertyType?.description || 'Select the type of gaming establishment for more accurate multipliers'}
             />
             <InputField
               label="Casino or Project Name (optional)"
@@ -540,27 +578,96 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
       );
     }
 
-    // Step 2: Gaming Revenue
+    // Step 2: Revenue Input Mode and Revenue Entry
     if (wizardStep === 1) {
+      // Determine if we can skip the "other revenue" step
+      const canProceedToNextStep = inputMode === 'total'
+        ? revenues.total > 0
+        : revenues.gaming > 0;
+
+      // For total mode, skip step 3 (other revenue) and go to step 4 (known data)
+      const handleNextStep = () => {
+        if (inputMode === 'total') {
+          setWizardStep(3); // Skip to known data step
+        } else {
+          setWizardStep(2); // Go to other revenue step
+        }
+      };
+
       return (
         <WizardStep
           stepNum={2}
           totalSteps={totalSteps}
-          title="What is the gaming revenue (GGR)?"
-          subtitle="Enter the gross gaming revenue in millions of dollars."
+          title="How would you like to enter revenue?"
+          subtitle="Choose whether to enter total property revenue or break it down by department."
           onBack={() => setWizardStep(0)}
-          onNext={() => setWizardStep(2)}
-          canProceed={revenues.gaming > 0}
+          onNext={handleNextStep}
+          canProceed={canProceedToNextStep}
         >
-          <InputField
-            label="Gaming Revenue (GGR)"
-            value={revenues.gaming}
-            onChange={(val) => setRevenues({ ...revenues, gaming: val })}
-            placeholder="100"
-            prefix="$"
-            suffix="M"
-            helpText="Enter gross gaming revenue (win) in millions"
-          />
+          <div className="space-y-6">
+            {/* Input Mode Toggle */}
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setInputMode('total');
+                  setRevenues({ ...revenues, gaming: null, food: null, lodging: null, other: null, total: revenues.total || 100 });
+                }}
+                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                  inputMode === 'total'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-medium">Total Property Revenue</div>
+                <div className="text-xs text-gray-500 mt-1">Enter one combined number</div>
+              </button>
+              <button
+                onClick={() => {
+                  setInputMode('department');
+                  setRevenues({ ...revenues, total: null, gaming: revenues.gaming || 100 });
+                }}
+                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                  inputMode === 'department'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="font-medium">By Department</div>
+                <div className="text-xs text-gray-500 mt-1">Gaming, F&B, lodging separately</div>
+              </button>
+            </div>
+
+            {/* Revenue Input based on mode */}
+            {inputMode === 'total' ? (
+              <div className="animate-fade-in">
+                <InputField
+                  label="Total Property Revenue"
+                  value={revenues.total}
+                  onChange={(val) => setRevenues({ ...revenues, total: val })}
+                  placeholder="100"
+                  prefix="$"
+                  suffix="M"
+                  helpText={`All revenue from the ${PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || 'property'} will use integrated multipliers`}
+                />
+                <p className="mt-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                  <strong>Note:</strong> Total mode applies {propertyType === '721120' ? 'accommodation (hotel)' : 'property-specific'} multipliers to the entire revenue.
+                  Use "By Department" if you want gaming revenue analyzed separately with gambling-specific multipliers.
+                </p>
+              </div>
+            ) : (
+              <div className="animate-fade-in">
+                <InputField
+                  label="Gaming Revenue (GGR)"
+                  value={revenues.gaming}
+                  onChange={(val) => setRevenues({ ...revenues, gaming: val })}
+                  placeholder="100"
+                  prefix="$"
+                  suffix="M"
+                  helpText="Enter gross gaming revenue (win) in millions. Gaming-specific multipliers will be applied."
+                />
+              </div>
+            )}
+          </div>
         </WizardStep>
       );
     }
@@ -641,13 +748,50 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
 
     // Step 4: Known Property Data
     if (wizardStep === 3) {
+      // Handle back navigation: skip step 3 if in total mode
+      const handleBackStep = () => {
+        if (inputMode === 'total') {
+          setWizardStep(1); // Go back to revenue input (skip other revenue step)
+        } else {
+          setWizardStep(2); // Go back to other revenue step
+        }
+      };
+
+      // Helper to update known data for a specific department
+      const updateKnownData = (dept, field, value) => {
+        setKnownData(prev => ({
+          ...prev,
+          [dept]: { ...prev[dept], [field]: value }
+        }));
+      };
+
+      // Clear all known data
+      const clearKnownData = () => {
+        setKnownData({
+          gaming: { emp: null, wages: null },
+          food: { emp: null, wages: null },
+          lodging: { emp: null, wages: null },
+          other: { emp: null, wages: null }
+        });
+      };
+
+      // Determine which departments have revenue (for showing known data inputs)
+      const activeDepartments = inputMode === 'total'
+        ? [{ key: 'total', label: 'Property Total' }]
+        : [
+            { key: 'gaming', label: 'Gaming', revenue: revenues.gaming },
+            { key: 'food', label: 'Food & Beverage', revenue: revenues.food },
+            { key: 'lodging', label: 'Lodging', revenue: revenues.lodging },
+            { key: 'other', label: 'Other', revenue: revenues.other }
+          ].filter(d => d.revenue && d.revenue > 0);
+
       return (
         <WizardStep
-          stepNum={4}
-          totalSteps={totalSteps}
+          stepNum={inputMode === 'total' ? 3 : 4}
+          totalSteps={inputMode === 'total' ? 3 : totalSteps}
           title="Do you have known property data?"
           subtitle="If you know the actual direct employment or wages, you can enter them for more accurate results."
-          onBack={() => setWizardStep(2)}
+          onBack={handleBackStep}
           onNext={() => setWizardComplete(true)}
           nextLabel="Calculate Impact"
         >
@@ -666,8 +810,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
               <button
                 onClick={() => {
                   setHasKnownData(false);
-                  setKnownEmployment(null);
-                  setKnownWages(null);
+                  clearKnownData();
                 }}
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
                   !hasKnownData
@@ -680,23 +823,53 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
             </div>
 
             {hasKnownData && (
-              <div className="space-y-4 animate-fade-in">
-                <InputField
-                  label="Direct Employment (Jobs)"
-                  value={knownEmployment}
-                  onChange={setKnownEmployment}
-                  placeholder="e.g., 500"
-                  helpText="Number of direct employees at the property"
-                />
-                <InputField
-                  label="Direct Wages"
-                  value={knownWages}
-                  onChange={setKnownWages}
-                  placeholder="e.g., 25"
-                  prefix="$"
-                  suffix="M"
-                  helpText="Total direct wages in millions"
-                />
+              <div className="space-y-6 animate-fade-in">
+                {inputMode === 'total' ? (
+                  // Total mode: single set of inputs
+                  <div className="space-y-4">
+                    <InputField
+                      label="Direct Employment (Jobs)"
+                      value={knownData.gaming?.emp}
+                      onChange={(v) => updateKnownData('gaming', 'emp', v)}
+                      placeholder="e.g., 500"
+                      helpText="Total direct employees at the property"
+                    />
+                    <InputField
+                      label="Direct Wages"
+                      value={knownData.gaming?.wages}
+                      onChange={(v) => updateKnownData('gaming', 'wages', v)}
+                      placeholder="e.g., 25"
+                      prefix="$"
+                      suffix="M"
+                      helpText="Total direct wages in millions"
+                    />
+                  </div>
+                ) : (
+                  // Department mode: inputs for each revenue stream
+                  activeDepartments.map(({ key, label }) => (
+                    <div key={key} className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-700 mb-3">{label}</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <InputField
+                          label="Employment"
+                          value={knownData[key]?.emp}
+                          onChange={(v) => updateKnownData(key, 'emp', v)}
+                          placeholder="Jobs"
+                          helpText="Optional"
+                        />
+                        <InputField
+                          label="Wages"
+                          value={knownData[key]?.wages}
+                          onChange={(v) => updateKnownData(key, 'wages', v)}
+                          placeholder="$M"
+                          prefix="$"
+                          suffix="M"
+                          helpText="Optional"
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -761,6 +934,13 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                   value={state}
                   onChange={setState}
                   options={stateOptions}
+                />
+                <SelectField
+                  label="Property Type"
+                  value={propertyType}
+                  onChange={setPropertyType}
+                  options={PROPERTY_TYPE_OPTIONS.filter(p => p.value).map(p => ({ value: p.value, label: p.label }))}
+                  helpText={PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.description}
                 />
                 <InputField
                   label="Casino/Project Name"
@@ -845,36 +1025,48 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                     If you have actual property data, enter it here to override calculated values.
                   </p>
 
-                  <InputField
-                    label="Direct Employment (Jobs)"
-                    value={knownEmployment}
-                    onChange={setKnownEmployment}
-                    placeholder="Optional"
-                    helpText="Actual property headcount"
-                  />
+                  {/* Department-level known data inputs */}
+                  {[
+                    { key: 'gaming', label: 'Gaming', revenue: revenues.gaming },
+                    { key: 'food', label: 'Food & Beverage', revenue: revenues.food },
+                    { key: 'lodging', label: 'Lodging', revenue: revenues.lodging },
+                    { key: 'other', label: 'Other', revenue: revenues.other }
+                  ].filter(d => d.revenue && d.revenue > 0).map(({ key, label }) => (
+                    <div key={key} className="border border-gray-100 rounded-lg p-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">{label}</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <InputField
+                          label="Employment"
+                          value={knownData[key]?.emp}
+                          onChange={(v) => setKnownData(prev => ({
+                            ...prev,
+                            [key]: { ...prev[key], emp: v }
+                          }))}
+                          placeholder="Jobs"
+                          id={`known-emp-${key}`}
+                        />
+                        <InputField
+                          label="Wages ($M)"
+                          value={knownData[key]?.wages}
+                          onChange={(v) => setKnownData(prev => ({
+                            ...prev,
+                            [key]: { ...prev[key], wages: v }
+                          }))}
+                          placeholder="$M"
+                          id={`known-wages-${key}`}
+                        />
+                      </div>
+                    </div>
+                  ))}
 
-                  <InputField
-                    label="Direct Wages"
-                    value={knownWages}
-                    onChange={setKnownWages}
-                    placeholder="Optional"
-                    prefix="$"
-                    suffix="M"
-                    helpText="Actual total wages paid"
-                  />
+                  {/* Show message if no revenue entered */}
+                  {!revenues.gaming && !revenues.food && !revenues.lodging && !revenues.other && (
+                    <p className="text-xs text-gray-400 italic">Enter revenue to add known data for departments.</p>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Data Sources */}
-            <div className="bg-gray-50 rounded-xl p-4 text-xs text-gray-600">
-              <p className="font-medium text-gray-700 mb-2">Data Sources</p>
-              <ul className="space-y-1">
-                <li>IO Tables: EPA StateIO (2019)</li>
-                <li>Employment: BLS QCEW (2024)</li>
-                <li>Methodology: Industry Technology Assumption (ITA)</li>
-              </ul>
-            </div>
           </aside>
 
           {/* Results Panel */}

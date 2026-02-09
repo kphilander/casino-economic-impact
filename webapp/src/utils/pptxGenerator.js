@@ -143,8 +143,13 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
     ]
   });
 
-  // Calculate totals
-  const totalRevenue = Object.values(inputs.revenues).reduce((sum, v) => sum + (v || 0), 0);
+  // Calculate totals - handle both 'total' and 'department' input modes
+  const inputMode = inputs.inputMode || 'department';
+  const totalRevenue = inputMode === 'total' && inputs.revenues.total
+    ? inputs.revenues.total
+    : Object.entries(inputs.revenues)
+        .filter(([key]) => key !== 'total')
+        .reduce((sum, [, v]) => sum + (v || 0), 0);
   const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   // ============================================================
@@ -161,6 +166,9 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
     fontSize: 32, fontFace: 'Helvetica', bold: true, color: COLORS.white
   });
 
+  // Get property type label for display
+  const coverPropertyType = inputs.propertyTypeLabel || 'Gaming Establishment';
+
   // Venue/Project name OR State name in prominent position
   if (inputs.casinoName) {
     // Venue name as main header
@@ -176,12 +184,16 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
       x: 0.5, y: 2.25, w: 6, h: 0.28,
       fontSize: 14, fontFace: 'Helvetica', color: COLORS.lightBlue
     });
+    slide1.addText(`Property Type: ${coverPropertyType}`, {
+      x: 0.5, y: 2.55, w: 6, h: 0.22,
+      fontSize: 11, fontFace: 'Helvetica', color: COLORS.lightBlue
+    });
     slide1.addText(`Total Revenue Analyzed: ${formatCurrency(totalRevenue)}`, {
-      x: 0.5, y: 2.58, w: 6, h: 0.25,
+      x: 0.5, y: 2.78, w: 6, h: 0.25,
       fontSize: 12, fontFace: 'Helvetica', color: COLORS.lightBlue
     });
     slide1.addText(monthYear, {
-      x: 0.5, y: 2.88, w: 6, h: 0.22,
+      x: 0.5, y: 3.05, w: 6, h: 0.22,
       fontSize: 11, fontFace: 'Helvetica', color: COLORS.white
     });
   } else {
@@ -194,12 +206,16 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
       x: 0.5, y: 2.1, w: 3, h: 0,
       line: { color: COLORS.white, width: 1, transparency: 50 }
     });
+    slide1.addText(`Property Type: ${coverPropertyType}`, {
+      x: 0.5, y: 2.25, w: 6, h: 0.22,
+      fontSize: 11, fontFace: 'Helvetica', color: COLORS.lightBlue
+    });
     slide1.addText(`Total Revenue Analyzed: ${formatCurrency(totalRevenue)}`, {
-      x: 0.5, y: 2.25, w: 6, h: 0.25,
+      x: 0.5, y: 2.48, w: 6, h: 0.25,
       fontSize: 12, fontFace: 'Helvetica', color: COLORS.lightBlue
     });
     slide1.addText(monthYear, {
-      x: 0.5, y: 2.55, w: 6, h: 0.22,
+      x: 0.5, y: 2.75, w: 6, h: 0.22,
       fontSize: 11, fontFace: 'Helvetica', color: COLORS.white
     });
   }
@@ -566,15 +582,19 @@ For technical details, see the appendix.`;
     dsY += 0.55;
   });
 
-  // Why gambling-specific? - Moved down to avoid overlap with content above
-  slide5.addText('Why Gambling-Specific Analysis?', {
+  // Why property-specific analysis? - Updated to reflect new methodology
+  slide5.addText('Why Property-Specific Analysis?', {
     x: MARGIN, y: 3.4, w: 9, h: 0.3,
     fontSize: FONT.section + 2, fontFace: 'Helvetica', bold: true, color: COLORS.primary
   });
 
+  // Build property-type-specific explanation
+  const propertyTypeLabel = inputs.propertyTypeLabel || 'gaming establishment';
+  const propertyTypeCode = inputs.propertyType || '7132';
+
   const gamblingExplanation = `Economic impact models are essential for understanding how gambling operations affect local and state economies. However, the accuracy of these models depends critically on using industry-specific data rather than generic averages.
 
-This analysis uses gambling-specific coefficients (NAICS 7132) rather than broad "arts and entertainment" averages. This matters because casinos have distinct characteristics: they typically employ more workers per dollar of revenue, pay different wage rates, and have unique supply chains compared to theaters, museums, or sports venues. Using generic multipliers would misrepresent the true economic footprint of gambling operations.`;
+This analysis uses property-type-specific coefficients for "${propertyTypeLabel}" (NAICS ${propertyTypeCode}). Different gaming establishments—casino hotels, standalone casinos, slot parlors, and bars with gaming—have distinct economic profiles in terms of employment intensity, wage rates, and supply chain linkages. Using the appropriate multipliers for your property type ensures more accurate impact estimates.`;
 
   slide5.addText(gamblingExplanation, {
     x: MARGIN, y: 3.9, w: 9.2, h: 0.8,

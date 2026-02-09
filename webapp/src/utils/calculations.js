@@ -132,48 +132,174 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
 }
 
 /**
- * Calculate combined economic impact for multiple revenue streams
+ * Get property type multipliers for a state
+ * @param {string} propertyType - NAICS code (721120, 713210, 713290, 722410)
+ * @param {string} state - State name
+ * @param {object} propertyTypesData - The propertyTypes object from multipliers.json
+ * @returns {object|null} State data for the property type, or null if not found
  */
-export function calculateCombinedImpact(revenues, multiplierData, gamblingData, state, useGamblingSpecific = true, knownEmployment = null, knownWages = null) {
+export function getPropertyTypeData(propertyType, state, propertyTypesData) {
+  if (!propertyType || !propertyTypesData || !propertyTypesData[propertyType]) {
+    return null;
+  }
+  return propertyTypesData[propertyType].find(d => d.State === state);
+}
+
+/**
+ * Calculate combined economic impact for multiple revenue streams
+ *
+ * @param {object} revenues - Revenue by type { gaming, food, lodging, other } OR { total } for total mode
+ * @param {array} multiplierData - Array of sector multipliers
+ * @param {array} gamblingData - Array of gambling-specific multipliers (legacy, for backward compatibility)
+ * @param {string} state - State name
+ * @param {boolean} useGamblingSpecific - Whether to use gambling-specific multipliers
+ * @param {object|number|null} knownData - Known data by department { gaming: {emp, wages}, food: {...}, ... }
+ *                                          OR legacy single employment number for backward compatibility
+ * @param {number|null} knownWagesLegacy - Legacy: Known wages in millions (only used if knownData is a number)
+ * @param {string|null} propertyType - Property type NAICS code (721120, 713210, 713290, 722410)
+ * @param {object|null} propertyTypesData - Property type multipliers from JSON
+ * @param {string} inputMode - 'department' (default) or 'total'
+ */
+export function calculateCombinedImpact(
+  revenues,
+  multiplierData,
+  gamblingData,
+  state,
+  useGamblingSpecific = true,
+  knownData = null,
+  knownWagesLegacy = null,
+  propertyType = null,
+  propertyTypesData = null,
+  inputMode = 'department'
+) {
+  // Handle legacy single-value parameters (backward compatibility)
+  // If knownData is a number, treat it as legacy knownEmployment
+  let knownDataNormalized = {};
+  if (typeof knownData === 'number') {
+    // Legacy mode: single employment/wages values apply to gaming only
+    knownDataNormalized = {
+      gaming: { emp: knownData, wages: knownWagesLegacy },
+      food: { emp: null, wages: null },
+      lodging: { emp: null, wages: null },
+      other: { emp: null, wages: null }
+    };
+  } else if (knownData && typeof knownData === 'object') {
+    // New mode: department-level known data
+    knownDataNormalized = knownData;
+  } else {
+    // No known data
+    knownDataNormalized = {
+      gaming: { emp: null, wages: null },
+      food: { emp: null, wages: null },
+      lodging: { emp: null, wages: null },
+      other: { emp: null, wages: null }
+    };
+  }
   const results = [];
 
-  const revenueTypes = [
-    { key: 'gaming', sector: '713', label: 'Gaming (GGR)' },
-    { key: 'food', sector: '722', label: 'Food & Beverage' },
-    { key: 'lodging', sector: '721', label: 'Lodging' },
-    { key: 'other', sector: '711AS', label: 'Other' }
-  ];
-
-  for (const { key, sector, label } of revenueTypes) {
-    const revenue = revenues[key];
-    if (!revenue || revenue <= 0) continue;
-
-    // Get state data for this sector
+  // TOTAL MODE: Apply property type multipliers to entire revenue
+  if (inputMode === 'total' && revenues.total && revenues.total > 0) {
     let stateData;
-    if (key === 'gaming' && useGamblingSpecific && gamblingData) {
-      stateData = gamblingData.find(d => d.State === state);
-    } else {
-      stateData = multiplierData.find(d => d.State === state && d.Sector === sector);
+
+    // Get property type multipliers
+    if (propertyType && propertyTypesData) {
+      stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
     }
 
-    if (!stateData) continue;
+    // Fallback to gambling-specific if no property type data
+    if (!stateData && useGamblingSpecific && gamblingData) {
+      stateData = gamblingData.find(d => d.State === state);
+    }
 
-    // Only apply known employment/wages to gaming revenue
+    // Fallback to blended 713 sector
+    if (!stateData) {
+      stateData = multiplierData.find(d => d.State === state && d.Sector === '713');
+    }
+
+    if (!stateData) return null;
+
+    // In total mode, sum all department known data for overall totals
+    const totalKnownEmp = Object.values(knownDataNormalized).reduce((sum, d) => sum + (d?.emp || 0), 0) || null;
+    const totalKnownWages = Object.values(knownDataNormalized).reduce((sum, d) => sum + (d?.wages || 0), 0) || null;
+
     const impact = calculateSingleImpact(
-      revenue,
+      revenues.total,
       stateData,
-      key === 'gaming' ? knownEmployment : null,
-      key === 'gaming' ? knownWages : null
+      totalKnownEmp,
+      totalKnownWages
     );
 
     if (impact) {
+      // Get property type label
+      const propertyLabels = {
+        '721120': 'Casino Hotel',
+        '713210': 'Stand-alone Casino',
+        '713290': 'Slot Parlor',
+        '722410': 'Bar/Restaurant Gaming'
+      };
+
       results.push({
-        type: key,
-        label,
-        sector,
-        revenue,
+        type: 'total',
+        label: propertyLabels[propertyType] || 'Total Revenue',
+        sector: stateData.Property_Type || stateData.Sector || propertyType,
+        revenue: revenues.total,
+        propertyType,
         ...impact
       });
+    }
+  } else {
+    // DEPARTMENT MODE: Apply sector-specific multipliers to each revenue stream
+    const revenueTypes = [
+      { key: 'gaming', sector: '713', label: 'Gaming (GGR)' },
+      { key: 'food', sector: '722', label: 'Food & Beverage' },
+      { key: 'lodging', sector: '721', label: 'Lodging' },
+      { key: 'other', sector: '711AS', label: 'Other' }
+    ];
+
+    for (const { key, sector, label } of revenueTypes) {
+      const revenue = revenues[key];
+      if (!revenue || revenue <= 0) continue;
+
+      // Get state data for this sector
+      let stateData;
+      if (key === 'gaming') {
+        // In department mode, GGR uses gambling multipliers (not property type 721120 which equals lodging)
+        // For non-casino-hotel property types, use their specific multipliers
+        if (propertyType && propertyType !== '721120' && propertyTypesData) {
+          stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
+        }
+        // For casino hotels or as fallback, use legacy gambling (7132) multipliers
+        if (!stateData && useGamblingSpecific && gamblingData) {
+          stateData = gamblingData.find(d => d.State === state);
+        }
+        if (!stateData) {
+          stateData = multiplierData.find(d => d.State === state && d.Sector === sector);
+        }
+      } else {
+        stateData = multiplierData.find(d => d.State === state && d.Sector === sector);
+      }
+
+      if (!stateData) continue;
+
+      // Apply department-specific known employment/wages
+      const deptKnownData = knownDataNormalized[key] || {};
+      const impact = calculateSingleImpact(
+        revenue,
+        stateData,
+        deptKnownData.emp || null,
+        deptKnownData.wages || null
+      );
+
+      if (impact) {
+        results.push({
+          type: key,
+          label,
+          sector: stateData.Property_Type || stateData.Sector || sector,
+          revenue,
+          propertyType: key === 'gaming' ? propertyType : null,
+          ...impact
+        });
+      }
     }
   }
 

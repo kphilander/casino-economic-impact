@@ -1,30 +1,14 @@
-# Casino Economic Impact Model
+# Casino Economic Impact Calculator - Methodology
 
-Economic impact multipliers for casino-related sectors across all 50 US states using EPA StateIO data.
+This repository contains the R code used to compute state-level economic multipliers for the Casino Economic Impact Calculator.
 
-## Quick Start
+## Live Calculator
 
-```r
-# Load the impact model
-source("10_casino_impact_model.R")
+**The interactive calculator is available at: https://gpconsulting.com/tools/economic-impact/**
 
-# Calculate impact of $100M casino GGR in Nevada
-impact <- calculate_casino_impact(100, "713", "Nevada")
-print(impact)
+## Overview
 
-# Compare impacts across states
-comparison <- compare_states(100, "713", c("Nevada", "New Jersey", "Pennsylvania"))
-print(comparison)
-```
-
-### Example Output: $100M Casino GGR in Nevada
-
-| Metric | Direct | Indirect | Induced | Total | Multiplier |
-|--------|--------|----------|---------|-------|------------|
-| Output ($M) | 100.0 | 30.3 | 68.4 | 198.6 | 1.99 |
-| GDP ($M) | 59.0 | 15.2 | 43.0 | 117.2 | 1.99 |
-| Employment | 662 | 748 | 611 | 2,020 | 3.05 |
-| Wages ($M) | 36.4 | 7.4 | 19.5 | 63.2 | 1.74 |
+This methodology computes economic impact multipliers for casino and gaming sectors across all 50 US states. The multipliers quantify the direct, indirect, and induced effects of casino revenue on employment, GDP, output, and wages.
 
 ## Data Sources
 
@@ -76,64 +60,8 @@ print(comparison)
 | `08_state_multipliers_2023.R` | Calculate state IO multipliers from StateIO |
 | `08a_process_all_qcew_employment.R` | Process QCEW for all 71 IO sectors (for employment multipliers) |
 | `09_employment_multipliers_2023.R` | Merge multipliers with employment data |
-| `10_casino_impact_model.R` | **Main user-facing impact function** |
-| `11_property_impact_calculator.R` | User-input script for property-specific analysis |
-
-## Output Files
-
-| File | Description |
-|------|-------------|
-| `employment_multipliers_2023.csv` | Complete dataset with all multipliers and coefficients |
-| `state_multipliers_2023.csv` | IO multipliers by state and sector |
-| `employment_by_state_2023.csv` | Employment counts by state and sector |
-| `employment_multipliers_by_state_wide.csv` | Type II employment multipliers in wide format |
-
-## Usage Examples
-
-### Basic Impact Calculation
-```r
-source("10_casino_impact_model.R")
-
-impact <- calculate_casino_impact(
-  casino_revenue = 100,     # in millions USD
-  sector = "713",           # gambling sector
-  state = "Nevada"
-)
-print(impact)
-```
-
-### Property-Specific Analysis
-Edit `11_property_impact_calculator.R` with your property data:
-```r
-property_name <- "My Casino"
-state <- "Nevada"
-ggr <- 100                    # Gross gaming revenue in $M
-direct_employment <- 850      # Actual jobs (or NULL to calculate)
-direct_wages <- 35            # Actual wages in $M (or NULL to calculate)
-```
-Then run the script to generate an impact table.
-
-### Available Functions
-```r
-list_states()                 # All 50 states
-list_sectors()                # Available IO sectors
-get_state_multipliers("Nevada")
-compare_states(100, "713", c("Nevada", "New Jersey", "Pennsylvania"))
-```
-
-## Key Findings
-
-### Employment Multipliers by State (Sector 713 - Gambling)
-
-| Rank | State | Type II Emp Mult | Jobs per $100M GGR |
-|------|-------|------------------|-------------------|
-| 1 | New Hampshire | 3.34 | 2,062 |
-| 2 | Nevada | 3.05 | 2,022 |
-| 3 | Florida | 2.99 | 3,410 |
-| ... | ... | ... | ... |
-| 50 | North Dakota | 2.12 | 4,359 |
-
-States with higher multipliers (like Nevada) often have fewer total jobs because they have more capital-intensive operations (fewer jobs per dollar of GDP). States with lower multipliers tend to have more labor-intensive industries.
+| `10_casino_impact_model.R` | Main impact calculation functions |
+| `11_property_impact_calculator.R` | Property-specific analysis script |
 
 ## Dependencies
 
@@ -164,6 +92,12 @@ source("09_employment_multipliers_2023.R")   # Merge with employment
 2. **Employment Multipliers:** True employment-weighted multipliers differ from output/GDP multipliers because they account for varying labor intensities across sectors in the supply chain.
 
 3. **Value Added vs Gross Output:** Employment coefficients use Value Added (GDP) as denominator, not Gross Output, which would overstate the economic base.
+
+## Citation
+
+If you use this methodology in research, please cite:
+
+> Philander, K.S. (2024). Casino Economic Impact Calculator Methodology. GP Consulting. https://github.com/kphilander/casino-economic-impact
 
 ## License
 

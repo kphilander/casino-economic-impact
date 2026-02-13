@@ -4,7 +4,7 @@ This repository contains the R code used to compute state-level economic multipl
 
 ## Live Calculator
 
-**The interactive calculator is available at: https://gpconsulting.com/tools/economic-impact/**
+**The interactive calculator is available at: https://gamblingpolicy.com/tools/economic-impact/**
 
 ## Overview
 

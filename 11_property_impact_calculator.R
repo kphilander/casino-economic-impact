@@ -99,6 +99,9 @@ type1_wage <- state_data$Type_I_Wage
 type2_wage <- state_data$Type_II_Wage
 type1_emp_mult <- state_data$Type_I_Emp_Mult
 type2_emp_mult <- state_data$Type_II_Emp_Mult
+type1_tax <- state_data$Type_I_Tax
+type2_tax <- state_data$Type_II_Tax
+tax_coef <- state_data$Direct_Tax_Coef
 
 # ============================================================================
 # CALCULATE DIRECT EFFECTS
@@ -124,6 +127,12 @@ if (is.null(direct_wages)) {
 }
 
 # ============================================================================
+# CALCULATE DIRECT TAX EFFECTS
+# ============================================================================
+
+direct_tax <- direct_output * tax_coef
+
+# ============================================================================
 # CALCULATE INDIRECT EFFECTS (Type I - Direct)
 # ============================================================================
 
@@ -143,6 +152,9 @@ if (wage_source == "user-provided") {
 # of sectors in the supply chain, which differs from output multipliers)
 indirect_employment <- direct_employment * (type1_emp_mult - 1)
 
+# Indirect taxes
+indirect_tax <- direct_output * type1_tax - direct_tax
+
 # ============================================================================
 # CALCULATE INDUCED EFFECTS (Type II - Type I)
 # ============================================================================
@@ -151,6 +163,7 @@ induced_output <- direct_output * (type2_output - type1_output)
 induced_gdp <- direct_output * (type2_va - type1_va)
 induced_wages <- direct_output * (type2_wage - type1_wage)
 induced_employment <- direct_employment * (type2_emp_mult - type1_emp_mult)
+induced_tax <- direct_output * (type2_tax - type1_tax)
 
 # ============================================================================
 # CALCULATE TOTALS
@@ -160,42 +173,48 @@ total_output <- direct_output + indirect_output + induced_output
 total_gdp <- direct_gdp + indirect_gdp + induced_gdp
 total_employment <- direct_employment + indirect_employment + induced_employment
 total_wages <- direct_wages + indirect_wages + induced_wages
+total_tax <- direct_tax + indirect_tax + induced_tax
 
 # ============================================================================
 # BUILD SUMMARY TABLE
 # ============================================================================
 
 summary_df <- data.frame(
-  Metric = c("Output ($M)", "GDP ($M)", "Employment (Jobs)", "Wages ($M)"),
+  Metric = c("Output ($M)", "GDP ($M)", "Employment (Jobs)", "Wages ($M)", "Tax Revenue ($M)"),
   Direct = c(
     round(direct_output, 2),
     round(direct_gdp, 2),
     round(direct_employment, 0),
-    round(direct_wages, 2)
+    round(direct_wages, 2),
+    round(direct_tax, 2)
   ),
   Indirect = c(
     round(indirect_output, 2),
     round(indirect_gdp, 2),
     round(indirect_employment, 0),
-    round(indirect_wages, 2)
+    round(indirect_wages, 2),
+    round(indirect_tax, 2)
   ),
   Induced = c(
     round(induced_output, 2),
     round(induced_gdp, 2),
     round(induced_employment, 0),
-    round(induced_wages, 2)
+    round(induced_wages, 2),
+    round(induced_tax, 2)
   ),
   Total = c(
     round(total_output, 2),
     round(total_gdp, 2),
     round(total_employment, 0),
-    round(total_wages, 2)
+    round(total_wages, 2),
+    round(total_tax, 2)
   ),
   Multiplier = c(
     round(type2_output, 3),
     round(total_gdp / direct_gdp, 3),
     round(total_employment / direct_employment, 3),
-    round(total_wages / direct_wages, 3)
+    round(total_wages / direct_wages, 3),
+    round(total_tax / direct_tax, 3)
   ),
   stringsAsFactors = FALSE
 )

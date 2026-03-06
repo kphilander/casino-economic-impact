@@ -227,6 +227,11 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     wage_coef[is.na(wage_coef)] <- 0
     wage_coef[is.infinite(wage_coef)] <- 0
 
+    # Tax coefficient (taxes on production & imports per $ output)
+    tax_coef <- V002 / g
+    tax_coef[is.na(tax_coef)] <- 0
+    tax_coef[is.infinite(tax_coef)] <- 0
+
     # Type I VA Multipliers
     type1_va <- as.numeric(va_coef %*% L)
     names(type1_va) <- common_ind
@@ -234,6 +239,10 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     # Type I Wage Multipliers
     type1_wage <- as.numeric(wage_coef %*% L)
     names(type1_wage) <- common_ind
+
+    # Type I Tax Multipliers
+    type1_tax <- as.numeric(tax_coef %*% L)
+    names(type1_tax) <- common_ind
 
     # ========================================
     # Type II Multipliers (with induced effects)
@@ -288,6 +297,11 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     wage_coef_bar <- c(wage_coef, 0)
     type2_wage <- as.numeric(wage_coef_bar %*% L_type2)[1:n]
     names(type2_wage) <- common_ind
+
+    # Type II Tax Multipliers
+    tax_coef_bar <- c(tax_coef, 0)
+    type2_tax <- as.numeric(tax_coef_bar %*% L_type2)[1:n]
+    names(type2_tax) <- common_ind
 
     # ========================================
     # Employment Multipliers (true employment-weighted)
@@ -358,17 +372,20 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
           # Direct coefficients
           Direct_VA_Coef = round(va_coef[sector], 6),
           Direct_Wage_Coef = round(wage_coef[sector], 6),
+          Direct_Tax_Coef = round(tax_coef[sector], 6),
           Industry_Output_M = round(g[sector] / 1e6, 2),
 
           # Type I multipliers
           Type_I_Output = round(type1_output[sector], 4),
           Type_I_VA = round(type1_va[sector], 4),
           Type_I_Wage = round(type1_wage[sector], 4),
+          Type_I_Tax = round(type1_tax[sector], 4),
 
           # Type II multipliers
           Type_II_Output = round(type2_output[sector], 4),
           Type_II_VA = round(type2_va[sector], 4),
           Type_II_Wage = round(type2_wage[sector], 4),
+          Type_II_Tax = round(type2_tax[sector], 4),
 
           # Employment multipliers (true employment-weighted)
           Type_I_Emp = round(type1_emp[sector], 4),

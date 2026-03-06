@@ -1,0 +1,971 @@
+{
+  "_metadata": {
+    "description": "US State Gaming Tax Rates for Commercial Casinos",
+    "compiled": "2025-05",
+    "sources": [
+      "American Gaming Association - State of the States reports",
+      "Individual state gaming commission websites",
+      "Tax Foundation state gambling tax rate compilations",
+      "State statute references as noted per entry"
+    ],
+    "notes": [
+      "Rates reflect commercial casino GGR taxes as of late 2024 / early 2025 legislative sessions.",
+      "Tribal casino rates are compact-negotiated and vary by tribe; only noted here, not itemized.",
+      "For tiered states, an effective_rate_estimate is provided as a blended approximation.",
+      "Local taxes listed are the most common; some jurisdictions may differ.",
+      "Some states operate state-owned/managed casinos where the state retains revenue rather than taxing a private operator.",
+      "iGaming and sports betting rates are excluded unless noted."
+    ]
+  },
+  "states": [
+    {
+      "state": "Nevada",
+      "abbrev": "NV",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "base_rate": 0.0675,
+        "description": "6.75% of GGR (all game types)"
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Counties may levy additional fees; Clark County (Las Vegas) charges no additional GGR tax but has a county license fee structure. No significant local GGR surcharge.",
+      "effective_rate_estimate": 0.0675,
+      "source_year": 2024,
+      "statute_ref": "NRS 463.370"
+    },
+    {
+      "state": "New Jersey",
+      "abbrev": "NJ",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "base_rate": 0.085,
+        "investment_alternative_tax": 0.0125,
+        "community_investment_alternative": 0.025,
+        "total_effective": 0.0975,
+        "description": "8.5% state GGR tax, plus 1.25% investment alternative tax (reinvestment obligation), plus 2.5% for community investment alternative (CRA). Internet gaming taxed at 17.5% + 2.5% CRA."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Atlantic City receives payments in lieu of property taxes (PILOT). The 1.25% investment alternative and 2.5% community investment alternative effectively bring total to ~12.25% for brick-and-mortar.",
+      "effective_rate_estimate": 0.0975,
+      "source_year": 2024,
+      "statute_ref": "N.J.S.A. 5:12-144"
+    },
+    {
+      "state": "Pennsylvania",
+      "abbrev": "PA",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "split_game_type",
+      "category": "commercial_slots",
+      "rates": {
+        "slots_rate": 0.54,
+        "table_games_rate": 0.16,
+        "igaming_slots_rate": 0.54,
+        "igaming_table_rate": 0.16,
+        "sports_betting_rate": 0.36,
+        "description": "54% on slot machine revenue, 16% on table game revenue. Highest slot tax rate in the US for full-scale commercial casinos."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "Host municipalities receive 2% of slot revenue and 2% of table game revenue (included in, not on top of, state rates). An additional 2% local share tax on slots. Economic development and tourism fund gets 5% of slots.",
+      "effective_rate_estimate": 0.42,
+      "source_year": 2024,
+      "statute_ref": "4 Pa.C.S. Section 13A62"
+    },
+    {
+      "state": "Illinois",
+      "abbrev": "IL",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "tiered",
+      "category": "commercial_flat",
+      "rates": {
+        "description": "Graduated tax on adjusted gross receipts (AGR). Rates restructured in 2019 (P.A. 101-0031). Chicago casino has a different/higher structure."
+      },
+      "tiers": [
+        {"min": 0, "max": 25000000, "rate": 0.15},
+        {"min": 25000000, "max": 50000000, "rate": 0.225},
+        {"min": 50000000, "max": 75000000, "rate": 0.275},
+        {"min": 75000000, "max": 100000000, "rate": 0.325},
+        {"min": 100000000, "max": 150000000, "rate": 0.375},
+        {"min": 150000000, "max": 200000000, "rate": 0.40},
+        {"min": 200000000, "max": null, "rate": 0.50}
+      ],
+      "slot_table_split": false,
+      "local_tax_notes": "Host community receives additional share. Municipalities and counties each get a portion. The City of Chicago casino faces surcharges: an additional 3.5% privilege tax on top of the graduated state tax, making the top marginal rate effectively 53.5% for the Chicago casino.",
+      "effective_rate_estimate": 0.40,
+      "source_year": 2024,
+      "statute_ref": "230 ILCS 10/13"
+    },
+    {
+      "state": "Indiana",
+      "abbrev": "IN",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "tiered",
+      "category": "commercial_flat",
+      "rates": {
+        "description": "Graduated wagering tax on adjusted gross receipts."
+      },
+      "tiers": [
+        {"min": 0, "max": 25000000, "rate": 0.15},
+        {"min": 25000000, "max": 50000000, "rate": 0.20},
+        {"min": 50000000, "max": 75000000, "rate": 0.25},
+        {"min": 75000000, "max": 150000000, "rate": 0.30},
+        {"min": 150000000, "max": null, "rate": 0.35}
+      ],
+      "slot_table_split": false,
+      "local_tax_notes": "Supplemental wagering tax of 3.5% on AGR also applies. County/city admission taxes were eliminated in 2021 and replaced with a supplemental tax structure.",
+      "effective_rate_estimate": 0.32,
+      "source_year": 2024,
+      "statute_ref": "IC 4-33-13"
+    },
+    {
+      "state": "Iowa",
+      "abbrev": "IA",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "tiered",
+      "category": "commercial_flat",
+      "rates": {
+        "description": "Graduated gaming tax on adjusted gross revenues."
+      },
+      "tiers": [
+        {"min": 0, "max": 1000000, "rate": 0.05},
+        {"min": 1000000, "max": 3000000, "rate": 0.10},
+        {"min": 3000000, "max": null, "rate": 0.22}
+      ],
+      "slot_table_split": false,
+      "local_tax_notes": "No significant additional local gaming tax. Local communities receive distributions from the state gaming fund.",
+      "effective_rate_estimate": 0.22,
+      "source_year": 2024,
+      "statute_ref": "Iowa Code 99F.11"
+    },
+    {
+      "state": "Michigan",
+      "abbrev": "MI",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "base_rate": 0.0835,
+        "description": "8.1% state wagering tax on AGR for Detroit commercial casinos, plus 0.25% for the Michigan Agriculture Equine Industry Development Fund (total 8.35% state). Municipal wagering tax is additional."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "City of Detroit levies an additional 10.9% municipal wagering tax (revised from 12.1% in 2020s). Total effective rate approximately 19.25%. Detroit casinos also pay a development agreement tax. Tribal casinos have separate compact-negotiated rates (typically 8-12% of net win).",
+      "effective_rate_estimate": 0.1925,
+      "source_year": 2024,
+      "statute_ref": "MCL 432.212"
+    },
+    {
+      "state": "Mississippi",
+      "abbrev": "MS",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "tiered",
+      "category": "commercial_flat",
+      "rates": {
+        "description": "Graduated gross revenue fee on gaming revenue."
+      },
+      "tiers": [
+        {"min": 0, "max": 50000, "rate": 0.04},
+        {"min": 50000, "max": 134000, "rate": 0.06},
+        {"min": 134000, "max": null, "rate": 0.08}
+      ],
+      "slot_table_split": false,
+      "local_tax_notes": "Municipalities and counties can levy up to an additional 4% combined (typically 3.2% municipal + 0.8% county). Total effective rate typically 12% in most jurisdictions.",
+      "effective_rate_estimate": 0.12,
+      "source_year": 2024,
+      "statute_ref": "Miss. Code Ann. 75-76-177"
+    },
+    {
+      "state": "Missouri",
+      "abbrev": "MO",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "base_rate": 0.21,
+        "description": "21% of adjusted gross receipts (AGR)."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Host city and county each receive a portion of the admission tax proceeds. An additional $2 per person admission fee applies (capped at $2 per excursion). Home dock cities and counties receive direct payments.",
+      "effective_rate_estimate": 0.21,
+      "source_year": 2024,
+      "statute_ref": "RSMo 313.822"
+    },
+    {
+      "state": "Ohio",
+      "abbrev": "OH",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "base_rate": 0.33,
+        "description": "33% of GGR for the 4 full-scale casinos. Racinos (VLTs at racetracks) taxed at a different structure."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Host cities receive a direct share from the 33% (roughly 5% of the 33% goes to the host city, with the remainder distributed to counties and the state). Racinos (7 video lottery terminal facilities) have revenues shared differently through the state lottery commission.",
+      "effective_rate_estimate": 0.33,
+      "source_year": 2024,
+      "statute_ref": "ORC 3772.30"
+    },
+    {
+      "state": "Colorado",
+      "abbrev": "CO",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "tiered",
+      "category": "commercial_flat",
+      "rates": {
+        "description": "Graduated gaming tax rate on adjusted gross proceeds (AGP). Rates were amended by Amendment 77 (2020) which removed bet limits and allowed new game types. The tax structure was adjusted for the post-Amendment 77 era."
+      },
+      "tiers": [
+        {"min": 0, "max": 2000000, "rate": 0.005},
+        {"min": 2000000, "max": 5000000, "rate": 0.02},
+        {"min": 5000000, "max": 8000000, "rate": 0.09},
+        {"min": 8000000, "max": 10000000, "rate": 0.11},
+        {"min": 10000000, "max": 13000000, "rate": 0.16},
+        {"min": 13000000, "max": null, "rate": 0.20}
+      ],
+      "slot_table_split": false,
+      "local_tax_notes": "Gaming tax revenue is distributed to the state historical fund, host communities (Black Hawk, Central City, Cripple Creek), and state general fund. Local device fees also apply.",
+      "effective_rate_estimate": 0.185,
+      "source_year": 2024,
+      "statute_ref": "C.R.S. 44-30-601"
+    },
+    {
+      "state": "Connecticut",
+      "abbrev": "CT",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "tribal",
+      "rates": {
+        "tribal_compact_rate": 0.25,
+        "description": "25% of slot revenue paid to the state under tribal compact (Mohegan Sun and Foxwoods). The compact guarantees this rate in exchange for exclusivity. Table games are not subject to the revenue-sharing payment."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "Tribal casinos are not subject to state or local taxes per se; the 25% is a compact-negotiated revenue-sharing payment on slot machines only. No state GGR tax on table games at tribal casinos.",
+      "effective_rate_estimate": 0.25,
+      "source_year": 2024,
+      "statute_ref": "Mohegan/Mashantucket Pequot Tribal-State Compacts"
+    },
+    {
+      "state": "Louisiana",
+      "abbrev": "LA",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "riverboat_rate": 0.215,
+        "land_based_harrahs_rate": 0.217,
+        "racino_slots_rate": 0.365,
+        "description": "Riverboat casinos: 21.5% of net gaming proceeds. Harrah's New Orleans (sole land-based): 21.7% minimum plus fixed annual payments. Racino slot facilities: 36.5% of net slot machine revenue."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Parishes receive portions of the state tax. Local governing authorities receive boarding fees for riverboat casinos. Specific parish-level distributions vary. New Orleans receives special allocations from Harrah's.",
+      "effective_rate_estimate": 0.215,
+      "source_year": 2024,
+      "statute_ref": "La. R.S. 27:93, 27:247"
+    },
+    {
+      "state": "Maryland",
+      "abbrev": "MD",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "split_game_type",
+      "category": "commercial_slots",
+      "rates": {
+        "slots_rate_varied": "Varies by facility: Most casinos pay between 40-61% on slots depending on license terms and facility. MGM National Harbor: 51% slots. Live! Casino: 61% slots (racino). Other casinos: 40-61%.",
+        "table_games_rate": 0.20,
+        "description": "Slot machine rates vary by facility and range from 40% to 61%. Table games taxed at 20% across all facilities. The high slot tax rates reflect Maryland's model where casinos were initially authorized primarily to fund education."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "Local impact grants to host communities. Revenue is constitutionally dedicated to the Education Trust Fund. Specific local distributions are set by statute for each licensed facility location.",
+      "effective_rate_estimate": 0.40,
+      "source_year": 2024,
+      "statute_ref": "Md. State Gov't Code 9-1A-27"
+    },
+    {
+      "state": "Massachusetts",
+      "abbrev": "MA",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "split_by_license",
+      "category": "commercial_flat",
+      "rates": {
+        "category_1_rate": 0.25,
+        "category_2_slots_rate": 0.49,
+        "description": "Category 1 (resort casinos, e.g., Encore Boston Harbor, MGM Springfield): 25% of GGR. Category 2 (slots-only parlors, e.g., Plainridge Park): 49% of GGR."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Host and surrounding community mitigation agreements provide additional local payments. 6.5% of Category 1 GGR goes to host community impact fees, 0.5-1% to surrounding communities.",
+      "effective_rate_estimate": 0.25,
+      "source_year": 2024,
+      "statute_ref": "M.G.L. c.23K s.55"
+    },
+    {
+      "state": "New York",
+      "abbrev": "NY",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "split_game_type",
+      "category": "commercial_slots",
+      "rates": {
+        "slots_rate": 0.45,
+        "table_games_rate": 0.10,
+        "vlt_rate": 0.385,
+        "description": "Commercial casinos (4 upstate): 45% on slot/electronic GGR, 10% on table game GGR. VLT/racino facilities (9): approximately 38.5-41% depending on facility (set by lottery division). Newly authorized downstate licenses (expected 2025-2027) may have higher rates."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "Host municipalities receive 10% of state tax revenue collected from the commercial casinos. Additional impact payments to counties. VLT/racino facilities have separate local distribution formulas. The 3 pending downstate NYC-area licenses will have substantial additional local commitments.",
+      "effective_rate_estimate": 0.37,
+      "source_year": 2024,
+      "statute_ref": "NY Rac. Pari-Mut. Wag. & Breed. Law Art. 13"
+    },
+    {
+      "state": "West Virginia",
+      "abbrev": "WV",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "split_game_type",
+      "category": "commercial_slots",
+      "rates": {
+        "racetrack_vlt_rate": 0.44,
+        "table_games_rate": 0.35,
+        "limited_vl_rate": 0.50,
+        "description": "Racetrack VLTs (racinos): 44% of net terminal income. Table games at racinos: 35% of GGR. Limited Video Lottery (bars/restaurants): 50% of net terminal income."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "County and municipality where the facility is located receive shares from the video lottery proceeds. Host county/city distributions are set by statute.",
+      "effective_rate_estimate": 0.38,
+      "source_year": 2024,
+      "statute_ref": "W. Va. Code 29-22A, 29-22C, 29-25"
+    },
+    {
+      "state": "Rhode Island",
+      "abbrev": "RI",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "state_operated",
+      "category": "commercial_slots",
+      "rates": {
+        "state_share_vlt": 0.611,
+        "technology_provider_share": 0.089,
+        "facility_operator_share": 0.30,
+        "table_games_state_share": 0.16,
+        "table_games_operator_share": 0.84,
+        "description": "State-operated model via Bally's Twin River and Tiverton. For VLTs/slots: state retains 61.1%, operator receives 30%, technology provider 8.9%. Table games: state receives 16%, operator keeps 84%. Effectively the highest slot 'tax' in the US but technically revenue-sharing."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "Host community (Lincoln, Tiverton) receives payments from state share. Local impact funds distributed by statute.",
+      "effective_rate_estimate": 0.51,
+      "source_year": 2024,
+      "statute_ref": "R.I. Gen. Laws 42-61.2"
+    },
+    {
+      "state": "Delaware",
+      "abbrev": "DE",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "state_operated",
+      "category": "commercial_slots",
+      "rates": {
+        "vlt_state_share": 0.435,
+        "table_games_rate": 0.155,
+        "description": "State-operated video lottery (3 racinos: Delaware Park, Dover Downs, Harrington). State retains approximately 43.5% of VLT revenue (after purses and vendor commissions). Table games taxed at 15.5% of GGR. Sports betting: 50% of proceeds."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "Revenue funds horse racing purses and state general fund. No additional local gaming tax; facility locations are state-licensed racetracks.",
+      "effective_rate_estimate": 0.375,
+      "source_year": 2024,
+      "statute_ref": "Del. Code Title 29, Ch. 48"
+    },
+    {
+      "state": "South Dakota",
+      "abbrev": "SD",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "base_rate": 0.09,
+        "description": "9% of adjusted gross revenue for Deadwood casinos. The tax was established with the legalization of gaming in Deadwood in 1989."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "City of Deadwood receives a direct allocation from gaming tax revenue. Lawrence County also receives distributions. Revenue funds historic preservation and the general fund.",
+      "effective_rate_estimate": 0.09,
+      "source_year": 2024,
+      "statute_ref": "SDCL 42-7B-28"
+    },
+    {
+      "state": "Maine",
+      "abbrev": "ME",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "split_by_facility",
+      "category": "commercial_slots",
+      "rates": {
+        "oxford_racino_slots_rate": 0.46,
+        "oxford_table_games_rate": 0.16,
+        "bangor_racino_slots_rate": 0.39,
+        "description": "Oxford Casino (racino): 46% on slot revenue, 16% on table game revenue. Hollywood Casino Bangor (racino): 39% on slot revenue. Rates differ by facility as per individual authorizing legislation."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "Host communities receive direct local revenue shares. Oxford: 1% of net slot revenue to host municipality. Additional distributions to the Fund for a Healthy Maine and general fund.",
+      "effective_rate_estimate": 0.39,
+      "source_year": 2024,
+      "statute_ref": "8 MRSA Ch. 31, 17 MRSA Ch. 14"
+    },
+    {
+      "state": "Arkansas",
+      "abbrev": "AR",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "tiered",
+      "category": "commercial_flat",
+      "rates": {
+        "description": "Graduated tax on net gaming receipts per Amendment 100 (2018)."
+      },
+      "tiers": [
+        {"min": 0, "max": 150000000, "rate": 0.13},
+        {"min": 150000000, "max": null, "rate": 0.20}
+      ],
+      "slot_table_split": false,
+      "local_tax_notes": "Host city receives 0.625% of net gaming receipts. Host county receives 0.375%. The Arkansas Racing Commission administers gaming.",
+      "effective_rate_estimate": 0.13,
+      "source_year": 2024,
+      "statute_ref": "Arkansas Constitution Amendment 100"
+    },
+    {
+      "state": "Arizona",
+      "abbrev": "AZ",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "compact_rates": "Tribal-state compacts negotiated individually. Revenue sharing typically 1-8% of Class III net win, with rates graduating based on volume. 2021 compacts expanded to allow sports betting and additional game types.",
+        "description": "No commercial casinos. All casino gaming operates under tribal compacts. The 2021 amended compacts include new revenue-sharing tiers."
+      },
+      "tiers": [
+        {"min": 0, "max": 25000000, "rate": 0.01},
+        {"min": 25000000, "max": 75000000, "rate": 0.03},
+        {"min": 75000000, "max": 100000000, "rate": 0.06},
+        {"min": 100000000, "max": null, "rate": 0.08}
+      ],
+      "slot_table_split": false,
+      "local_tax_notes": "Revenue sharing goes to the Arizona Benefits Fund, distributed to cities, towns, and counties for government services.",
+      "effective_rate_estimate": 0.08,
+      "source_year": 2024,
+      "statute_ref": "A.R.S. 5-601.02; Tribal-State Gaming Compacts"
+    },
+    {
+      "state": "Kansas",
+      "abbrev": "KS",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "state_owned_rate": 0.27,
+        "privilege_fee": 0.02,
+        "description": "State-owned casinos managed by private operators. The state receives 27% of GGR as gaming revenue, and the management company retains the rest per contract terms. An additional 2% privilege fee applies. Tribal casinos operate separately."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "The Kansas Lottery Commission operates the 4 state casinos. 3% of state share goes to Problem Gambling and Addictions Grant Fund. Host city counties receive 2-3% of GGR.",
+      "effective_rate_estimate": 0.27,
+      "source_year": 2024,
+      "statute_ref": "K.S.A. 74-8734"
+    },
+    {
+      "state": "Virginia",
+      "abbrev": "VA",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "tiered",
+      "category": "commercial_flat",
+      "rates": {
+        "description": "Graduated tax on adjusted gross revenue. Five casino licenses authorized (Bristol, Danville, Norfolk, Portsmouth, Richmond)."
+      },
+      "tiers": [
+        {"min": 0, "max": 200000000, "rate": 0.18},
+        {"min": 200000000, "max": 400000000, "rate": 0.23},
+        {"min": 400000000, "max": null, "rate": 0.30}
+      ],
+      "slot_table_split": false,
+      "local_tax_notes": "Host cities receive 6% of AGR (from the state tax, not additional). Problem gambling fund receives 0.8% of AGR. Virginia Lottery Board administers.",
+      "effective_rate_estimate": 0.18,
+      "source_year": 2024,
+      "statute_ref": "Va. Code 58.1-4124"
+    },
+    {
+      "state": "Nebraska",
+      "abbrev": "NE",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "base_rate": 0.20,
+        "description": "20% of GGR. Nebraska authorized casino gaming at licensed horse racetracks via Initiative 429/430/431 in 2020, effective 2022-2023. Six licensed locations."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "70% of tax revenue goes to the Property Tax Credit Cash Fund, 2.5% to Compulsive Gamblers Assistance Fund, 2.5% to General Fund, 25% to the county where the racetrack is located.",
+      "effective_rate_estimate": 0.20,
+      "source_year": 2024,
+      "statute_ref": "Neb. Rev. Stat. 9-1103"
+    },
+    {
+      "state": "Alabama",
+      "abbrev": "AL",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "none",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casino gaming. Poarch Band of Creek Indians operates 3 tribal casinos under IGRA Class II (no state compact for Class III). Electronic bingo authorized at some locations under disputed state law."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "No state gaming tax on tribal operations. Voluntary tribal contributions to local communities.",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "Alaska",
+      "abbrev": "AK",
+      "has_commercial": false,
+      "has_tribal": false,
+      "rate_structure": "none",
+      "category": "none",
+      "rates": {
+        "description": "No commercial or tribal casino gambling. Pull-tab gaming and charity gaming exist but no casino-scale operations."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "California",
+      "abbrev": "CA",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. Approximately 70 tribal casinos operate under individual compacts. Revenue-sharing trust fund contributions vary by tribe. Card rooms operate under different rules and are not casino-scale."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Tribal casino revenue-sharing payments go to the Revenue Sharing Trust Fund (RSTF) for non-gaming tribes and the Special Distribution Fund for local governments affected by tribal gaming.",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "Cal. Gov. Code 12012.85-12012.90"
+    },
+    {
+      "state": "Florida",
+      "abbrev": "FL",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "seminole_compact_rate": 0.12,
+        "pari_mutuel_slots_rate": 0.35,
+        "description": "The Seminole Tribe operates major casinos under a 2021 compact that provides guaranteed minimum payments to the state (~$500M/yr). Pari-mutuel facilities with authorized slot machines pay 35% of slot revenue. The 2021 compact grants the Seminole Tribe exclusive rights to sports betting statewide."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Compact revenue payments go to the state general revenue fund. Pari-mutuel slot facilities distribute taxes per county and state formula.",
+      "effective_rate_estimate": 0.12,
+      "source_year": 2024,
+      "statute_ref": "2021 Seminole Gaming Compact; Fla. Stat. 551"
+    },
+    {
+      "state": "Georgia",
+      "abbrev": "GA",
+      "has_commercial": false,
+      "has_tribal": false,
+      "rate_structure": "none",
+      "category": "none",
+      "rates": {
+        "description": "No commercial or tribal casino gambling. Lottery exists. Multiple legislative attempts to authorize casino gaming have not succeeded as of 2025."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "Hawaii",
+      "abbrev": "HI",
+      "has_commercial": false,
+      "has_tribal": false,
+      "rate_structure": "none",
+      "category": "none",
+      "rates": {
+        "description": "No gambling of any kind. Hawaii and Utah are the only two states that prohibit all forms of gambling."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "Idaho",
+      "abbrev": "ID",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. Tribal casinos operate under compacts. Limited gaming (bingo-style machines). The Coeur d'Alene and Shoshone-Bannock tribes operate facilities."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A - Tribal compact payments, not a traditional tax structure.",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "Idaho Code 67-429A"
+    },
+    {
+      "state": "Kentucky",
+      "abbrev": "KY",
+      "has_commercial": true,
+      "has_tribal": false,
+      "rate_structure": "split_game_type",
+      "category": "commercial_flat",
+      "rates": {
+        "slots_rate": 0.085,
+        "table_games_rate": 0.065,
+        "historical_horse_racing_rate": 0.015,
+        "description": "Kentucky authorized full casino gaming in 2023 (HB 551), effective 2025. Tax rates: 8.5% on slot revenue, 6.5% on table game revenue. Historical Horse Racing (HHR) machines at racetracks are taxed at a lower rate. Up to 9 locations at existing racetracks authorized."
+      },
+      "tiers": null,
+      "slot_table_split": true,
+      "local_tax_notes": "Host communities receive 1.5% of GGR. Revenue distributions fund the general fund and horse racing industry. Kentucky Horse Racing Commission oversees.",
+      "effective_rate_estimate": 0.075,
+      "source_year": 2025,
+      "statute_ref": "KRS Chapter 239"
+    },
+    {
+      "state": "Minnesota",
+      "abbrev": "MN",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. 18 tribal casinos operated by 11 tribes under compacts. Minnesota tribal compacts do not include revenue-sharing payments to the state."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Tribes make voluntary contributions to local communities but are not required to pay state or local taxes on gaming revenue.",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "Minn. Stat. 3.9221"
+    },
+    {
+      "state": "Montana",
+      "abbrev": "MT",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "none",
+      "rates": {
+        "vgt_tax": 0.15,
+        "description": "No full-scale commercial casinos. Montana allows video gambling terminals (VGTs) in bars, restaurants, and taverns - limited to 20 machines per location. 15% state tax on net income from machines. This is small-scale gaming, not comparable to casino operations."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Local jurisdictions receive portions of the VGT tax. Tribal casinos operate separately under compacts.",
+      "effective_rate_estimate": 0.15,
+      "source_year": 2024,
+      "statute_ref": "MCA 23-5-610"
+    },
+    {
+      "state": "New Hampshire",
+      "abbrev": "NH",
+      "has_commercial": false,
+      "has_tribal": false,
+      "rate_structure": "none",
+      "category": "none",
+      "rates": {
+        "description": "No commercial casinos. Charitable gaming exists. Multiple casino proposals have been defeated. Sports betting is legal (online only)."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "New Mexico",
+      "abbrev": "NM",
+      "has_commercial": true,
+      "has_tribal": true,
+      "rate_structure": "flat",
+      "category": "commercial_flat",
+      "rates": {
+        "racino_rate": 0.26,
+        "fraternal_org_rate": 0.26,
+        "description": "Racetrack casinos (racinos): 26% of net take. Fraternal/veterans organizations with gaming machines: 26% of net take. Tribal casinos operate under separate compacts with revenue sharing of 3-8.5%."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Distributions to the state general fund, municipalities with racetracks, and the horse racing industry.",
+      "effective_rate_estimate": 0.26,
+      "source_year": 2024,
+      "statute_ref": "NMSA 60-2E-26"
+    },
+    {
+      "state": "North Carolina",
+      "abbrev": "NC",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. The Eastern Band of Cherokee Indians operates Harrah's Cherokee and Harrah's Cherokee Valley River under a tribal-state compact. Catawba Two Kings Casino in Kings Mountain also operates under federal trust land. Revenue-sharing details are compact-specific."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Tribal compact payments to the state and affected local communities.",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N.C.G.S. 147-12(14)"
+    },
+    {
+      "state": "North Dakota",
+      "abbrev": "ND",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "none",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. Tribal casinos operate under compacts. Charitable gaming and limited electronic pull-tabs exist. No state GGR tax on tribal gaming."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "Oklahoma",
+      "abbrev": "OK",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. Over 130 tribal gaming facilities. 2020 renewed compacts establish exclusivity fee rates based on game type.",
+        "electronic_games_rate_range": "4-6%",
+        "table_games_rate_range": "10%",
+        "new_games_rate": "10%"
+      },
+      "tiers": [
+        {"game_type": "electronic_games", "description": "Electronic amusement games", "rate": 0.045},
+        {"game_type": "table_games_nonhouse", "description": "Non-house-banked card games", "rate": 0.04},
+        {"game_type": "table_games_house", "description": "House-banked card/table games", "rate": 0.10},
+        {"game_type": "new_games", "description": "Newly authorized games", "rate": 0.10}
+      ],
+      "slot_table_split": true,
+      "local_tax_notes": "Exclusivity fees are distributed to the state Education Reform Revolving Fund (88%) and the General Revenue Fund (12%). No local tax applies.",
+      "effective_rate_estimate": 0.06,
+      "source_year": 2024,
+      "statute_ref": "Oklahoma Model Tribal Gaming Compact; 3A O.S. 280-281"
+    },
+    {
+      "state": "Oregon",
+      "abbrev": "OR",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. Nine tribal casinos operate under compacts. Oregon Lottery operates VLTs at some locations but these are lottery products, not casino gaming. Tribal compacts do not require revenue sharing with the state."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Tribal casinos make voluntary contributions to local community funds. Oregon Lottery retains proceeds from its own VLT operations.",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "Tribal-State Gaming Compacts"
+    },
+    {
+      "state": "South Carolina",
+      "abbrev": "SC",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "none",
+      "category": "none",
+      "rates": {
+        "description": "No commercial or full-scale tribal casino gambling. The Catawba Nation is developing a casino in Kings Mountain, NC (across the border). Video poker was banned in 2000."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "Tennessee",
+      "abbrev": "TN",
+      "has_commercial": false,
+      "has_tribal": false,
+      "rate_structure": "none",
+      "category": "none",
+      "rates": {
+        "description": "No commercial or tribal casino gambling. Sports betting is legal (online only, 20% GGR tax rate), but no casino gaming authorized."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "Texas",
+      "abbrev": "TX",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "none",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. The Kickapoo Traditional Tribe operates a small gaming facility. Multiple legislative efforts to legalize casino gaming have failed. The Tigua tribe's casino (Speaking Rock) has been subject to ongoing legal disputes."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "Utah",
+      "abbrev": "UT",
+      "has_commercial": false,
+      "has_tribal": false,
+      "rate_structure": "none",
+      "category": "none",
+      "rates": {
+        "description": "No gambling of any kind. Utah Constitution Article VI, Section 27 prohibits gambling. Along with Hawaii, one of two states that ban all forms of gambling."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "Utah Const. Art. VI, Sec. 27"
+    },
+    {
+      "state": "Vermont",
+      "abbrev": "VT",
+      "has_commercial": false,
+      "has_tribal": false,
+      "rate_structure": "none",
+      "category": "none",
+      "rates": {
+        "description": "No commercial or tribal casino gambling. State lottery exists."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    },
+    {
+      "state": "Washington",
+      "abbrev": "WA",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. 29 tribes operate casinos under compacts. Washington tribal compacts traditionally do not include state revenue-sharing. Non-tribal card rooms exist but are limited-stakes."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Tribes negotiate local impact mitigation agreements with affected counties/cities.",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "RCW 9.46; Tribal-State Compacts"
+    },
+    {
+      "state": "Wisconsin",
+      "abbrev": "WI",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. 11 tribes operate casinos under compacts. Wisconsin compacts require modest revenue-sharing payments to the state."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "Tribal gaming payments to the state general fund (amounts vary by compact).",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "Tribal-State Gaming Compacts"
+    },
+    {
+      "state": "Wyoming",
+      "abbrev": "WY",
+      "has_commercial": false,
+      "has_tribal": true,
+      "rate_structure": "tribal_compact",
+      "category": "tribal",
+      "rates": {
+        "description": "No commercial casinos. The Wind River Reservation (Eastern Shoshone and Northern Arapaho tribes) operates casino gaming under compact. Wyoming did not have a tribal-state compact for traditional gaming until relatively recently."
+      },
+      "tiers": null,
+      "slot_table_split": false,
+      "local_tax_notes": "N/A",
+      "effective_rate_estimate": 0.0,
+      "source_year": 2024,
+      "statute_ref": "N/A"
+    }
+  ]
+}

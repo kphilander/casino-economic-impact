@@ -1,0 +1,380 @@
+{
+  "_metadata": {
+    "description": "Employment-based tax rates for economic impact modeling",
+    "sources": {
+      "suta": "US DOL ETA, Calendar Year 2024 Actual Average Employer Contribution Rates",
+      "sdi_pfml": "State workforce agencies, EY, payroll provider compilations (2025)",
+      "household": "BEA SAINC50 (personal current taxes) / SAINC4 (wages and salaries), 2024"
+    },
+    "methodology": {
+      "payroll_taxes": "FICA employer (Social Security 6.2% on first $176,100 + Medicare 1.45% uncapped) + FUTA (0.6% on first $7,000) + SUTA (state avg rate on state wage base) + SDI/PFML where applicable. Applied to wages by effect type, with per-employee caps converted using average wage / FTE count.",
+      "household_taxes": "BEA personal current taxes include federal/state/local income taxes, motor vehicle licenses, and personal property taxes. Ratio applied to wages by effect type. Does NOT include real estate property taxes or sales taxes (those are TOPI) or FICA (separate)."
+    }
+  },
+  "federal": {
+    "fica_ss_rate": 0.062,
+    "fica_ss_wage_cap": 176100,
+    "fica_medicare_rate": 0.0145,
+    "futa_rate": 0.006,
+    "futa_wage_base": 7000
+  },
+  "states": {
+    "Alaska": {
+      "suta_avg_rate": 0.0154,
+      "suta_wage_base": 49700,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.1631
+    },
+    "Alabama": {
+      "suta_avg_rate": 0.0051,
+      "suta_wage_base": 8000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.1995
+    },
+    "Arkansas": {
+      "suta_avg_rate": 0.0087,
+      "suta_wage_base": 7000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.1961
+    },
+    "Arizona": {
+      "suta_avg_rate": 0.0122,
+      "suta_wage_base": 8000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2027
+    },
+    "California": {
+      "suta_avg_rate": 0.0322,
+      "suta_wage_base": 7000,
+      "sdi_employer_rate": 0,
+      "pfml_employer_rate": 0,
+      "household_tax_ratio": 0.2796
+    },
+    "Colorado": {
+      "suta_avg_rate": 0.0187,
+      "suta_wage_base": 23800,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": 0.0045,
+      "household_tax_ratio": 0.2273
+    },
+    "Connecticut": {
+      "suta_avg_rate": 0.0192,
+      "suta_wage_base": 25000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": 0,
+      "household_tax_ratio": 0.3468
+    },
+    "District of Columbia": {
+      "suta_avg_rate": 0.0221,
+      "suta_wage_base": 9000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": 0.0075,
+      "household_tax_ratio": 0.1365
+    },
+    "Delaware": {
+      "suta_avg_rate": 0.006,
+      "suta_wage_base": 10500,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": 0.008,
+      "household_tax_ratio": 0.2442
+    },
+    "Florida": {
+      "suta_avg_rate": 0.0083,
+      "suta_wage_base": 7000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.281
+    },
+    "Georgia": {
+      "suta_avg_rate": 0.0108,
+      "suta_wage_base": 9500,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2148
+    },
+    "Hawaii": {
+      "suta_avg_rate": 0.014,
+      "suta_wage_base": 59100,
+      "sdi_employer_rate": 0.005,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.245
+    },
+    "Iowa": {
+      "suta_avg_rate": 0.0097,
+      "suta_wage_base": 38200,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2112
+    },
+    "Idaho": {
+      "suta_avg_rate": 0.0078,
+      "suta_wage_base": 53500,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.242
+    },
+    "Illinois": {
+      "suta_avg_rate": 0.028,
+      "suta_wage_base": 13590,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2447
+    },
+    "Indiana": {
+      "suta_avg_rate": 0.0132,
+      "suta_wage_base": 9500,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2063
+    },
+    "Kansas": {
+      "suta_avg_rate": 0.0084,
+      "suta_wage_base": 14000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2219
+    },
+    "Kentucky": {
+      "suta_avg_rate": 0.0158,
+      "suta_wage_base": 11400,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2005
+    },
+    "Louisiana": {
+      "suta_avg_rate": 0.013,
+      "suta_wage_base": 7700,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.1943
+    },
+    "Massachusetts": {
+      "suta_avg_rate": 0.0204,
+      "suta_wage_base": 15000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": 0.0042,
+      "household_tax_ratio": 0.2839
+    },
+    "Maryland": {
+      "suta_avg_rate": 0.0136,
+      "suta_wage_base": 8500,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2826
+    },
+    "Maine": {
+      "suta_avg_rate": 0.02,
+      "suta_wage_base": 12000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": 0.005,
+      "household_tax_ratio": 0.2322
+    },
+    "Michigan": {
+      "suta_avg_rate": 0.0275,
+      "suta_wage_base": 9500,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2192
+    },
+    "Minnesota": {
+      "suta_avg_rate": 0.009,
+      "suta_wage_base": 42000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2439
+    },
+    "Missouri": {
+      "suta_avg_rate": 0.0108,
+      "suta_wage_base": 10000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2059
+    },
+    "Mississippi": {
+      "suta_avg_rate": 0.0041,
+      "suta_wage_base": 14000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.191
+    },
+    "Montana": {
+      "suta_avg_rate": 0.0115,
+      "suta_wage_base": 43000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2954
+    },
+    "North Carolina": {
+      "suta_avg_rate": 0.0065,
+      "suta_wage_base": 31400,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.219
+    },
+    "North Dakota": {
+      "suta_avg_rate": 0.007,
+      "suta_wage_base": 43800,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.1821
+    },
+    "Nebraska": {
+      "suta_avg_rate": 0.0087,
+      "suta_wage_base": 9000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2106
+    },
+    "New Hampshire": {
+      "suta_avg_rate": 0.0057,
+      "suta_wage_base": 14000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2391
+    },
+    "New Jersey": {
+      "suta_avg_rate": 0.0211,
+      "suta_wage_base": 42300,
+      "sdi_employer_rate": 0.005,
+      "pfml_employer_rate": 0,
+      "household_tax_ratio": 0.2977
+    },
+    "New Mexico": {
+      "suta_avg_rate": 0.0087,
+      "suta_wage_base": 31700,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.1972
+    },
+    "Nevada": {
+      "suta_avg_rate": 0.017,
+      "suta_wage_base": 40600,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2287
+    },
+    "New York": {
+      "suta_avg_rate": 0.0309,
+      "suta_wage_base": 12500,
+      "sdi_employer_rate": 0.005,
+      "pfml_employer_rate": 0,
+      "household_tax_ratio": 0.2844
+    },
+    "Ohio": {
+      "suta_avg_rate": 0.0245,
+      "suta_wage_base": 9000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2069
+    },
+    "Oklahoma": {
+      "suta_avg_rate": 0.0084,
+      "suta_wage_base": 27000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2051
+    },
+    "Oregon": {
+      "suta_avg_rate": 0.0195,
+      "suta_wage_base": 52800,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": 0.004,
+      "household_tax_ratio": 0.2393
+    },
+    "Pennsylvania": {
+      "suta_avg_rate": 0.034,
+      "suta_wage_base": 10000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2447
+    },
+    "Rhode Island": {
+      "suta_avg_rate": 0.0223,
+      "suta_wage_base": 29200,
+      "sdi_employer_rate": 0,
+      "pfml_employer_rate": 0,
+      "household_tax_ratio": 0.2531
+    },
+    "South Carolina": {
+      "suta_avg_rate": 0.0073,
+      "suta_wage_base": 14000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2281
+    },
+    "South Dakota": {
+      "suta_avg_rate": 0.0035,
+      "suta_wage_base": 15000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2059
+    },
+    "Tennessee": {
+      "suta_avg_rate": 0.0092,
+      "suta_wage_base": 7000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.1772
+    },
+    "Texas": {
+      "suta_avg_rate": 0.0146,
+      "suta_wage_base": 9000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.193
+    },
+    "Utah": {
+      "suta_avg_rate": 0.0061,
+      "suta_wage_base": 47000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2186
+    },
+    "Virginia": {
+      "suta_avg_rate": 0.0057,
+      "suta_wage_base": 8000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2459
+    },
+    "Vermont": {
+      "suta_avg_rate": 0.0194,
+      "suta_wage_base": 14300,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2508
+    },
+    "Washington": {
+      "suta_avg_rate": 0.0124,
+      "suta_wage_base": 68500,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": 0.002624,
+      "household_tax_ratio": 0.2005
+    },
+    "Wisconsin": {
+      "suta_avg_rate": 0.015,
+      "suta_wage_base": 14000,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2318
+    },
+    "West Virginia": {
+      "suta_avg_rate": 0.0237,
+      "suta_wage_base": 9521,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2066
+    },
+    "Wyoming": {
+      "suta_avg_rate": 0.0089,
+      "suta_wage_base": 30900,
+      "sdi_employer_rate": null,
+      "pfml_employer_rate": null,
+      "household_tax_ratio": 0.2823
+    }
+  }
+}

@@ -51,6 +51,14 @@
     </script>
   </head>
   <body>
+    <!-- Hidden Netlify form for bot detection (React submits via fetch) -->
+    <form name="feature-request" netlify netlify-honeypot="bot-field" hidden>
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <select name="type"><option>Feature Request</option><option>Data Issue</option><option>Other</option></select>
+      <textarea name="message"></textarea>
+    </form>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

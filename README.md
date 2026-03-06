@@ -93,12 +93,6 @@ source("09_employment_multipliers_2023.R")   # Merge with employment
 
 3. **Value Added vs Gross Output:** Employment coefficients use Value Added (GDP) as denominator, not Gross Output, which would overstate the economic base.
 
-## Citation
-
-If you use this methodology in research, please cite:
-
-> Philander, K.S. (2024). Casino Economic Impact Calculator Methodology. GP Consulting. https://github.com/kphilander/casino-economic-impact
-
 ## License
 
 MIT

@@ -133,3 +133,15 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 22px;
   }
 }
+
+/* Subtle attention pulse for floating CTA */
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-bounce-subtle {
+  animation: bounce-subtle 2.5s ease-in-out infinite;
+}
+.animate-bounce-subtle:hover {
+  animation: none;
+}

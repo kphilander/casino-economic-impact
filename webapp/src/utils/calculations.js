@@ -416,6 +416,78 @@ function applyTieredTax(amount, tiers) {
 }
 
 /**
+ * Calculate payroll taxes for a given wages amount and employment count.
+ *
+ * Components (all employer-side):
+ *   FICA: Social Security (6.2% on first $176,100/employee) + Medicare (1.45% uncapped)
+ *   FUTA: 0.6% on first $7,000/employee
+ *   SUTA: state avg rate on state wage base per employee
+ *   SDI:  state employer rate on wages (where applicable)
+ *   PFML: state employer rate on wages (where applicable)
+ *
+ * @param {number} wages - Total wages in $M
+ * @param {number} ftes - Number of FTE jobs
+ * @param {object} stateRates - State entry from employmentTaxRates.json
+ * @param {object} federal - Federal constants from employmentTaxRates.json
+ * @returns {number} Total payroll taxes in $M
+ */
+export function calculatePayrollTax(wages, ftes, stateRates, federal) {
+  if (!wages || wages <= 0 || !ftes || ftes <= 0 || !stateRates || !federal) return 0;
+
+  const wagesDollars = wages * 1e6;
+  const avgWage = wagesDollars / ftes;
+
+  // FICA Social Security: 6.2% on min(avgWage, cap) per employee
+  const ssTaxable = Math.min(avgWage, federal.fica_ss_wage_cap);
+  const ficaSS = ssTaxable * federal.fica_ss_rate * ftes;
+
+  // FICA Medicare: 1.45% on all wages (uncapped)
+  const ficaMedicare = wagesDollars * federal.fica_medicare_rate;
+
+  // FUTA: 0.6% on first $7,000 per employee
+  const futaTaxable = Math.min(avgWage, federal.futa_wage_base);
+  const futa = futaTaxable * federal.futa_rate * ftes;
+
+  // SUTA: state avg rate on min(avgWage, state wage base) per employee
+  let suta = 0;
+  if (stateRates.suta_avg_rate && stateRates.suta_wage_base) {
+    const sutaTaxable = Math.min(avgWage, stateRates.suta_wage_base);
+    suta = sutaTaxable * stateRates.suta_avg_rate * ftes;
+  }
+
+  // SDI employer contribution (where applicable)
+  let sdi = 0;
+  if (stateRates.sdi_employer_rate && stateRates.sdi_employer_rate > 0) {
+    sdi = wagesDollars * stateRates.sdi_employer_rate;
+  }
+
+  // PFML employer contribution (where applicable)
+  let pfml = 0;
+  if (stateRates.pfml_employer_rate && stateRates.pfml_employer_rate > 0) {
+    pfml = wagesDollars * stateRates.pfml_employer_rate;
+  }
+
+  return (ficaSS + ficaMedicare + futa + suta + sdi + pfml) / 1e6;
+}
+
+/**
+ * Calculate household taxes using BEA personal current tax ratio.
+ * Applies the state-specific ratio of (personal current taxes / wages) to wages.
+ *
+ * Includes: federal + state + local income taxes, motor vehicle licenses,
+ * personal property taxes. Does NOT include real estate taxes, sales taxes
+ * (those are TOPI), or FICA (separate payroll category).
+ *
+ * @param {number} wages - Wages in $M
+ * @param {object} stateRates - State entry from employmentTaxRates.json
+ * @returns {number} Household taxes in $M
+ */
+export function calculateHouseholdTax(wages, stateRates) {
+  if (!wages || wages <= 0 || !stateRates || !stateRates.household_tax_ratio) return 0;
+  return wages * stateRates.household_tax_ratio;
+}
+
+/**
  * Format number with commas and decimal places
  */
 export function formatNumber(value, decimals = 1) {

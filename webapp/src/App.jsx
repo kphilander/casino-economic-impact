@@ -3,10 +3,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
-import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock } from 'lucide-react';
+import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug } from 'lucide-react';
 import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
-import { calculateCombinedImpact, calculateGamingTax, formatNumber, formatCurrency, formatJobs } from './utils/calculations';
+import employmentTaxRatesData from './data/employmentTaxRates.json';
+import { calculateCombinedImpact, calculateGamingTax, calculatePayrollTax, calculateHouseholdTax, formatNumber, formatCurrency, formatJobs } from './utils/calculations';
 import {
   validateLicense,
   canDownloadForProperty,
@@ -544,6 +545,8 @@ export default function App() {
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isGeneratingPPTX, setIsGeneratingPPTX] = useState(false);
+  const [showFeatureModal, setShowFeatureModal] = useState(false);
+  const [featureSubmitted, setFeatureSubmitted] = useState(false);
 
   // License/Tier state
   const [userTier, setUserTier] = useState('free'); // 'free' | 'pro'
@@ -679,7 +682,9 @@ export default function App() {
   // Gaming tax calculation (separate from TOPI in IO model)
   const stateTaxConfig = gamingTaxRatesData.rates[state];
   const gamingTaxResult = useMemo(() => {
-    if (!stateTaxConfig || !stateTaxConfig.hasCommercial) return null;
+    const hasCommercial = stateTaxConfig && stateTaxConfig.hasCommercial;
+    // Allow calculation if state has commercial gaming OR user provided a custom rate
+    if (!hasCommercial && (gamingTaxCustomRate == null || gamingTaxCustomRate === '')) return null;
     const ggr = inputMode === 'total' ? (revenues.total || 0) : (revenues.gaming || 0);
     if (ggr <= 0) return null;
 
@@ -690,6 +695,32 @@ export default function App() {
     const effectiveRate = ggr > 0 ? gamingTax / ggr : 0;
     return { amount: gamingTax, effectiveRate, ggr };
   }, [revenues, state, inputMode, gamingTaxCustomRate, slotRevenuePct, stateTaxConfig]);
+
+  // Payroll and household tax calculations
+  const stateEmploymentTaxRates = employmentTaxRatesData.states[state];
+  const payrollTaxResult = useMemo(() => {
+    if (!results || !stateEmploymentTaxRates) return null;
+    const federal = employmentTaxRatesData.federal;
+    const w = results.totals.wages;
+    const e = results.totals.employment;
+    return {
+      direct: calculatePayrollTax(w.direct, e.direct, stateEmploymentTaxRates, federal),
+      indirect: calculatePayrollTax(w.indirect, e.indirect, stateEmploymentTaxRates, federal),
+      induced: calculatePayrollTax(w.induced, e.induced, stateEmploymentTaxRates, federal),
+      get total() { return this.direct + this.indirect + this.induced; }
+    };
+  }, [results, state, stateEmploymentTaxRates]);
+
+  const householdTaxResult = useMemo(() => {
+    if (!results || !stateEmploymentTaxRates) return null;
+    const w = results.totals.wages;
+    return {
+      direct: calculateHouseholdTax(w.direct, stateEmploymentTaxRates),
+      indirect: calculateHouseholdTax(w.indirect, stateEmploymentTaxRates),
+      induced: calculateHouseholdTax(w.induced, stateEmploymentTaxRates),
+      get total() { return this.direct + this.indirect + this.induced; }
+    };
+  }, [results, state, stateEmploymentTaxRates]);
 
   // State options
   const stateOptions = multiplierData.states.map(s => ({ value: s, label: s }));
@@ -818,7 +849,9 @@ More information about Dr. Philander is available at kahlil.co.`,
           propertyTypeLabel,
           inputMode,
           gamingTaxResult,
-          stateTaxConfig
+          stateTaxConfig,
+          payrollTaxResult,
+          householdTaxResult
         },
         authorInfo
       );
@@ -863,7 +896,9 @@ More information about Dr. Philander is available at kahlil.co.`,
           propertyTypeLabel,
           inputMode,
           gamingTaxResult,
-          stateTaxConfig
+          stateTaxConfig,
+          payrollTaxResult,
+          householdTaxResult
         },
         authorInfo
       );
@@ -1267,7 +1302,7 @@ More information about Dr. Philander is available at kahlil.co.`,
 
       // Compute the tax that would apply with current settings
       const computePreviewTax = () => {
-        if (!hasGaming || ggr <= 0) return { amount: 0, effectiveRate: 0 };
+        if ((!hasGaming && (gamingTaxCustomRate == null || gamingTaxCustomRate === '')) || ggr <= 0) return { amount: 0, effectiveRate: 0 };
         const config = buildTaxConfig(taxInfo, gamingTaxCustomRate, slotRevenuePct);
         const amount = calculateGamingTax(ggr, config);
         return { amount, effectiveRate: ggr > 0 ? amount / ggr : 0 };
@@ -1759,60 +1794,69 @@ More information about Dr. Philander is available at kahlil.co.`,
             </div>
 
             {/* Gaming Tax Rate */}
-            {stateTaxConfig && stateTaxConfig.hasCommercial && (
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                  <DollarSign size={20} className="text-[#1a365d]" />
-                  Gaming Tax Rate
-                </h2>
-                <div className="space-y-3">
-                  <div className="text-sm text-gray-700">
-                    <span className="font-medium">{state}:</span>{' '}
-                    {stateTaxConfig.rateStructure === 'tiered' ? (
-                      <span>Graduated tiers ({formatNumber(stateTaxConfig.tiers[0].rate * 100, 1)}%–{formatNumber(stateTaxConfig.tiers[stateTaxConfig.tiers.length - 1].rate * 100, 1)}%)</span>
-                    ) : stateTaxConfig.slotTableSplit ? (
-                      <span>{formatNumber(stateTaxConfig.slotsRate * 100, 0)}% slots / {formatNumber(stateTaxConfig.tableRate * 100, 0)}% tables</span>
-                    ) : (
-                      <span>{formatNumber((stateTaxConfig.flatRate || stateTaxConfig.effectiveRate) * 100, 2)}% flat</span>
-                    )}
-                  </div>
-
-                  {/* Slot/table split slider for split-rate states */}
-                  {(stateTaxConfig.rateStructure === 'split_game_type' || stateTaxConfig.rateStructure === 'split_tiered' || stateTaxConfig.slotTableSplit) && !gamingTaxCustomRate && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Slot Revenue Share: {slotRevenuePct}%
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={slotRevenuePct}
-                        onChange={(e) => setSlotRevenuePct(parseInt(e.target.value))}
-                        className="w-full accent-[#1a365d]"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>All Tables</span>
-                        <span>Effective: {gamingTaxResult ? formatNumber(gamingTaxResult.effectiveRate * 100, 1) : '-'}%</span>
-                        <span>All Slots</span>
-                      </div>
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                <DollarSign size={20} className="text-[#1a365d]" />
+                Gaming Tax Rate
+              </h2>
+              <div className="space-y-3">
+                {stateTaxConfig && stateTaxConfig.hasCommercial ? (
+                  <>
+                    <div className="text-sm text-gray-700">
+                      <span className="font-medium">{state}:</span>{' '}
+                      {stateTaxConfig.rateStructure === 'tiered' ? (
+                        <span>Graduated tiers ({formatNumber(stateTaxConfig.tiers[0].rate * 100, 1)}%–{formatNumber(stateTaxConfig.tiers[stateTaxConfig.tiers.length - 1].rate * 100, 1)}%)</span>
+                      ) : stateTaxConfig.slotTableSplit ? (
+                        <span>{formatNumber(stateTaxConfig.slotsRate * 100, 0)}% slots / {formatNumber(stateTaxConfig.tableRate * 100, 0)}% tables</span>
+                      ) : (
+                        <span>{formatNumber((stateTaxConfig.flatRate || stateTaxConfig.effectiveRate) * 100, 2)}% flat</span>
+                      )}
                     </div>
-                  )}
 
-                  {/* Custom rate override */}
-                  <div>
-                    <InputField
-                      label="Custom Tax Rate Override (%)"
-                      value={gamingTaxCustomRate != null ? gamingTaxCustomRate * 100 : null}
-                      onChange={(v) => setGamingTaxCustomRate(v != null ? v / 100 : null)}
-                      placeholder="Leave blank to use state rate"
-                      helpText="Override the state rate with a custom percentage (e.g., for tribal compacts or local adjustments)"
-                      id="custom-tax-rate"
-                    />
+                    {/* Slot/table split slider for split-rate states */}
+                    {(stateTaxConfig.rateStructure === 'split_game_type' || stateTaxConfig.rateStructure === 'split_tiered' || stateTaxConfig.slotTableSplit) && !gamingTaxCustomRate && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Slot Revenue Share: {slotRevenuePct}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={slotRevenuePct}
+                          onChange={(e) => setSlotRevenuePct(parseInt(e.target.value))}
+                          className="w-full accent-[#1a365d]"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>All Tables</span>
+                          <span>Effective: {gamingTaxResult ? formatNumber(gamingTaxResult.effectiveRate * 100, 1) : '-'}%</span>
+                          <span>All Slots</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500 italic">
+                    {state} does not currently have commercial casino gaming. Enter a proposed tax rate below to estimate gaming tax revenue.
                   </div>
+                )}
+
+                {/* Custom rate input */}
+                <div>
+                  <InputField
+                    label={stateTaxConfig?.hasCommercial ? "Custom Tax Rate Override (%)" : "Proposed Gaming Tax Rate (%)"}
+                    value={gamingTaxCustomRate != null ? gamingTaxCustomRate * 100 : null}
+                    onChange={(v) => setGamingTaxCustomRate(v != null ? v / 100 : null)}
+                    placeholder={stateTaxConfig?.hasCommercial ? "Leave blank to use state rate" : "Enter proposed rate (e.g., 25)"}
+                    helpText={stateTaxConfig?.hasCommercial
+                      ? "Override the state rate with a custom percentage (e.g., for tribal compacts or local adjustments)"
+                      : "Enter the proposed tax rate on gross gaming revenue for a prospective casino"
+                    }
+                    id="custom-tax-rate"
+                  />
                 </div>
               </div>
-            )}
+            </div>
 
           </aside>
 
@@ -1864,7 +1908,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 </div>
 
                 {/* Tax Revenue Estimates */}
-                {(results.totals.tax.total > 0 || gamingTaxResult) && (
+                {(results.totals.tax.total > 0 || gamingTaxResult || payrollTaxResult || householdTaxResult) && (
                   <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Tax Revenue Estimates</h3>
                     <div className="overflow-x-auto">
@@ -1915,43 +1959,58 @@ More information about Dr. Philander is available at kahlil.co.`,
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(results.totals.tax.total)}</td>
                             </tr>
                           )}
+                          {payrollTaxResult && payrollTaxResult.total > 0 && (
+                            <tr className="border-b border-gray-100 hover:bg-gray-50">
+                              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
+                                <DefTooltip text="Employer-side payroll taxes: FICA (Social Security + Medicare), FUTA, SUTA, and state SDI/PFML where applicable. Applied to wages using per-employee caps and state-specific rates.">
+                                  Payroll Taxes
+                                </DefTooltip>
+                                <span className="block text-xs text-gray-500">FICA, FUTA, SUTA{stateEmploymentTaxRates?.sdi_employer_rate > 0 ? ', SDI' : ''}{stateEmploymentTaxRates?.pfml_employer_rate > 0 ? ', PFML' : ''}</span>
+                              </th>
+                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(payrollTaxResult.direct)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{formatCurrency(payrollTaxResult.indirect)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{formatCurrency(payrollTaxResult.induced)}</td>
+                              <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(payrollTaxResult.total)}</td>
+                            </tr>
+                          )}
+                          {householdTaxResult && householdTaxResult.total > 0 && (
+                            <tr className="border-b border-gray-100 hover:bg-gray-50">
+                              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
+                                <DefTooltip text="Federal, state, and local income taxes plus motor vehicle licenses and personal property taxes paid by employee households. Based on BEA personal current tax ratios by state. Does not include real estate or sales taxes (covered under TOPI).">
+                                  Household Taxes
+                                </DefTooltip>
+                                <span className="block text-xs text-gray-500">{formatNumber((stateEmploymentTaxRates?.household_tax_ratio || 0) * 100, 1)}% of wages (BEA ratio)</span>
+                              </th>
+                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(householdTaxResult.direct)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{formatCurrency(householdTaxResult.indirect)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{formatCurrency(householdTaxResult.induced)}</td>
+                              <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(householdTaxResult.total)}</td>
+                            </tr>
+                          )}
                           <tr className="bg-gray-50 border-t border-gray-200">
-                            <th scope="row" className="py-3 px-4 text-sm font-bold text-gray-900 text-left">Subtotal</th>
+                            <th scope="row" className="py-3 px-4 text-sm font-bold text-gray-900 text-left">Total Tax Revenue</th>
                             <td className="py-3 px-4 text-sm text-right font-bold text-[#1a365d]">
-                              {formatCurrency((gamingTaxResult?.amount || 0) + results.totals.tax.direct)}
+                              {formatCurrency((gamingTaxResult?.amount || 0) + results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0))}
                             </td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-[#3182ce]">{formatCurrency(results.totals.tax.indirect)}</td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-[#4299e1]">{formatCurrency(results.totals.tax.induced)}</td>
+                            <td className="py-3 px-4 text-sm text-right font-bold text-[#3182ce]">
+                              {formatCurrency(results.totals.tax.indirect + (payrollTaxResult?.indirect || 0) + (householdTaxResult?.indirect || 0))}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-right font-bold text-[#4299e1]">
+                              {formatCurrency(results.totals.tax.induced + (payrollTaxResult?.induced || 0) + (householdTaxResult?.induced || 0))}
+                            </td>
                             <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">
-                              {formatCurrency((gamingTaxResult?.amount || 0) + results.totals.tax.total)}
+                              {formatCurrency((gamingTaxResult?.amount || 0) + results.totals.tax.total + (payrollTaxResult?.total || 0) + (householdTaxResult?.total || 0))}
                             </td>
-                          </tr>
-                          <tr className="border-b border-gray-100">
-                            <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-400 text-left italic">
-                              Payroll Taxes
-                              <span className="block text-xs text-gray-400">Coming soon</span>
-                            </th>
-                            <td className="py-3 px-4 text-sm text-right text-gray-300 italic">-</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-300 italic">-</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-300 italic">-</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-300 italic">-</td>
-                          </tr>
-                          <tr className="border-b border-gray-100">
-                            <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-400 text-left italic">
-                              Income Taxes
-                              <span className="block text-xs text-gray-400">Coming soon</span>
-                            </th>
-                            <td className="py-3 px-4 text-sm text-right text-gray-300 italic">-</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-300 italic">-</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-300 italic">-</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-300 italic">-</td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
                     <p className="text-xs text-gray-500 mt-3">
-                      Gaming tax is applied directly to gross gaming revenue at state-mandated rates.
-                      Taxes on Production (TOPI) are derived from the IO model and include sales taxes, property taxes, excise taxes, and fees paid by businesses across the supply chain.
+                      Gaming tax is applied to GGR at state-mandated rates.
+                      TOPI from the IO model covers sales, property, excise taxes, and business fees.
+                      Payroll taxes are employer-side (FICA, FUTA, SUTA) using DOL average rates.
+                      Household taxes use BEA personal current tax ratios (income taxes, vehicle licenses, personal property taxes).
+                      These four categories are mutually exclusive — no double-counting.
                       {stateTaxConfig?.localTaxNotes && (
                         <span className="block mt-1 italic">Note: {stateTaxConfig.localTaxNotes}</span>
                       )}
@@ -2003,7 +2062,7 @@ More information about Dr. Philander is available at kahlil.co.`,
         </main>
 
         {/* Footer */}
-        <footer role="contentinfo" className="mt-12 text-center text-sm text-gray-600">
+        <footer role="contentinfo" className="mt-12 text-center text-sm text-gray-600 space-y-1">
           <p>
             Casino Economic Impact Model |{' '}
             <a href="https://github.com/kphilander/casino-economic-impact" className="text-[#3182ce] hover:underline">
@@ -2011,9 +2070,108 @@ More information about Dr. Philander is available at kahlil.co.`,
             </a>
             {' '}| Methodology: Industry Technology Assumption (ITA)
           </p>
+          <p>
+            <a
+              href="https://github.com/kphilander/casino-economic-impact/issues/new?labels=bug&template=bug_report.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-gray-500 hover:text-[#3182ce] hover:underline"
+            >
+              <Bug size={13} />
+              Report a Bug
+            </a>
+          </p>
         </footer>
       </div>
       </div>
+
+      {/* Floating "Request a Feature" button */}
+      <button
+        onClick={() => setShowFeatureModal(true)}
+        className="fixed bottom-6 right-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#f59e0b] to-[#d97706] px-6 py-4 text-base font-bold text-white shadow-[0_8px_30px_rgba(245,158,11,0.4)] transition-all hover:shadow-[0_8px_40px_rgba(245,158,11,0.6)] hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 z-50 animate-bounce-subtle"
+        title="Request a feature"
+      >
+        <Lightbulb size={22} className="drop-shadow" />
+        Request a Feature
+      </button>
+
+      {/* Feature Request Modal */}
+      {showFeatureModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowFeatureModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between bg-gradient-to-r from-[#1a365d] to-[#2c5282] rounded-t-2xl px-6 py-4">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Lightbulb size={20} />
+                Request a Feature
+              </h2>
+              <button onClick={() => setShowFeatureModal(false)} className="text-white/70 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                try {
+                  await fetch('/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(new FormData(form)).toString()
+                  });
+                  setFeatureSubmitted(true);
+                  setTimeout(() => { setShowFeatureModal(false); setFeatureSubmitted(false); }, 2000);
+                } catch {
+                  alert('Submission failed. Please try again.');
+                }
+              }}
+              className="p-6 space-y-4"
+            >
+              <input type="hidden" name="form-name" value="feature-request" />
+              <p hidden><label>Don't fill this out: <input name="bot-field" /></label></p>
+
+              {featureSubmitted ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">&#10003;</div>
+                  <p className="text-lg font-semibold text-gray-900">Thank you!</p>
+                  <p className="text-sm text-gray-600">Your feedback has been submitted.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="feat-name" className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-gray-400">(optional)</span></label>
+                      <input id="feat-name" name="name" type="text" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none" placeholder="Your name" />
+                    </div>
+                    <div>
+                      <label htmlFor="feat-email" className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400">(optional)</span></label>
+                      <input id="feat-email" name="email" type="email" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none" placeholder="you@example.com" />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="feat-type" className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select id="feat-type" name="type" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none">
+                      <option>Feature Request</option>
+                      <option>Data Issue</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="feat-message" className="block text-sm font-medium text-gray-700 mb-1">Message <span className="text-red-500">*</span></label>
+                    <textarea id="feat-message" name="message" required rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none resize-none" placeholder="Describe the feature you'd like to see, or the issue you've found..." />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#1a365d] to-[#2c5282] px-4 py-2.5 text-sm font-semibold text-white shadow hover:shadow-lg transition-all"
+                  >
+                    <Send size={16} />
+                    Submit
+                  </button>
+                </>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

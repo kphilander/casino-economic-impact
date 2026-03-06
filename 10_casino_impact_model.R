@@ -4,12 +4,17 @@
 #
 # Takes casino revenue (GGR) and computes:
 #   - Direct, Indirect, and Induced effects
-#   - Output, GDP (Value Added), Employment, and Wages
+#   - Output, GDP (Value Added), Employment, Wages
+#   - Tax estimates:
+#     * Taxes on Production (TOPI from IO tables, direct/indirect/induced)
+#     * Gaming Tax (state-specific GGR tax rate, direct only)
 #
 # Data Year: 2023 (employment), 2019 (IO tables)
 # Sources:
 #   - EPA StateIO (2019) for IO multipliers (pre-pandemic)
 #   - BLS QCEW (2023) for employment data
+#   - State gaming commission reports for GGR tax rates
+#   - BEA Detail IO (USEEIOv2.0.1-411) for gambling TOPI adjustment ratio
 #
 # Usage:
 #   source("10_casino_impact_model.R")
@@ -18,6 +23,102 @@
 # ============================================================================
 
 library(tidyverse)
+
+# ============================================================================
+# STATE GAMING TAX RATES
+# ============================================================================
+# Effective GGR tax rates by state. For states with tiered or split
+# slot/table rates, a blended effective rate is used.
+# Sources: State gaming commission reports, AGA State of the States
+#
+# Note: These are taxes on gross gaming revenue specifically, not the
+# general TOPI from IO tables. States without legal casino gaming
+# are included at 0 (they may still have IO multiplier effects from
+# other amusement/recreation activity in sector 713).
+# ============================================================================
+
+STATE_GAMING_TAX_RATES <- data.frame(
+  State = c(
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California",
+    "Colorado", "Connecticut", "Delaware", "Florida", "Georgia",
+    "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa",
+    "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
+    "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri",
+    "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+    "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+    "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
+    "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+    "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
+  ),
+  GGR_Tax_Rate = c(
+    0.00,  # Alabama - no commercial casinos
+    0.00,  # Alaska - no commercial casinos
+    0.08,  # Arizona - tribal compacts ~8%
+    0.13,  # Arkansas - 13% of net gaming revenue
+    0.00,  # California - tribal (no state GGR tax on tribal)
+    0.20,  # Colorado - graduated up to 20%
+    0.25,  # Connecticut - 25% (tribal compact)
+    0.435, # Delaware - 43.5% table games + VLT share
+    0.12,  # Florida - tribal compact ~12%
+    0.00,  # Georgia - no commercial casinos
+    0.00,  # Hawaii - no commercial casinos
+    0.00,  # Idaho - tribal only
+    0.15,  # Illinois - graduated, effective ~15%
+    0.35,  # Indiana - graduated up to 40%, effective ~35%
+    0.22,  # Iowa - graduated 5-22%
+    0.27,  # Kansas - 27% state-owned casinos
+    0.00,  # Kentucky - no commercial casinos (HHR different)
+    0.215, # Louisiana - 21.5% riverboat
+    0.46,  # Maine - Oxford ~46% (racino)
+    0.40,  # Maryland - up to 40% on slots, lower on tables
+    0.25,  # Massachusetts - 25% slots, 49% category 2
+    0.19,  # Michigan - 19% Detroit casinos
+    0.00,  # Minnesota - tribal only
+    0.12,  # Mississippi - graduated 4-12%
+    0.21,  # Missouri - 21% of AGR
+    0.00,  # Montana - no commercial casinos
+    0.00,  # Nebraska - 20% (new, effective 2023+)
+    0.0675,# Nevada - 6.75% of GGR
+    0.00,  # New Hampshire - no commercial casinos
+    0.085, # New Jersey - 8.5% + 1.25% investment alt
+    0.00,  # New Mexico - tribal compacts
+    0.45,  # New York - varies 30-45% on commercial
+    0.00,  # North Carolina - tribal only
+    0.00,  # North Dakota - tribal only
+    0.33,  # Ohio - 33% of GGR
+    0.10,  # Oklahoma - tribal compacts ~6-10%
+    0.00,  # Oregon - tribal only
+    0.54,  # Pennsylvania - 54% slots, 16% table, blended ~42%
+    0.51,  # Rhode Island - 51% of VLT net revenue
+    0.00,  # South Carolina - no commercial casinos
+    0.09,  # South Dakota - 9% of adjusted GGR
+    0.00,  # Tennessee - no commercial casinos (sports betting different)
+    0.00,  # Texas - no commercial casinos
+    0.00,  # Utah - no gambling
+    0.00,  # Vermont - no commercial casinos
+    0.18,  # Virginia - graduated 18% effective
+    0.00,  # Washington - tribal only
+    0.35,  # West Virginia - 35% of net terminal income
+    0.00,  # Wisconsin - tribal only
+    0.00   # Wyoming - no commercial casinos
+  ),
+  stringsAsFactors = FALSE
+)
+
+# ============================================================================
+# GAMBLING TOPI ADJUSTMENT RATIO
+# ============================================================================
+# The IO tables only have sector 713 (blended Amusement/Gambling/Recreation).
+# Gambling (713200) has different TOPI characteristics than the blended sector.
+# These ratios are derived from BEA Detail IO Tables (USEEIOv2.0.1-411):
+#   TOPI_coef: 713200 = 0.035024, 713_blended = 0.057551 → ratio = 0.6086
+#   Type I TOPI mult: 713200 = 0.060448, 713_blended = 0.084609 → ratio = 0.7144
+# ============================================================================
+
+GAMBLING_TOPI_ADJUSTMENT <- list(
+  topi_coef_ratio = 0.6086,     # Direct TOPI coef: gambling / blended 713
+  topi_mult_ratio = 0.7144      # Type I TOPI multiplier: gambling / blended 713
+)
 
 # ============================================================================
 # LOAD MULTIPLIER DATA
@@ -82,7 +183,8 @@ calculate_casino_impact <- function(
     casino_revenue,
     sector = "713",
     state = "Nevada",
-    include_details = FALSE
+    include_details = FALSE,
+    gaming_tax_rate = NULL
 ) {
 
   # ========================================
@@ -138,13 +240,18 @@ calculate_casino_impact <- function(
   type1_wage <- state_data$Type_I_Wage
   type2_wage <- state_data$Type_II_Wage
 
-  # Employment multipliers (account for labor intensity across sectors)
-  type1_emp_mult <- state_data$Type_I_Emp_Mult
-  type2_emp_mult <- state_data$Type_II_Emp_Mult
+  # Employment coefficients (jobs per $1M GDP for each effect type)
+  indirect_emp_coef <- state_data$Indirect_Emp_Coef
+  induced_emp_coef <- state_data$Induced_Emp_Coef
+
+  # Tax multipliers (taxes on production & imports)
+  type1_tax <- state_data$Type_I_Tax
+  type2_tax <- state_data$Type_II_Tax
 
   # Direct coefficients
   va_coef <- state_data$Direct_VA_Coef
   wage_coef <- state_data$Direct_Wage_Coef
+  tax_coef <- state_data$Direct_Tax_Coef
   emp_coef <- state_data$Emp_Coef
 
   # ========================================
@@ -189,12 +296,11 @@ calculate_casino_impact <- function(
   # (jobs per $1M GDP)
   emp_direct <- gdp_direct * emp_coef
 
-  # Use employment multipliers to calculate indirect/induced
-  # These multipliers account for the different labor intensities
-  # of sectors receiving indirect and induced spending
-  emp_indirect <- emp_direct * (type1_emp_mult - 1)
-  emp_induced <- emp_direct * (type2_emp_mult - type1_emp_mult)
-  emp_total <- emp_direct * type2_emp_mult
+  # Indirect/induced employment uses separate coefficients weighted
+  # for the industries receiving each type of spending
+  emp_indirect <- gdp_indirect * indirect_emp_coef
+  emp_induced <- gdp_induced * induced_emp_coef
+  emp_total <- emp_direct + emp_indirect + emp_induced
 
   # ========================================
   # Calculate Wage Impacts
@@ -210,6 +316,39 @@ calculate_casino_impact <- function(
   wage_indirect <- wage_type1_total - wage_direct
   wage_induced <- wage_type2_total - wage_type1_total
   wage_total <- wage_type2_total
+
+  # ========================================
+  # Calculate Tax Impacts
+  # ========================================
+
+  # --- 1. Taxes on Production & Imports (TOPI) from IO tables ---
+  # These flow through the Leontief inverse like wages.
+  # For sector 713 used as GGR input, the TOPI coefficients are for the
+  # blended sector (includes golf, fitness, etc). The gambling-specific
+  # TOPI is lower (ratio ~0.61 for direct, ~0.71 for Type I).
+  # Indirect and induced TOPI reflect supply chain and household spending
+  # taxes across OTHER sectors, so no gambling adjustment needed there.
+  topi_direct <- casino_revenue * tax_coef
+  topi_type1_total <- casino_revenue * type1_tax
+  topi_type2_total <- casino_revenue * type2_tax
+  topi_indirect <- topi_type1_total - topi_direct
+  topi_induced <- topi_type2_total - topi_type1_total
+  topi_total <- topi_type2_total
+
+  # --- 2. Gaming Tax (state-specific rate on GGR, direct only) ---
+  if (is.null(gaming_tax_rate)) {
+    gaming_tax_rate <- STATE_GAMING_TAX_RATES$GGR_Tax_Rate[
+      STATE_GAMING_TAX_RATES$State == state
+    ]
+    if (length(gaming_tax_rate) == 0) gaming_tax_rate <- 0
+  }
+  gaming_tax <- casino_revenue * gaming_tax_rate
+
+  # --- Total tax across categories ---
+  total_tax_direct <- topi_direct + gaming_tax
+  total_tax_indirect <- topi_indirect
+  total_tax_induced <- topi_induced
+  total_tax_total <- total_tax_direct + total_tax_indirect + total_tax_induced
 
   # ========================================
   # Build Summary Table
@@ -256,6 +395,37 @@ calculate_casino_impact <- function(
     stringsAsFactors = FALSE
   )
 
+  # Tax detail table
+  tax_df <- data.frame(
+    Tax_Category = c("Gaming Tax", "Taxes on Production", "Total Tax Revenue"),
+
+    Direct = c(
+      round(gaming_tax, 2),
+      round(topi_direct, 2),
+      round(total_tax_direct, 2)
+    ),
+
+    Indirect = c(
+      round(0, 2),
+      round(topi_indirect, 2),
+      round(total_tax_indirect, 2)
+    ),
+
+    Induced = c(
+      round(0, 2),
+      round(topi_induced, 2),
+      round(total_tax_induced, 2)
+    ),
+
+    Total = c(
+      round(gaming_tax, 2),
+      round(topi_total, 2),
+      round(total_tax_total, 2)
+    ),
+
+    stringsAsFactors = FALSE
+  )
+
   # ========================================
   # Metadata
   # ========================================
@@ -270,6 +440,9 @@ calculate_casino_impact <- function(
     data_sources = c(
       "IO Tables: EPA StateIO (2019)",
       "Employment: BLS QCEW (2023)"
+    ),
+    tax_rates = list(
+      gaming_tax_rate = gaming_tax_rate
     )
   )
 
@@ -279,6 +452,7 @@ calculate_casino_impact <- function(
 
   result <- list(
     summary = summary_df,
+    tax_summary = tax_df,
     metadata = metadata
   )
 
@@ -287,17 +461,23 @@ calculate_casino_impact <- function(
       # Direct coefficients
       direct_va_coef = va_coef,
       direct_wage_coef = wage_coef,
+      direct_tax_coef = tax_coef,
       employment_coef = emp_coef,
 
       # Type I multipliers
       type1_output = type1_output,
       type1_va = type1_va,
       type1_wage = type1_wage,
+      type1_tax = type1_tax,
 
       # Type II multipliers
       type2_output = type2_output,
       type2_va = type2_va,
       type2_wage = type2_wage,
+      type2_tax = type2_tax,
+
+      # Tax rates used
+      gaming_tax_rate = gaming_tax_rate,
 
       # Industry data
       industry_output_M = state_data$Industry_Output_M,
@@ -343,6 +523,17 @@ print.casino_impact <- function(x, ...) {
 
   cat("\n")
   cat("───────────────────────────────────────────────────────────────────\n")
+  cat("                         TAX REVENUE ESTIMATES                      \n")
+  cat("───────────────────────────────────────────────────────────────────\n")
+  cat("\n")
+
+  print(x$tax_summary, row.names = FALSE, right = TRUE)
+
+  cat("\n")
+  cat("  Gaming Tax Rate: ", sprintf("%.1f%%", x$metadata$tax_rates$gaming_tax_rate * 100), "\n", sep = "")
+
+  cat("\n")
+  cat("───────────────────────────────────────────────────────────────────\n")
   cat("\n")
   cat("Methodology: ", x$metadata$methodology, "\n", sep = "")
   cat("Data Sources:\n")
@@ -384,7 +575,8 @@ get_state_multipliers <- function(state) {
     select(Sector, Sector_Name,
            Type_I_Output, Type_II_Output,
            Type_I_VA, Type_II_VA,
-           Direct_VA_Coef, Emp_Coef)
+           Type_I_Tax, Type_II_Tax,
+           Direct_VA_Coef, Direct_Tax_Coef, Emp_Coef)
 
   return(state_data)
 }
@@ -402,6 +594,7 @@ compare_states <- function(casino_revenue, sector, states) {
         GDP_Total = impact$summary$Total[2],
         Employment_Total = impact$summary$Total[3],
         Wages_Total = impact$summary$Total[4],
+        Tax_Total = impact$tax_summary$Total[5],
         Output_Mult = impact$summary$Multiplier[1],
         stringsAsFactors = FALSE
       )
@@ -436,10 +629,15 @@ if (interactive() && !is.null(MULTIPLIER_DATA)) {
   if (!is.null(impact$details)) {
     cat("Direct VA Coefficient:     ", round(impact$details$direct_va_coef, 4), " (VA per $1 output)\n")
     cat("Direct Wage Coefficient:   ", round(impact$details$direct_wage_coef, 4), " (wages per $1 output)\n")
+    cat("Direct Tax Coefficient:    ", round(impact$details$direct_tax_coef, 4), " (TOPI per $1 output)\n")
     cat("Employment Coefficient:    ", round(impact$details$employment_coef, 2), " (jobs per $1M GDP)\n")
     cat("\n")
     cat("Type I Output Multiplier:  ", round(impact$details$type1_output, 4), "\n")
     cat("Type II Output Multiplier: ", round(impact$details$type2_output, 4), "\n")
+    cat("Type I Tax Multiplier:     ", round(impact$details$type1_tax, 4), "\n")
+    cat("Type II Tax Multiplier:    ", round(impact$details$type2_tax, 4), "\n")
+    cat("\n")
+    cat("Gaming Tax Rate:           ", sprintf("%.2f%%", impact$details$gaming_tax_rate * 100), "\n")
   }
 
   message("\n=== Compare Major Gaming States ===\n")

@@ -1,0 +1,23 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[functions]
+  directory = "netlify/functions"
+
+# Redirect /api/* to Netlify Functions
+[[redirects]]
+  from = "/api/create-checkout"
+  to = "/.netlify/functions/create-checkout"
+  status = 200
+
+[[redirects]]
+  from = "/api/verify-session"
+  to = "/.netlify/functions/verify-session"
+  status = 200
+
+# SPA fallback - serve index.html for all routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -167,6 +167,11 @@ output_data <- combined %>%
     Type_I_Wage,
     Type_II_Wage,
 
+    # Tax multipliers (taxes on production & imports)
+    Direct_Tax_Coef,
+    Type_I_Tax,
+    Type_II_Tax,
+
     # Employment coefficients and multipliers
     # (Type_I_Emp_Mult and Type_II_Emp_Mult are true employment-weighted
     # multipliers from script 08, not derived from VA multipliers)

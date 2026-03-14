@@ -565,6 +565,10 @@ export default function App() {
   const [hasOtherRevenue, setHasOtherRevenue] = useState(false);
   const [hasKnownData, setHasKnownData] = useState(false);
 
+  // Revenue Forecaster import state
+  const [importedFromForecaster, setImportedFromForecaster] = useState(false);
+  const [importedArchetype, setImportedArchetype] = useState(null);
+
   // Check for saved license on mount and handle Stripe redirect
   useEffect(() => {
     // Check localStorage for saved license using getLicenseData helper
@@ -579,6 +583,62 @@ export default function App() {
         localStorage.removeItem('licenseKey');
         localStorage.removeItem('licensedProperties');
       }
+    }
+
+    // Check for Revenue Forecaster import via URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('from') === 'forecaster') {
+      const importedState = urlParams.get('state');
+      const importedName = urlParams.get('name');
+      const importedPropertyType = urlParams.get('propertyType');
+      const importedGaming = parseFloat(urlParams.get('gaming')) || null;
+      const importedFood = parseFloat(urlParams.get('food')) || null;
+      const importedLodging = parseFloat(urlParams.get('lodging')) || null;
+      const importedOther = parseFloat(urlParams.get('other')) || null;
+      const importedGamingEmp = parseFloat(urlParams.get('gaming_emp')) || null;
+      const importedArchetypeKey = urlParams.get('archetype');
+
+      // Pre-fill state
+      if (importedState && multiplierData.states.includes(importedState)) {
+        setState(importedState);
+      }
+      if (importedName) setCasinoName(decodeURIComponent(importedName));
+      if (importedPropertyType) setPropertyType(importedPropertyType);
+      setInputMode('department');
+
+      // Pre-fill revenues
+      setRevenues({
+        gaming: importedGaming,
+        food: importedFood,
+        lodging: importedLodging,
+        other: importedOther,
+        total: null
+      });
+
+      // Pre-fill known employment data
+      if (importedGamingEmp) {
+        setKnownData({
+          gaming: { emp: Math.round(importedGamingEmp), wages: null },
+          food: { emp: null, wages: null },
+          lodging: { emp: null, wages: null },
+          other: { emp: null, wages: null }
+        });
+        setHasKnownData(true);
+      }
+
+      // Show non-gaming revenue sections
+      if (importedFood || importedLodging || importedOther) {
+        setHasOtherRevenue(true);
+      }
+
+      // Skip wizard, go directly to dashboard
+      setWizardComplete(true);
+      setImportedFromForecaster(true);
+      setImportedArchetype(importedArchetypeKey);
+
+      // Clear URL params to avoid re-import on refresh
+      window.history.replaceState({}, '', window.location.pathname);
+      return; // Skip Stripe redirect handling
     }
 
     // Helper to restore wizard state from sessionStorage
@@ -1625,6 +1685,33 @@ More information about Dr. Philander is available at kahlil.co.`,
             ← Start New Analysis
           </button>
         </header>
+
+        {/* Revenue Forecaster import banner */}
+        {importedFromForecaster && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600 mt-0.5">
+                <TrendingUp size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">
+                  Imported from Revenue Forecaster
+                </p>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  Revenue and employment estimates based on {importedArchetype ? importedArchetype.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'selected'} archetype benchmarks.
+                  You can adjust all values in the input panel.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setImportedFromForecaster(false)}
+              className="text-emerald-400 hover:text-emerald-600 p-1 flex-shrink-0"
+              aria-label="Dismiss import banner"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         <main id="main-content" role="main" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Input Panel */}

@@ -47,14 +47,14 @@ function MetricCard({ icon: Icon, label, value, subtext, color = 'primary' }) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 card-hover">
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white`}>
+    <div className="bg-white rounded-xl shadow-lg p-6 card-hover overflow-hidden">
+      <div className="flex items-center gap-3">
+        <div className={`p-3 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white flex-shrink-0`}>
           <Icon size={24} />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-gray-600 font-medium">{label}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <p className="text-2xl font-bold text-gray-900 truncate">{value}</p>
           {subtext && <p className="text-xs text-gray-600 mt-1">{subtext}</p>}
         </div>
       </div>

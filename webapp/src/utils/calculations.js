@@ -147,8 +147,15 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
 }
 
 /**
+ * Check if a property type is an online operation (iGaming or sportsbook)
+ */
+export function isOnlinePropertyType(propertyType) {
+  return ['ONLINE_CASINO', 'ONLINE_SPORTSBOOK'].includes(propertyType);
+}
+
+/**
  * Get property type multipliers for a state
- * @param {string} propertyType - NAICS code (721120, 713210, 713290, 722410)
+ * @param {string} propertyType - NAICS code (721120, 713210, 713290, 722410) or online type
  * @param {string} state - State name
  * @param {object} propertyTypesData - The propertyTypes object from multipliers.json
  * @returns {object|null} State data for the property type, or null if not found
@@ -171,9 +178,10 @@ export function getPropertyTypeData(propertyType, state, propertyTypesData) {
  * @param {object|number|null} knownData - Known data by department { gaming: {emp, wages}, food: {...}, ... }
  *                                          OR legacy single employment number for backward compatibility
  * @param {number|null} knownWagesLegacy - Legacy: Known wages in millions (only used if knownData is a number)
- * @param {string|null} propertyType - Property type NAICS code (721120, 713210, 713290, 722410)
+ * @param {string|null} propertyType - Property type NAICS code (721120, 713210, 713290, 722410) or online type
  * @param {object|null} propertyTypesData - Property type multipliers from JSON
  * @param {string} inputMode - 'department' (default) or 'total'
+ * @param {array|null} onlineGamingData - Array of online gambling multipliers (from multipliers.json onlineGaming section)
  */
 export function calculateCombinedImpact(
   revenues,
@@ -185,7 +193,8 @@ export function calculateCombinedImpact(
   knownWagesLegacy = null,
   propertyType = null,
   propertyTypesData = null,
-  inputMode = 'department'
+  inputMode = 'department',
+  onlineGamingData = null
 ) {
   // Handle legacy single-value parameters (backward compatibility)
   // If knownData is a number, treat it as legacy knownEmployment
@@ -203,32 +212,51 @@ export function calculateCombinedImpact(
     knownDataNormalized = knownData;
   } else {
     // No known data
-    knownDataNormalized = {
-      gaming: { emp: null, wages: null },
-      food: { emp: null, wages: null },
-      lodging: { emp: null, wages: null },
-      other: { emp: null, wages: null }
-    };
+    const isOnline = isOnlinePropertyType(propertyType);
+    knownDataNormalized = isOnline
+      ? {
+          gaming: { emp: null, wages: null },
+          marketing: { emp: null, wages: null },
+          tech: { emp: null, wages: null },
+          other: { emp: null, wages: null }
+        }
+      : {
+          gaming: { emp: null, wages: null },
+          food: { emp: null, wages: null },
+          lodging: { emp: null, wages: null },
+          other: { emp: null, wages: null }
+        };
   }
   const results = [];
+
+  const isOnline = isOnlinePropertyType(propertyType);
 
   // TOTAL MODE: Apply property type multipliers to entire revenue
   if (inputMode === 'total' && revenues.total && revenues.total > 0) {
     let stateData;
 
-    // Get property type multipliers
-    if (propertyType && propertyTypesData) {
-      stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
-    }
-
-    // Fallback to gambling-specific if no property type data
-    if (!stateData && useGamblingSpecific && gamblingData) {
-      stateData = gamblingData.find(d => d.State === state);
-    }
-
-    // Fallback to blended 713 sector
-    if (!stateData) {
-      stateData = multiplierData.find(d => d.State === state && d.Sector === '713');
+    if (isOnline) {
+      // Online types: use property type data first, then onlineGaming, then gambling fallback
+      if (propertyType && propertyTypesData) {
+        stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
+      }
+      if (!stateData && onlineGamingData) {
+        stateData = onlineGamingData.find(d => d.State === state);
+      }
+      if (!stateData && gamblingData) {
+        stateData = gamblingData.find(d => d.State === state);
+      }
+    } else {
+      // Land-based: existing logic
+      if (propertyType && propertyTypesData) {
+        stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
+      }
+      if (!stateData && useGamblingSpecific && gamblingData) {
+        stateData = gamblingData.find(d => d.State === state);
+      }
+      if (!stateData) {
+        stateData = multiplierData.find(d => d.State === state && d.Sector === '713');
+      }
     }
 
     if (!stateData) return null;
@@ -250,7 +278,9 @@ export function calculateCombinedImpact(
         '721120': 'Casino Hotel',
         '713210': 'Stand-alone Casino',
         '713290': 'Slot Parlor',
-        '722410': 'Bar/Restaurant Gaming'
+        '722410': 'Bar/Restaurant Gaming',
+        'ONLINE_CASINO': 'Online Casino / iGaming',
+        'ONLINE_SPORTSBOOK': 'Online Sportsbook'
       };
 
       results.push({
@@ -264,12 +294,19 @@ export function calculateCombinedImpact(
     }
   } else {
     // DEPARTMENT MODE: Apply sector-specific multipliers to each revenue stream
-    const revenueTypes = [
-      { key: 'gaming', sector: '713', label: 'Gaming (GGR)' },
-      { key: 'food', sector: '722', label: 'Food & Beverage' },
-      { key: 'lodging', sector: '721', label: 'Lodging' },
-      { key: 'other', sector: '711AS', label: 'Other' }
-    ];
+    const revenueTypes = isOnline
+      ? [
+          { key: 'gaming', sector: '713', label: propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting GGR' : 'Online GGR' },
+          { key: 'marketing', sector: '711AS', label: 'Marketing / Advertising' },
+          { key: 'tech', sector: '711AS', label: 'Technology Infrastructure' },
+          { key: 'other', sector: '711AS', label: 'Other' }
+        ]
+      : [
+          { key: 'gaming', sector: '713', label: 'Gaming (GGR)' },
+          { key: 'food', sector: '722', label: 'Food & Beverage' },
+          { key: 'lodging', sector: '721', label: 'Lodging' },
+          { key: 'other', sector: '711AS', label: 'Other' }
+        ];
 
     for (const { key, sector, label } of revenueTypes) {
       const revenue = revenues[key];
@@ -278,17 +315,31 @@ export function calculateCombinedImpact(
       // Get state data for this sector
       let stateData;
       if (key === 'gaming') {
-        // In department mode, GGR uses gambling multipliers (not property type 721120 which equals lodging)
-        // For non-casino-hotel property types, use their specific multipliers
-        if (propertyType && propertyType !== '721120' && propertyTypesData) {
-          stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
-        }
-        // For casino hotels or as fallback, use legacy gambling (7132) multipliers
-        if (!stateData && useGamblingSpecific && gamblingData) {
-          stateData = gamblingData.find(d => d.State === state);
-        }
-        if (!stateData) {
-          stateData = multiplierData.find(d => d.State === state && d.Sector === sector);
+        if (isOnline) {
+          // Online gaming: use property type data, then onlineGaming, then gambling fallback
+          if (propertyType && propertyTypesData) {
+            stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
+          }
+          if (!stateData && onlineGamingData) {
+            stateData = onlineGamingData.find(d => d.State === state);
+          }
+          if (!stateData && gamblingData) {
+            stateData = gamblingData.find(d => d.State === state);
+          }
+        } else {
+          // Land-based: existing logic
+          // In department mode, GGR uses gambling multipliers (not property type 721120 which equals lodging)
+          // For non-casino-hotel property types, use their specific multipliers
+          if (propertyType && propertyType !== '721120' && propertyTypesData) {
+            stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
+          }
+          // For casino hotels or as fallback, use legacy gambling (7132) multipliers
+          if (!stateData && useGamblingSpecific && gamblingData) {
+            stateData = gamblingData.find(d => d.State === state);
+          }
+          if (!stateData) {
+            stateData = multiplierData.find(d => d.State === state && d.Sector === sector);
+          }
         }
       } else {
         stateData = multiplierData.find(d => d.State === state && d.Sector === sector);

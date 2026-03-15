@@ -314,6 +314,62 @@ webapp/
 
 **Deployment:** Netlify with serverless functions
 
+## Revenue Forecaster Integration
+
+The calculator can be pre-filled via URL parameters from the [Casino Revenue Forecaster](https://gamblingpolicy.com/tools/revenue-forecaster/). When the URL contains `?from=forecaster`, the app skips the setup wizard and populates all form fields automatically.
+
+### URL Parameters
+
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| `from` | `forecaster` | Trigger for auto-import mode |
+| `state` | `Nevada` | Full state name (not abbreviation) |
+| `name` | `Proposed Casino` | Property name |
+| `propertyType` | `721120` | NAICS code (721120, 713210, 713290, 722410) |
+| `inputMode` | `department` | Always `department` when from forecaster |
+| `gaming` | `149.4` | Gaming GGR in $M |
+| `food` | `28.1` | Food & beverage revenue in $M |
+| `lodging` | `51.1` | Lodging revenue in $M (0 if no hotel) |
+| `other` | `31.5` | Other revenue in $M |
+| `gaming_emp` | `2,405` | Estimated direct gaming employment |
+| `archetype` | `mega_resort` | Archetype key for display |
+
+When imported, a green banner displays showing the source archetype and a link back to the forecaster.
+
+## Licensing
+
+The calculator operates on a freemium model:
+
+### Free Tier
+- Full access to all calculations and visualizations
+- Results display with an "EVALUATION" watermark overlay
+- No report downloads (PowerPoint/Word exports blocked)
+
+### Pro License ($1,495)
+- Removes watermark
+- Enables PowerPoint and Word report downloads
+- Licensed to **one property name** — the first property analyzed after activation
+- License key format: `PRO-YYYYMMDD-XXXXX` (expiration date + checksum)
+- Valid for 1 year from purchase date
+- Stored in `localStorage` (`licenseKey`, `licensedProperties`)
+
+### Add-On Property ($295)
+- Adds an additional property name to an existing Pro license
+- Same Stripe checkout flow, uses `addon_session_id` URL parameter
+
+### License Validation
+- Format: `PRO-YYYYMMDD-XXXXX` where `YYYYMMDD` is the expiration date
+- Checksum: 5-character base36 hash of `PRO` + date string + salt
+- Salt: `casino-impact-pro-2024` (shared between client validator and server-side generator)
+- Client-side validation in `licenseValidator.js`; server-side generation in `verify-session.js` (Netlify Function)
+- Property name matching uses normalized comparison (strips "hotel", "casino", "resort", punctuation)
+
+### Stripe Integration
+- **Checkout:** `POST /api/create-checkout` → creates Stripe session with `STRIPE_PRICE_ID`
+- **Add-on checkout:** `POST /api/create-checkout-addon` → uses `STRIPE_PRICE_ID_ADDON`
+- **Verification:** `GET /api/verify-session?session_id=...` → verifies payment, generates license key
+- Environment variables: `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_PRICE_ID_ADDON`
+
 ## Regenerating Data from Scratch
 
 To regenerate all multiplier data from raw sources:

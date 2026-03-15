@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
-import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug } from 'lucide-react';
+import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2 } from 'lucide-react';
 import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
@@ -13,7 +13,8 @@ import {
   canDownloadForProperty,
   getLicenseData,
   saveLicenseData,
-  addLicensedProperty
+  addLicensedProperty,
+  clearLicenseData
 } from './utils/licenseValidator';
 import WatermarkOverlay from './components/WatermarkOverlay';
 import PremiumModal from './components/PremiumModal';
@@ -1733,6 +1734,61 @@ More information about Dr. Philander is available at kahlil.co.`,
                 </button>
               )
             )}
+
+            {/* License Info Panel (Pro users) */}
+            {userTier === 'pro' && (() => {
+              const { licenseKey: savedKey, licensedProperties: savedProps, expiresAt } = getLicenseData();
+              return (
+                <div className="bg-white rounded-xl shadow-lg p-5">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Shield size={16} className="text-emerald-600" />
+                    Pro License
+                  </h2>
+                  <div className="space-y-2.5 text-sm">
+                    <div className="flex items-start gap-2">
+                      <Key size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-gray-500 text-xs">License Key</span>
+                        <p className="font-mono text-xs text-gray-800 break-all">{savedKey}</p>
+                      </div>
+                    </div>
+                    {expiresAt && (
+                      <div className="flex items-start gap-2">
+                        <Calendar size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <span className="text-gray-500 text-xs">Expires</span>
+                          <p className="text-gray-800 text-xs">{expiresAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        </div>
+                      </div>
+                    )}
+                    {savedProps && savedProps.length > 0 && (
+                      <div className="flex items-start gap-2">
+                        <Building2 size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <span className="text-gray-500 text-xs">Licensed Properties</span>
+                          {savedProps.map((p, i) => (
+                            <p key={i} className="text-gray-800 text-xs">{p}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Remove your license key from this browser? You can re-enter it anytime.')) {
+                          clearLicenseData();
+                          setUserTier('free');
+                          setLicensedProperties([]);
+                        }
+                      }}
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors mt-1"
+                    >
+                      <Trash2 size={12} />
+                      Remove license from this browser
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Location & Analysis Type */}
             <div className="bg-white rounded-xl shadow-lg p-6">

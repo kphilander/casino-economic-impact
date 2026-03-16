@@ -4,7 +4,6 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
   min-height: 100vh;
 }
 
@@ -45,6 +44,30 @@ body {
   box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
 }
 
+/* Dashboard card */
+.dash-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dash-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06), 0 16px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* Wizard card */
+.wizard-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 4px 16px rgba(0, 0, 0, 0.06),
+    0 24px 48px rgba(0, 0, 0, 0.08);
+}
+
 /* Input focus states */
 input:focus, select:focus {
   outline: none;
@@ -62,7 +85,7 @@ input[type="number"]::-webkit-outer-spin-button {
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -71,7 +94,8 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.3s ease-out forwards;
+  opacity: 0;
+  animation: fadeInUp 0.45s ease-out forwards;
 }
 
 /* Gradient text */
@@ -103,7 +127,7 @@ input[type="number"]::-webkit-outer-spin-button {
   backdrop-filter: blur(4px);
 }
 
-/* Page header - matches archetype wizard style */
+/* Page header */
 .page-header {
   background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
   color: white;
@@ -144,4 +168,16 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .animate-bounce-subtle:hover {
   animation: none;
+}
+
+/* Progress bar shimmer */
+@keyframes progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.progress-shimmer {
+  background: linear-gradient(90deg, #3182ce 0%, #63b3ed 50%, #3182ce 100%);
+  background-size: 200% 100%;
+  animation: progress-shimmer 2s ease-in-out infinite;
 }

@@ -40,7 +40,7 @@ const COLORS = {
 };
 
 // Metric Card Component
-function MetricCard({ icon: Icon, label, value, subtext, color = 'primary' }) {
+function MetricCard({ icon: Icon, label, value, subtext, color = 'primary', badge }) {
   const colorClasses = {
     primary: 'from-[#1a365d] to-[#2c5282]',   // GP Navy gradient
     success: 'from-[#3182ce] to-[#4299e1]',   // GP Blue gradient
@@ -49,17 +49,24 @@ function MetricCard({ icon: Icon, label, value, subtext, color = 'primary' }) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 card-hover overflow-hidden">
-      <div className="flex items-center gap-3">
-        <div className={`p-3 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white flex-shrink-0`}>
-          <Icon size={24} />
+    <div className="bg-white rounded-xl shadow-lg p-5 card-hover">
+      <div className="flex items-start gap-3">
+        <div className={`p-2.5 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white flex-shrink-0`}>
+          <Icon size={20} />
         </div>
-        <div className="min-w-0">
-          <p className="text-sm text-gray-600 font-medium">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 truncate">{value}</p>
-          {subtext && <p className="text-xs text-gray-600 mt-1">{subtext}</p>}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}</p>
+          <p className="text-xl font-bold text-gray-900 mt-0.5 leading-tight">{value}</p>
+          {subtext && <p className="text-xs text-gray-500 mt-1">{subtext}</p>}
         </div>
       </div>
+      {badge && (
+        <div className="mt-2 pt-2 border-t border-gray-100">
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+            {badge}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -158,21 +165,27 @@ function DefTooltip({ text, children }) {
   );
 }
 
-// Term definitions for tooltips
-const TERM_DEFINITIONS = {
-  output: 'Total value of goods and services produced across all industries stimulated by the casino operation, including intermediate goods.',
-  gdp: 'Value added to the economy, calculated as output minus intermediate inputs. Also known as Gross Domestic Product contribution.',
-  employment: 'Full-time equivalent (FTE) jobs supported, including part-time jobs converted to full-time equivalents.',
-  wages: 'Total compensation of employees, including salaries, wages, and benefits such as employer contributions to pensions and insurance.',
-  tax: 'Taxes on production and imports (TOPI) from the IO model, including sales taxes, property taxes, excise taxes, and fees paid by businesses.',
-  direct: 'The initial economic activity from the casino operation itself — its own spending, employment, and output.',
-  indirect: 'Activity generated in the supply chain — businesses that provide goods and services to the casino.',
-  induced: 'Activity from household spending — casino and supplier employees spending their wages in the local economy.',
-  multiplier: 'The ratio of total impact to direct impact. Shows how much each dollar of direct activity generates across the full economy.'
-};
+// Term definitions for tooltips (factory function for online/land-based context)
+function getTermDefinitions(isOnline) {
+  const entity = isOnline ? 'gaming operation' : 'casino operation';
+  const entityShort = isOnline ? 'operator' : 'casino';
+  return {
+    output: `Total value of goods and services produced across all industries stimulated by the ${entity}, including intermediate goods.`,
+    gdp: 'Value added to the economy, calculated as output minus intermediate inputs. Also known as Gross Domestic Product contribution.',
+    employment: 'Full-time equivalent (FTE) jobs supported, including part-time jobs converted to full-time equivalents.',
+    wages: 'Total compensation of employees, including salaries, wages, and benefits such as employer contributions to pensions and insurance.',
+    tax: 'Taxes on production and imports (TOPI) from the IO model, including sales taxes, property taxes, excise taxes, and fees paid by businesses.',
+    direct: `The initial economic activity from the ${entity} itself — its own spending, employment, and output.`,
+    indirect: `Activity generated in the supply chain — businesses that provide goods and services to the ${entityShort}.`,
+    induced: `Activity from household spending — ${entityShort} and supplier employees spending their wages in the local economy.`,
+    multiplier: 'The ratio of total impact to direct impact. Shows how much each dollar of direct activity generates across the full economy.'
+  };
+}
+const TERM_DEFINITIONS = getTermDefinitions(false);
 
 // Results Table Component
-function ResultsTable({ results }) {
+function ResultsTable({ results, termDefs }) {
+  const TERM_DEFINITIONS = termDefs || getTermDefinitions(false);
   const rows = [
     { label: 'Output ($M)', key: 'output', format: (v) => formatNumber(v, 1) },
     { label: 'GDP ($M)', key: 'gdp', format: (v) => formatNumber(v, 1) },
@@ -1039,7 +1052,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               stepNum={1}
           totalSteps={totalSteps}
           title="Tell us about your project"
-          subtitle="Select the state, property type, and name the casino or project."
+          subtitle="Select the state, type of gaming operation, and name your project."
           onNext={() => setWizardStep(1)}
           showBack={false}
           canProceed={!!state && !!propertyType && !!casinoName?.trim()}
@@ -1052,7 +1065,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               options={stateOptions}
             />
             <div className="space-y-1">
-              <label htmlFor="property-type" className="block text-sm font-medium text-gray-700">Property Type</label>
+              <label htmlFor="property-type" className="block text-sm font-medium text-gray-700">Type of Gaming Operation</label>
               <select
                 id="property-type"
                 value={propertyType}
@@ -1091,13 +1104,16 @@ More information about Dr. Philander is available at kahlil.co.`,
     // Step 2: Revenue Input Mode and Revenue Entry
     if (wizardStep === 1) {
       // Determine if we can skip the "other revenue" step
-      const canProceedToNextStep = inputMode === 'total'
-        ? revenues.total > 0
-        : revenues.gaming > 0;
+      const canProceedToNextStep = isOnline
+        ? (revenues.gaming > 0 || revenues.total > 0)
+        : inputMode === 'total'
+          ? revenues.total > 0
+          : revenues.gaming > 0;
 
-      // For total mode, skip step 3 (other revenue) and go to step 4 (known data)
+      // For total mode or online types, skip step 3 (other revenue) and go to step 4 (known data)
+      // Online operators have a single revenue stream (GGR); there are no "other revenue streams"
       const handleNextStep = () => {
-        if (inputMode === 'total') {
+        if (isOnline || inputMode === 'total') {
           setWizardStep(3); // Skip to known data step
         } else {
           setWizardStep(2); // Go to other revenue step
@@ -1111,85 +1127,97 @@ More information about Dr. Philander is available at kahlil.co.`,
             <WizardStep
               stepNum={2}
               totalSteps={totalSteps}
-              title="How would you like to enter revenue?"
-              subtitle="Choose whether to enter total property revenue or break it down by department."
+              title={isOnline ? "Enter gross gaming revenue" : "How would you like to enter revenue?"}
+              subtitle={isOnline
+                ? "Enter the total GGR for this online operation. Marketing, tech, and other costs are expenses funded by GGR — not separate revenue streams."
+                : "Choose whether to enter total property revenue or break it down by department."}
               onBack={() => setWizardStep(0)}
               onNext={handleNextStep}
               canProceed={canProceedToNextStep}
             >
               <div className="space-y-6">
-                {/* Input Mode Toggle */}
-                <div className="flex gap-4">
+                {isOnline ? (
+                  /* Online: single GGR input, no department toggle */
+                  <div className="animate-fade-in">
+                    <InputField
+                      label={propertyType === 'ONLINE_SPORTSBOOK' ? 'Gross Betting Revenue' : 'Gross Gaming Revenue (GGR)'}
+                      value={revenues.gaming || revenues.total}
+                      onChange={(val) => setRevenues({ ...revenues, gaming: val, total: val })}
+                      placeholder="100"
+                      prefix="$"
+                      suffix="M"
+                      helpText={`Total gross ${propertyType === 'ONLINE_SPORTSBOOK' ? 'betting' : 'gaming'} revenue — the single revenue stream for the online operation`}
+                    />
+                    <p className="mt-3 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
+                      <strong>Methodology note:</strong> Online multipliers are estimated from public company SEC filings (DraftKings, Rush Street Interactive 2024), not BEA IO-derived coefficients.
+                      For the most accurate direct effects, enter actual employment and wage data in the next step.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Land-based: Input Mode Toggle */}
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => {
+                          setInputMode('total');
+                          setRevenues({ ...revenues, gaming: null, food: null, lodging: null, other: null, total: revenues.total || 100 });
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                          inputMode === 'total'
+                        ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium">Total Property Revenue</div>
+                    <div className="text-xs text-gray-500 mt-1">Enter one combined number</div>
+                  </button>
                   <button
                     onClick={() => {
-                      setInputMode('total');
-                      setRevenues({ ...revenues, gaming: null, food: null, lodging: null, other: null, total: revenues.total || 100 });
+                      setInputMode('department');
+                      setRevenues({ ...revenues, total: null, gaming: revenues.gaming || 100 });
                     }}
                     className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                      inputMode === 'total'
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="font-medium">Total Property Revenue</div>
-                <div className="text-xs text-gray-500 mt-1">Enter one combined number</div>
-              </button>
-              <button
-                onClick={() => {
-                  setInputMode('department');
-                  setRevenues({ ...revenues, total: null, gaming: revenues.gaming || 100 });
-                }}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  inputMode === 'department'
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="font-medium">By Department</div>
-                <div className="text-xs text-gray-500 mt-1">{isOnline ? 'GGR, marketing, tech separately' : 'Gaming, F&B, lodging separately'}</div>
-              </button>
-            </div>
+                      inputMode === 'department'
+                        ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium">By Department</div>
+                    <div className="text-xs text-gray-500 mt-1">Gaming, F&B, lodging separately</div>
+                  </button>
+                </div>
 
-            {/* Revenue Input based on mode */}
-            {inputMode === 'total' ? (
-              <div className="animate-fade-in">
-                <InputField
-                  label={isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Gross Betting Revenue' : 'Online GGR') : 'Total Property Revenue'}
-                  value={revenues.total}
-                  onChange={(val) => setRevenues({ ...revenues, total: val })}
-                  placeholder="100"
-                  prefix="$"
-                  suffix="M"
-                  helpText={isOnline
-                    ? `Total gross gaming/betting revenue from the ${PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || 'operation'}`
-                    : `All revenue from the ${PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || 'property'} will use integrated multipliers`}
-                />
-                {isOnline ? (
-                  <p className="mt-3 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
-                    <strong>Note:</strong> Online multipliers are estimated from public company data (DraftKings, Rush Street Interactive, Flutter 2024 SEC filings).
-                    For the most accurate direct effects, use "By Department" and enter known employment/wage data.
-                  </p>
+                {/* Revenue Input based on mode */}
+                {inputMode === 'total' ? (
+                  <div className="animate-fade-in">
+                    <InputField
+                      label="Total Property Revenue"
+                      value={revenues.total}
+                      onChange={(val) => setRevenues({ ...revenues, total: val })}
+                      placeholder="100"
+                      prefix="$"
+                      suffix="M"
+                      helpText={`All revenue from the ${PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || 'property'} will use integrated multipliers`}
+                    />
+                    <p className="mt-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                      <strong>Note:</strong> Total mode applies {propertyType === '721120' ? 'accommodation (hotel)' : 'property-specific'} multipliers to the entire revenue.
+                      Use "By Department" if you want gaming revenue analyzed separately with gambling-specific multipliers.
+                    </p>
+                  </div>
                 ) : (
-                  <p className="mt-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                    <strong>Note:</strong> Total mode applies {propertyType === '721120' ? 'accommodation (hotel)' : 'property-specific'} multipliers to the entire revenue.
-                    Use "By Department" if you want gaming revenue analyzed separately with gambling-specific multipliers.
-                  </p>
+                  <div className="animate-fade-in">
+                    <InputField
+                      label="Gaming Revenue (GGR)"
+                      value={revenues.gaming}
+                      onChange={(val) => setRevenues({ ...revenues, gaming: val })}
+                      placeholder="100"
+                      prefix="$"
+                      suffix="M"
+                      helpText="Enter gross gaming revenue (win) in millions. Gaming-specific multipliers will be applied."
+                    />
+                  </div>
                 )}
-              </div>
-            ) : (
-              <div className="animate-fade-in">
-                <InputField
-                  label={isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting GGR' : 'Online Gaming GGR') : 'Gaming Revenue (GGR)'}
-                  value={revenues.gaming}
-                  onChange={(val) => setRevenues({ ...revenues, gaming: val })}
-                  placeholder="100"
-                  prefix="$"
-                  suffix="M"
-                  helpText={isOnline
-                    ? 'Enter gross gaming/betting revenue in millions. Online-adjusted multipliers will be applied.'
-                    : 'Enter gross gaming revenue (win) in millions. Gaming-specific multipliers will be applied.'}
-                />
-              </div>
+                  </>
                 )}
               </div>
             </WizardStep>
@@ -1944,7 +1972,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                   options={stateOptions}
                 />
                 <SelectField
-                  label="Property Type"
+                  label="Operation Type"
                   value={propertyType}
                   onChange={setPropertyType}
                   options={PROPERTY_TYPE_OPTIONS.filter(p => p.value).map(p => ({ value: p.value, label: p.label }))}
@@ -1970,37 +1998,16 @@ More information about Dr. Philander is available at kahlil.co.`,
 
               <div className="space-y-4">
                 <InputField
-                  label={isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Gross Betting Revenue' : 'Online GGR') : 'Gaming Revenue (GGR)'}
+                  label={isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Gross Betting Revenue' : 'Gross Gaming Revenue (GGR)') : 'Gaming Revenue (GGR)'}
                   value={revenues.gaming}
                   onChange={(v) => setRevenues({ ...revenues, gaming: v })}
                   placeholder="100"
                   prefix="$"
                   suffix="M"
-                  helpText={isOnline ? 'Gross gaming/betting revenue' : 'Gross gaming revenue from casino operations'}
+                  helpText={isOnline ? 'The single revenue stream for online operations' : 'Gross gaming revenue from casino operations'}
                 />
 
-                {isOnline ? (
-                  <>
-                    <InputField
-                      label="Marketing & Advertising"
-                      value={revenues.marketing}
-                      onChange={(v) => setRevenues({ ...revenues, marketing: v })}
-                      placeholder="Optional"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Promotional spending, customer acquisition"
-                    />
-                    <InputField
-                      label="Technology Infrastructure"
-                      value={revenues.tech}
-                      onChange={(v) => setRevenues({ ...revenues, tech: v })}
-                      placeholder="Optional"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Platform, servers, payment processing"
-                    />
-                  </>
-                ) : (
+                {!isOnline && (
                   <>
                     <InputField
                       label="Food & Beverage Revenue"
@@ -2020,18 +2027,17 @@ More information about Dr. Philander is available at kahlil.co.`,
                       suffix="M"
                       helpText="Hotel room revenue"
                     />
+                    <InputField
+                      label="Other Revenue"
+                      value={revenues.other}
+                      onChange={(v) => setRevenues({ ...revenues, other: v })}
+                      placeholder="Optional"
+                      prefix="$"
+                      suffix="M"
+                      helpText="Entertainment, spa, retail, etc."
+                    />
                   </>
                 )}
-
-                <InputField
-                  label="Other Revenue"
-                  value={revenues.other}
-                  onChange={(v) => setRevenues({ ...revenues, other: v })}
-                  placeholder="Optional"
-                  prefix="$"
-                  suffix="M"
-                  helpText={isOnline ? 'Other operational revenue' : 'Entertainment, spa, retail, etc.'}
-                />
               </div>
             </div>
 
@@ -2043,7 +2049,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               >
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <Calculator size={20} className="text-[#1a365d]" />
-                  Known Property Data
+                  {isOnline ? 'Known Operational Data' : 'Known Property Data'}
                 </h2>
                 <ChevronDown
                   size={20}
@@ -2054,15 +2060,12 @@ More information about Dr. Philander is available at kahlil.co.`,
               {showAdvanced && (
                 <div className="mt-4 space-y-4 pt-4 border-t border-gray-100">
                   <p className="text-xs text-gray-500">
-                    If you have actual property data, enter it here to override calculated values.
+                    {isOnline ? 'If you have actual operational data, enter it here to override calculated values.' : 'If you have actual property data, enter it here to override calculated values.'}
                   </p>
 
                   {/* Department-level known data inputs */}
                   {(isOnline ? [
-                    { key: 'gaming', label: propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting' : 'Online Gaming', revenue: revenues.gaming },
-                    { key: 'marketing', label: 'Marketing', revenue: revenues.marketing },
-                    { key: 'tech', label: 'Technology', revenue: revenues.tech },
-                    { key: 'other', label: 'Other', revenue: revenues.other }
+                    { key: 'gaming', label: propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting' : 'Online Gaming', revenue: revenues.gaming }
                   ] : [
                     { key: 'gaming', label: 'Gaming', revenue: revenues.gaming },
                     { key: 'food', label: 'Food & Beverage', revenue: revenues.food },
@@ -2201,6 +2204,26 @@ More information about Dr. Philander is available at kahlil.co.`,
           <section className={`lg:col-span-2 space-y-6 ${userTier === 'free' ? 'protected-content' : ''}`} aria-label="Analysis results">
             {results ? (
               <>
+                {/* Online methodology banner */}
+                {isOnline && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 animate-fade-in-up">
+                    <div className="flex items-start gap-3">
+                      <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600 mt-0.5 flex-shrink-0">
+                        <Shield size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-amber-900">
+                          Online Multipliers — Estimated Methodology
+                        </p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          BEA Input-Output tables do not distinguish online from land-based gambling (both NAICS 7132). Online adjustment factors are estimated from public company SEC filings (DraftKings, Rush Street Interactive 2024), not IO-derived coefficients.
+                          For the most accurate direct effects, enter actual employment and wage data under "Known {isOnline ? 'Operational' : 'Property'} Data."
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Summary Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up">
                   <MetricCard
@@ -2219,7 +2242,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                   />
                   <MetricCard
                     icon={Users}
-                    label="Total FTEs"
+                    label="Total Jobs"
                     value={formatJobs(results.totals.employment.total)}
                     subtext={`${formatNumber(results.multipliers.employment, 2)}x multiplier`}
                     color="purple"
@@ -2236,7 +2259,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 {/* Economic Impact Summary (primary results table) */}
                 <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up" style={{ animationDelay: '75ms' }}>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Economic Impact Summary</h3>
-                  <ResultsTable results={results} />
+                  <ResultsTable results={results} termDefs={getTermDefinitions(isOnline)} />
                   {results.hasUserData && (
                     <p className="text-xs text-gray-500 mt-3 italic">
                       Note: Direct employment and/or wages use user-provided values.
@@ -2269,8 +2292,10 @@ More information about Dr. Philander is available at kahlil.co.`,
                           {gamingTaxResult && (
                             <tr className="border-b border-gray-100 hover:bg-gray-50">
                               <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                                <DefTooltip text="State and local taxes levied directly on gross gaming revenue at rates set by statute or compact.">
-                                  Gaming Tax (GGR)
+                                <DefTooltip text={isOnline
+                                  ? "State taxes levied on online gross gaming/betting revenue at statutory rates."
+                                  : "State and local taxes levied directly on gross gaming revenue at rates set by statute or compact."}>
+                                  {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting Tax' : 'iGaming Tax') : 'Gaming Tax (GGR)'}
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">
                                   {formatNumber(gamingTaxResult.effectiveRate * 100, 1)}% effective rate
@@ -2343,7 +2368,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                       </table>
                     </div>
                     <p className="text-xs text-gray-500 mt-3">
-                      Gaming tax is applied to GGR at state-mandated rates.
+                      {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports betting tax' : 'iGaming tax') : 'Gaming tax'} is applied to GGR at state-mandated rates.
                       TOPI from the IO model covers sales, property, excise taxes, and business fees.
                       Payroll taxes are employer-side (FICA, FUTA, SUTA) using DOL average rates.
                       Household taxes use BEA personal current tax ratios (income taxes, vehicle licenses, personal property taxes).
@@ -2401,7 +2426,7 @@ More information about Dr. Philander is available at kahlil.co.`,
         {/* Footer */}
         <footer role="contentinfo" className="mt-12 text-center text-sm text-gray-600 space-y-1">
           <p>
-            Casino Economic Impact Model |{' '}
+            Gaming Economic Impact Model |{' '}
             <a href="https://github.com/kphilander/casino-economic-impact" className="text-[#3182ce] hover:underline">
               GitHub
             </a>

@@ -22,7 +22,7 @@
 #
 # Data Sources:
 #   - DraftKings 2024: 5,100 employees / $4.77B revenue (1.07 emp/$1M rev)
-#   - Rush Street Interactive 2024: ~912 employees / $924M revenue (0.99 emp/$1M rev)
+#   - Rush Street Interactive 2024: ~883 employees / $924M revenue (0.96 emp/$1M rev)
 #   - Flutter/FanDuel 2024: 27,345 employees (global) / $14.05B revenue
 #   - Land-based average (AGA 2022): 332K employees / $66B GGR
 #   - Gambling multipliers from 12_gambling_specific_data.R
@@ -69,11 +69,11 @@ ONLINE_ADJUSTMENT_FACTORS <- list(
 
   # Employment coefficient adjustment
   # Land-based: ~5.0 employees per $1M revenue
-  # Online: ~1.03 employees per $1M revenue (avg of DraftKings 1.07 + RSI 0.99)
-  # Ratio: 1.03/5.0 = 0.206
+  # Online: ~1.01 employees per $1M revenue (avg of DraftKings 1.07 + RSI 0.96)
+  # Ratio: 1.01/5.0 = 0.202
   # But Emp_Coef is jobs per $1M GDP, not revenue, so we adjust:
   # If online VA ratio is 0.90 of 7132, employment per $M GDP ratio is:
-  # 0.206 / 0.90 = 0.229
+  # 0.202 / 0.90 = 0.224
   emp_coef_ratio = 0.23,      # Online employment per $1M GDP / Gambling per $1M GDP
 
   # Source data (for documentation)

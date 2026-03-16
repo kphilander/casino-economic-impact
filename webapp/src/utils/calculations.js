@@ -294,12 +294,11 @@ export function calculateCombinedImpact(
     }
   } else {
     // DEPARTMENT MODE: Apply sector-specific multipliers to each revenue stream
+    // Online operators have a single revenue stream (GGR); marketing/tech/other are
+    // expense lines funded by GGR, not independent revenue — including them would double-count.
     const revenueTypes = isOnline
       ? [
-          { key: 'gaming', sector: '713', label: propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting GGR' : 'Online GGR' },
-          { key: 'marketing', sector: '711AS', label: 'Marketing / Advertising' },
-          { key: 'tech', sector: '711AS', label: 'Technology Infrastructure' },
-          { key: 'other', sector: '711AS', label: 'Other' }
+          { key: 'gaming', sector: '713', label: propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting GGR' : 'Online GGR' }
         ]
       : [
           { key: 'gaming', sector: '713', label: 'Gaming (GGR)' },
@@ -550,10 +549,13 @@ export function formatNumber(value, decimals = 1) {
 }
 
 /**
- * Format currency (millions)
+ * Format currency (millions, with auto-scale to billions for large values)
  */
 export function formatCurrency(value, decimals = 1) {
   if (value === null || value === undefined || isNaN(value)) return '-';
+  if (Math.abs(value) >= 1000) {
+    return '$' + formatNumber(value / 1000, decimals) + 'B';
+  }
   return '$' + formatNumber(value, decimals) + 'M';
 }
 

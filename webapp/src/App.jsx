@@ -1149,8 +1149,9 @@ More information about Dr. Philander is available at kahlil.co.`,
                       helpText={`Total gross ${propertyType === 'ONLINE_SPORTSBOOK' ? 'betting' : 'gaming'} revenue — the single revenue stream for the online operation`}
                     />
                     <p className="mt-3 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
-                      <strong>Methodology note:</strong> Online multipliers are estimated from public company SEC filings (DraftKings, Rush Street Interactive 2024), not BEA IO-derived coefficients.
-                      For the most accurate direct effects, enter actual employment and wage data in the next step.
+                      <strong>Important:</strong> Employment, wages, and supply chain effects apply to the state where the operator's workforce is located — not necessarily where bettors are.
+                      If the operator is headquartered elsewhere, most economic impact (except gaming tax) occurs in that state.
+                      Enter actual in-state employment and wage data in the next step for the most accurate results.
                     </p>
                   </div>
                 ) : (
@@ -2213,11 +2214,18 @@ More information about Dr. Philander is available at kahlil.co.`,
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-amber-900">
-                          Online Multipliers — Estimated Methodology
+                          Important: Geographic Limitations for Online Operations
                         </p>
                         <p className="text-xs text-amber-700 mt-0.5">
-                          BEA Input-Output tables do not distinguish online from land-based gambling (both NAICS 7132). Online adjustment factors are estimated from public company SEC filings (DraftKings, Rush Street Interactive 2024), not IO-derived coefficients.
-                          For the most accurate direct effects, enter actual employment and wage data under "Known {isOnline ? 'Operational' : 'Property'} Data."
+                          <strong>These results assume the operator's workforce and operations are located in {state}.</strong> Online
+                          gambling companies often concentrate employees at headquarters (e.g., DraftKings in Massachusetts) while
+                          generating GGR across many states. If the operator's staff are primarily located elsewhere,
+                          the employment, wage, and supply chain effects shown here would largely occur in that state — not {state}.
+                          The gaming tax estimate remains valid as it flows to the state where bettors are located.
+                        </p>
+                        <p className="text-xs text-amber-600 mt-1.5">
+                          Multipliers are estimated from SEC filings (DraftKings, Rush Street Interactive 2024), not BEA IO-derived coefficients.
+                          For the most accurate direct effects, enter actual in-state employment and wage data under "Known Operational Data."
                         </p>
                       </div>
                     </div>

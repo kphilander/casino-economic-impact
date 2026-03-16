@@ -85,13 +85,15 @@ This preserves the **correct supply chain structure** (the Leontief inverse for 
 
 ### Known Limitations
 
-1. **Wage coefficient excludes stock-based compensation.** Online operators (especially DraftKings) issue significant equity grants to tech employees. SBC could add 8-10 percentage points of revenue to true compensation costs. The IO framework's "compensation of employees" (V001) also excludes SBC, so this is internally consistent but understates total worker compensation for policy purposes.
+1. **Geographic mismatch is the most significant limitation.** IO multipliers assume the economic activity (employment, wages, supply chain purchases) occurs in the state where the model is applied. For land-based casinos this holds — the building, employees, and suppliers are physically in-state. For online operators, it often does not. DraftKings generates GGR in Indiana but employs most of its 5,100 workers in Massachusetts. If an analyst selects "Indiana" and enters DraftKings' Indiana GGR, the model will estimate jobs and wages as if those workers were in Indiana. In reality, Indiana receives gaming tax revenue while the employment, wage, and supply chain effects largely accrue to Massachusetts (and other states where the operator has offices). **Users should select the state where the operator's workforce is located, or enter actual in-state employment as known data.** The gaming tax estimate is valid regardless of location — it flows to the state where bettors are.
 
-2. **Indirect/induced effects use gambling supply chain structure.** The Leontief inverse for 7132 reflects land-based gambling's purchasing patterns (food distributors, hospitality suppliers, construction). Online operators buy from different suppliers (cloud hosting, payment processors, ad networks). The 0.85 output multiplier ratio is an approximate correction, not a re-derivation of the supply chain.
+2. **Wage coefficient excludes stock-based compensation.** Online operators (especially DraftKings) issue significant equity grants to tech employees. SBC could add 8-10 percentage points of revenue to true compensation costs. The IO framework's "compensation of employees" (V001) also excludes SBC, so this is internally consistent but understates total worker compensation for policy purposes.
 
-3. **Online operators have a single revenue stream.** Unlike land-based casinos with genuinely separate revenue from hotels (NAICS 721), restaurants (NAICS 722), and entertainment, online operators have one revenue stream: gross gaming revenue (GGR). Marketing, technology, and other operational costs are expenses funded by GGR, not independent revenue streams. The model treats online operations as GGR-only to avoid double-counting.
+3. **Indirect/induced effects use gambling supply chain structure.** The Leontief inverse for 7132 reflects land-based gambling's purchasing patterns (food distributors, hospitality suppliers, construction). Online operators buy from different suppliers (cloud hosting, payment processors, ad networks). The 0.85 output multiplier ratio is an approximate correction, not a re-derivation of the supply chain.
 
-4. **Two SEC filings is a thin evidence base.** The employment ratio is anchored on two companies. As more online-only operators go public or disclose detailed employment data, this should be revisited.
+4. **Online operators have a single revenue stream.** Unlike land-based casinos with genuinely separate revenue from hotels (NAICS 721), restaurants (NAICS 722), and entertainment, online operators have one revenue stream: gross gaming revenue (GGR). Marketing, technology, and other operational costs are expenses funded by GGR, not independent revenue streams. The model treats online operations as GGR-only to avoid double-counting.
+
+5. **Two SEC filings is a thin evidence base.** The employment ratio is anchored on two companies. As more online-only operators go public or disclose detailed employment data, this should be revisited.
 
 ---
 
@@ -99,9 +101,10 @@ This preserves the **correct supply chain structure** (the Leontief inverse for 
 
 For the most accurate results when modeling online gambling operations:
 
-1. **Enter actual employment and wage data** as "known data" overrides whenever available. This bypasses the estimated coefficients entirely for direct effects.
-2. **Treat indirect and induced effects as approximate.** The gambling industry supply chain structure is a reasonable but imperfect proxy for online operations.
-3. **Do not add marketing, technology, or other operational costs as separate revenue streams.** These are expenses funded by GGR, not additional economic activity.
+1. **Choose the state where the operator's workforce is located**, not necessarily where bettors are. If modeling the impact of GGR from a specific bettor state, use only the gaming tax estimate — the multiplier effects belong to the operator's home state.
+2. **Enter actual in-state employment and wage data** as "known data" overrides whenever available. This bypasses the estimated coefficients entirely for direct effects and resolves the geographic mismatch problem.
+3. **Treat indirect and induced effects as approximate.** The gambling industry supply chain structure is a reasonable but imperfect proxy for online operations.
+4. **Do not add marketing, technology, or other operational costs as separate revenue streams.** These are expenses funded by GGR, not additional economic activity.
 
 ---
 

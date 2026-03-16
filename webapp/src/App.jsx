@@ -21,6 +21,14 @@ import PremiumModal from './components/PremiumModal';
 import WrongPropertyModal from './components/WrongPropertyModal';
 import ConfirmPropertyModal from './components/ConfirmPropertyModal';
 import PageHeader from './components/PageHeader';
+import DashboardMetricCard from './components/dashboard/MetricCard';
+import DashboardImpactCompositionChart from './components/dashboard/ImpactCompositionChart';
+import DashboardEmploymentChart from './components/dashboard/EmploymentChart';
+import DashboardStateComparisonChart from './components/dashboard/StateComparisonChart';
+import DashboardMultiplierRadarChart from './components/dashboard/MultiplierRadarChart';
+import DashboardResultsTable from './components/dashboard/ResultsTable';
+import ImpactFlowChart from './components/dashboard/ImpactFlowChart';
+import SectionHeader from './components/dashboard/SectionHeader';
 // Report generators are dynamically imported to reduce initial bundle size
 // import { generateReport } from './utils/reportGenerator';
 // import { downloadPPTX } from './utils/pptxGenerator';
@@ -442,37 +450,45 @@ function DownloadPPTXButton({ onClick, isGenerating }) {
 // Wizard Step Component
 function WizardStep({ stepNum, totalSteps, title, subtitle, children, onBack, onNext, nextLabel = 'Continue', showBack = true, canProceed = true }) {
   return (
-    <div className="py-12 px-4">
-      <div className="max-w-xl mx-auto">
-        {/* Progress indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">Step {stepNum} of {totalSteps}</span>
-            <span className="text-sm text-gray-400">{Math.round((stepNum / totalSteps) * 100)}% complete</span>
-          </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+    <div className="min-h-[calc(100vh-80px)] flex items-start justify-center py-12 px-4">
+      <div className="max-w-xl w-full">
+        {/* Step indicator pills */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          {Array.from({ length: totalSteps }, (_, i) => (
             <div
-              className="h-full bg-[#3182ce] transition-all duration-300"
-              style={{ width: `${(stepNum / totalSteps) * 100}%` }}
+              key={i}
+              className={`h-2 rounded-full transition-all duration-500 ${
+                i + 1 < stepNum ? 'w-2 bg-[#3182ce]'
+                : i + 1 === stepNum ? 'w-10 progress-shimmer'
+                : 'w-2 bg-gray-300'
+              }`}
             />
-          </div>
+          ))}
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
-          {subtitle && <p className="text-gray-500 mb-6">{subtitle}</p>}
+        <div className="wizard-card p-8 sm:p-10">
+          {/* Step number badge */}
+          <div className="flex items-center gap-3 mb-5">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-[#1a365d] to-[#3182ce] text-white text-sm font-bold shadow-md">
+              {stepNum}
+            </span>
+            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Step {stepNum} of {totalSteps}</span>
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-900 mb-2 leading-tight">{title}</h2>
+          {subtitle && <p className="text-gray-500 mb-8 leading-relaxed">{subtitle}</p>}
 
           <div className="mb-8">
             {children}
           </div>
 
           {/* Navigation */}
-          <div className="flex justify-between">
+          <div className="flex justify-between items-center pt-4 border-t border-gray-100">
             {showBack && onBack ? (
               <button
                 onClick={onBack}
-                className="px-6 py-2.5 text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                className="px-5 py-2.5 text-gray-500 hover:text-gray-900 font-medium transition-colors rounded-lg hover:bg-gray-50"
               >
                 ← Back
               </button>
@@ -480,10 +496,10 @@ function WizardStep({ stepNum, totalSteps, title, subtitle, children, onBack, on
             <button
               onClick={onNext}
               disabled={!canProceed}
-              className={`px-8 py-2.5 rounded-lg font-medium transition-all ${
+              className={`px-8 py-3 rounded-xl font-semibold transition-all ${
                 canProceed
-                  ? 'bg-[#1a365d] text-white hover:bg-[#152a4d] shadow-lg hover:shadow-xl'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-gradient-to-r from-[#1a365d] to-[#2c5282] text-white hover:from-[#152a4d] hover:to-[#1a365d] shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
             >
               {nextLabel} →
@@ -1959,7 +1975,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             })()}
 
             {/* Location & Analysis Type */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <MapPin size={20} className="text-[#3182ce]" />
                 Location & Settings
@@ -1991,7 +2007,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             </div>
 
             {/* Revenue Streams */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <DollarSign size={20} className="text-[#3182ce]" />
                 Revenue Streams
@@ -2043,7 +2059,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             </div>
 
             {/* Advanced Options */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="dash-card p-6">
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="flex items-center justify-between w-full text-left"
@@ -2109,7 +2125,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             </div>
 
             {/* Gaming Tax Rate */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
                 <DollarSign size={20} className="text-[#1a365d]" />
                 {isOnline ? (propertyType === 'ONLINE_CASINO' ? 'iGaming Tax Rate' : 'Sports Betting Tax Rate') : 'Gaming Tax Rate'}
@@ -2234,40 +2250,51 @@ More information about Dr. Philander is available at kahlil.co.`,
 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up">
-                  <MetricCard
+                  <DashboardMetricCard
                     icon={TrendingUp}
                     label="Total Output"
-                    value={formatCurrency(results.totals.output.total)}
+                    rawValue={results.totals.output.total}
+                    formatter={formatCurrency}
                     subtext={`${formatNumber(results.multipliers.output, 2)}x multiplier`}
                     color="primary"
                   />
-                  <MetricCard
+                  <DashboardMetricCard
                     icon={DollarSign}
                     label="Total GDP"
-                    value={formatCurrency(results.totals.gdp.total)}
+                    rawValue={results.totals.gdp.total}
+                    formatter={formatCurrency}
                     subtext={`${formatNumber(results.multipliers.gdp, 2)}x multiplier`}
                     color="success"
                   />
-                  <MetricCard
+                  <DashboardMetricCard
                     icon={Users}
                     label="Total Jobs"
-                    value={formatJobs(results.totals.employment.total)}
+                    rawValue={results.totals.employment.total}
+                    formatter={(v) => formatJobs(v)}
                     subtext={`${formatNumber(results.multipliers.employment, 2)}x multiplier`}
                     color="purple"
                   />
-                  <MetricCard
+                  <DashboardMetricCard
                     icon={Building2}
                     label="Total Wages"
-                    value={formatCurrency(results.totals.wages.total)}
+                    rawValue={results.totals.wages.total}
+                    formatter={formatCurrency}
                     subtext={`${formatNumber(results.multipliers.wages, 2)}x multiplier`}
                     color="amber"
                   />
                 </div>
 
+                {/* Economic Impact Flow (Sankey) */}
+                <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                  <SectionHeader>Economic Impact Flow</SectionHeader>
+                  <p className="text-xs text-gray-400 -mt-3 mb-3">How revenue ripples through the economy via direct, indirect, and induced effects</p>
+                  <ImpactFlowChart results={results} byRevenue={results.byRevenue} />
+                </div>
+
                 {/* Economic Impact Summary (primary results table) */}
-                <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up" style={{ animationDelay: '75ms' }}>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Economic Impact Summary</h3>
-                  <ResultsTable results={results} termDefs={getTermDefinitions(isOnline)} />
+                <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '75ms' }}>
+                  <SectionHeader>Economic Impact Summary</SectionHeader>
+                  <DashboardResultsTable results={results} termDefs={getTermDefinitions(isOnline)} />
                   {results.hasUserData && (
                     <p className="text-xs text-gray-500 mt-3 italic">
                       Note: Direct employment and/or wages use user-provided values.
@@ -2277,8 +2304,8 @@ More information about Dr. Philander is available at kahlil.co.`,
 
                 {/* Tax Revenue Estimates */}
                 {(results.totals.tax.total > 0 || gamingTaxResult || payrollTaxResult || householdTaxResult) && (
-                  <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Tax Revenue Estimates</h3>
+                  <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                    <SectionHeader>Tax Revenue Estimates</SectionHeader>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -2390,36 +2417,46 @@ More information about Dr. Philander is available at kahlil.co.`,
 
                 {/* Revenue Breakdown (if multiple) */}
                 {results.byRevenue.length > 1 && (
-                  <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Impact by Revenue Stream</h3>
+                  <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+                    <SectionHeader>Impact by Revenue Stream</SectionHeader>
                     <RevenueBreakdownTable byRevenue={results.byRevenue} />
                   </div>
                 )}
 
-                {/* Charts */}
+                {/* Charts Row 1: Composition + Employment */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Impact Composition</h3>
-                    <ImpactBreakdownChart results={results} />
+                  <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+                    <SectionHeader>Impact Composition</SectionHeader>
+                    <p className="text-xs text-gray-400 -mt-3 mb-3">Hover bars for Direct / Indirect / Induced breakdown</p>
+                    <DashboardImpactCompositionChart results={results} />
                   </div>
 
-                  <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up" style={{ animationDelay: '250ms' }}>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Distribution</h3>
-                    <EmploymentPieChart results={results} />
-                    <p className="text-center text-sm text-gray-500 mt-2">
-                      Total: {formatJobs(results.totals.employment.total)} jobs
-                    </p>
+                  <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '250ms' }}>
+                    <SectionHeader>Employment Distribution</SectionHeader>
+                    <DashboardEmploymentChart results={results} />
                   </div>
                 </div>
 
-                {/* State Comparison */}
-                <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">State Comparison</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Employment intensity (jobs per $1M GDP) for gambling sector across all states.
-                    {state} is highlighted in navy.
-                  </p>
-                  <StateComparisonChart currentState={state} gamblingData={multiplierData.gambling} />
+                {/* Charts Row 2: Radar + State Comparison */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+                    <SectionHeader>Multiplier Profile</SectionHeader>
+                    <p className="text-xs text-gray-400 -mt-3 mb-3">{state}'s multiplier strength across economic dimensions</p>
+                    <DashboardMultiplierRadarChart
+                      results={results}
+                      gamblingData={isOnline ? (multiplierData.onlineGaming || []) : multiplierData.gambling}
+                      state={state}
+                    />
+                  </div>
+
+                  <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '350ms' }}>
+                    <SectionHeader>State Comparison</SectionHeader>
+                    <p className="text-xs text-gray-400 -mt-3 mb-3">Employment intensity (jobs per $1M GDP) — top states</p>
+                    <DashboardStateComparisonChart
+                      currentState={state}
+                      gamblingData={isOnline ? (multiplierData.onlineGaming || []) : multiplierData.gambling}
+                    />
+                  </div>
                 </div>
               </>
             ) : (

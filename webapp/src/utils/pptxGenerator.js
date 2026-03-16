@@ -803,7 +803,7 @@ For technical details, see the appendix.`;
   const isOnlineType = ['ONLINE_CASINO', 'ONLINE_SPORTSBOOK'].includes(inputs.propertyType);
 
   const gamblingExplanation = isOnlineType
-    ? `Economic impact models are essential for understanding how online gambling operations affect state economies. This analysis uses multipliers derived from NAICS 7132 (Gambling Industries) with online-specific adjustment factors estimated from public company financial data (DraftKings, BetMGM, Flutter/FanDuel 2024 SEC filings).
+    ? `Economic impact models are essential for understanding how online gambling operations affect state economies. This analysis uses multipliers derived from NAICS 7132 (Gambling Industries) with online-specific adjustment factors estimated from public company financial data (DraftKings, Rush Street Interactive, Flutter/FanDuel 2024 SEC filings).
 
 Online operators have fundamentally different economics than land-based casinos: fewer employees per dollar of revenue (~0.9 vs. ~5.0), higher-paid tech-focused workforces, and different supply chain linkages. The BEA Input-Output tables do not distinguish online from land-based gambling, so these adjustments are approximations. For the most accurate direct effects, users are encouraged to enter actual employment and wage data as "known data" overrides. Indirect and induced effects use the gambling industry supply chain structure as an approximation.`
     : `Economic impact models are essential for understanding how gambling operations affect local and state economies. However, the accuracy of these models depends critically on using industry-specific data rather than generic averages.

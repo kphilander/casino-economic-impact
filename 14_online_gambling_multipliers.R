@@ -6,9 +6,9 @@
 #   2. Applies online-specific adjustment factors to create online gambling
 #      multiplier datasets for iGaming and sports betting
 #
-# Online gambling operators (DraftKings, FanDuel, BetMGM) have fundamentally
+# Online gambling operators (DraftKings, FanDuel, Rush Street) have fundamentally
 # different economics than land-based casinos:
-#   - Far fewer employees per $M revenue (~0.7-1.1 vs ~5.0 land-based)
+#   - Far fewer employees per $M revenue (~1.0-1.1 vs ~5.0 land-based)
 #   - Higher-paid, tech-heavy workforce
 #   - Lower wage-to-revenue ratio (~14% vs ~25.5% for 7132)
 #   - Different supply chains (tech, payment processing, marketing)
@@ -16,16 +16,22 @@
 # METHODOLOGY NOTE:
 #   Unlike the 7132 adjustments (derived from BEA Detail IO Tables via useeior),
 #   these online adjustment factors are ESTIMATED from public company financial
-#   data (DraftKings, FanDuel/Flutter, BetMGM SEC filings 2024). The BEA IO
+#   data (DraftKings, FanDuel/Flutter, Rush Street Interactive SEC filings 2024). The BEA IO
 #   tables do not distinguish online from land-based gambling operations.
 #   These are approximations, not official IO-derived coefficients.
 #
 # Data Sources:
-#   - DraftKings 2024: 5,100 employees / $4.77B revenue
-#   - BetMGM 2024: ~1,400 employees / $2.1B revenue
+#   - DraftKings 2024: 5,100 employees / $4.77B revenue (1.07 emp/$1M rev)
+#   - Rush Street Interactive 2024: ~912 employees / $924M revenue (0.99 emp/$1M rev)
 #   - Flutter/FanDuel 2024: 27,345 employees (global) / $14.05B revenue
 #   - Land-based average (AGA 2022): 332K employees / $66B GGR
 #   - Gambling multipliers from 12_gambling_specific_data.R
+#
+# NOTE: BetMGM excluded from employment calculations. As a JV between
+#   MGM Resorts and Entain, its reported ~1,400 employees understates
+#   the true workforce (Entain provides technology platform, MGM provides
+#   brand/marketing infrastructure). This makes its 0.67 emp/$1M revenue
+#   figure unreliable. RSI confirms the DraftKings ratio (~1.0 emp/$1M).
 # ============================================================================
 
 library(tidyverse)
@@ -63,15 +69,15 @@ ONLINE_ADJUSTMENT_FACTORS <- list(
 
   # Employment coefficient adjustment
   # Land-based: ~5.0 employees per $1M revenue
-  # Online: ~0.87 employees per $1M revenue (avg of DraftKings 1.07 + BetMGM 0.67)
-  # Ratio: 0.87/5.0 = 0.174
+  # Online: ~1.03 employees per $1M revenue (avg of DraftKings 1.07 + RSI 0.99)
+  # Ratio: 1.03/5.0 = 0.206
   # But Emp_Coef is jobs per $1M GDP, not revenue, so we adjust:
   # If online VA ratio is 0.90 of 7132, employment per $M GDP ratio is:
-  # 0.174 / 0.90 = 0.193
-  emp_coef_ratio = 0.20,      # Online employment per $1M GDP / Gambling per $1M GDP
+  # 0.206 / 0.90 = 0.229
+  emp_coef_ratio = 0.23,      # Online employment per $1M GDP / Gambling per $1M GDP
 
   # Source data (for documentation)
-  source_note = "Estimated from DraftKings, BetMGM, Flutter SEC filings (2024)",
+  source_note = "Estimated from DraftKings, Rush Street Interactive, Flutter SEC filings (2024)",
   source_year = 2024
 )
 

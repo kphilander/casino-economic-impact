@@ -1166,7 +1166,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 />
                 {isOnline ? (
                   <p className="mt-3 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
-                    <strong>Note:</strong> Online multipliers are estimated from public company data (DraftKings, BetMGM, Flutter 2024 SEC filings).
+                    <strong>Note:</strong> Online multipliers are estimated from public company data (DraftKings, Rush Street Interactive, Flutter 2024 SEC filings).
                     For the most accurate direct effects, use "By Department" and enter known employment/wage data.
                   </p>
                 ) : (

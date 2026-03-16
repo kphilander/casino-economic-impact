@@ -792,7 +792,7 @@ For technical details, see the appendix.`;
   // Position below the shorter of the two columns (moved down 1" per user request)
   const bottomSectionY = 3.65;
 
-  slide5.addText('Why Property-Specific Analysis?', {
+  slide5.addText(isOnlineType ? 'Methodology: Online Gambling Multipliers' : 'Why Property-Specific Analysis?', {
     x: MARGIN, y: bottomSectionY, w: 9, h: 0.3,
     fontSize: FONT.section + 2, fontFace: 'Helvetica', bold: true, color: COLORS.primary
   });
@@ -800,8 +800,13 @@ For technical details, see the appendix.`;
   // Build property-type-specific explanation
   const propertyTypeLabel = inputs.propertyTypeLabel || 'gaming establishment';
   const propertyTypeCode = inputs.propertyType || '7132';
+  const isOnlineType = ['ONLINE_CASINO', 'ONLINE_SPORTSBOOK'].includes(inputs.propertyType);
 
-  const gamblingExplanation = `Economic impact models are essential for understanding how gambling operations affect local and state economies. However, the accuracy of these models depends critically on using industry-specific data rather than generic averages.
+  const gamblingExplanation = isOnlineType
+    ? `Economic impact models are essential for understanding how online gambling operations affect state economies. This analysis uses multipliers derived from NAICS 7132 (Gambling Industries) with online-specific adjustment factors estimated from public company financial data (DraftKings, Rush Street Interactive, Flutter/FanDuel 2024 SEC filings).
+
+Important: employment, wage, and supply chain effects apply to the state where the operator's workforce is physically located — not necessarily where bettors are. If the operator is headquartered in a different state, most economic impact (except gaming tax revenue) accrues there. Online operators have fundamentally different economics than land-based casinos: ~1.0 employee per $1M revenue (vs. ~5.0 land-based), higher-paid tech workforces, and geographically diffuse supply chains. For the most accurate direct effects, users should enter actual in-state employment and wage data as "known data" overrides.`
+    : `Economic impact models are essential for understanding how gambling operations affect local and state economies. However, the accuracy of these models depends critically on using industry-specific data rather than generic averages.
 
 This analysis uses property-type-specific coefficients for "${propertyTypeLabel}" (NAICS ${propertyTypeCode}). Different gaming establishments—casino hotels, standalone casinos, slot parlors, and bars with gaming—have distinct economic profiles in terms of employment intensity, wage rates, and supply chain linkages. Using the appropriate multipliers for your property type ensures more accurate impact estimates.`;
 

@@ -19,3 +19,9 @@ EI_*.csv
 .RData
 .Rproj.user/
 *.Rproj
+
+# Webapp build output
+webapp/dist/
+
+# Node modules
+node_modules/

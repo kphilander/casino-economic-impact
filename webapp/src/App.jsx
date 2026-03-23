@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -570,6 +570,25 @@ function buildTaxConfig(taxInfo, customRate, slotRevenuePct, propertyType = null
   return config;
 }
 
+// Parse forecaster import params once at module level (survives React strict mode remounts)
+const __forecasterImport = (() => {
+  if (typeof window === 'undefined') return null;
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('from') !== 'forecaster') return null;
+  // Clear URL params immediately to prevent re-import on HMR
+  window.history.replaceState({}, '', window.location.pathname);
+  return {
+    state: p.get('state'),
+    name: p.get('name'),
+    propertyType: p.get('propertyType'),
+    gaming: parseFloat(p.get('gaming')) || null,
+    food: parseFloat(p.get('food')) || null,
+    lodging: parseFloat(p.get('lodging')) || null,
+    other: parseFloat(p.get('other')) || null,
+    archetype: p.get('archetype'),
+  };
+})();
+
 // Main App Component
 export default function App() {
   // Wizard state
@@ -641,53 +660,36 @@ export default function App() {
       }
     }
 
-    // Check for Revenue Forecaster import via URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('from') === 'forecaster') {
-      const importedState = urlParams.get('state');
-      const importedName = urlParams.get('name');
-      const importedPropertyType = urlParams.get('propertyType');
-      const importedGaming = parseFloat(urlParams.get('gaming')) || null;
-      const importedFood = parseFloat(urlParams.get('food')) || null;
-      const importedLodging = parseFloat(urlParams.get('lodging')) || null;
-      const importedOther = parseFloat(urlParams.get('other')) || null;
-      const importedArchetypeKey = urlParams.get('archetype');
-
-      // Pre-fill state
-      if (importedState && multiplierData.states.includes(importedState)) {
-        setState(importedState);
+    // Apply forecaster import (parsed at module level to survive React strict mode)
+    if (__forecasterImport) {
+      const fi = __forecasterImport;
+      if (fi.state && multiplierData.states.includes(fi.state)) {
+        setState(fi.state);
       }
-      if (importedName) setCasinoName(decodeURIComponent(importedName));
-      if (importedPropertyType) setPropertyType(importedPropertyType);
+      if (fi.name) setCasinoName(decodeURIComponent(fi.name));
+      if (fi.propertyType) setPropertyType(fi.propertyType);
       setInputMode('department');
 
-      // Pre-fill revenues
       setRevenues({
-        gaming: importedGaming,
-        food: importedFood,
-        lodging: importedLodging,
-        other: importedOther,
+        gaming: fi.gaming,
+        food: fi.food,
+        lodging: fi.lodging,
+        other: fi.other,
         total: null
       });
 
-      // Show non-gaming revenue sections
-      if (importedFood || importedLodging || importedOther) {
+      if (fi.food || fi.lodging || fi.other) {
         setHasOtherRevenue(true);
       }
 
-      // Skip wizard, go directly to dashboard
       setWizardComplete(true);
       setImportedFromForecaster(true);
-      setImportedArchetype(importedArchetypeKey);
+      setImportedArchetype(fi.archetype);
 
-      // Auto-enable archetype comparison when imported with an archetype key
-      if (importedArchetypeKey && ARCHETYPES[importedArchetypeKey]) {
-        setSelectedArchetypeKey(importedArchetypeKey);
+      if (fi.archetype && ARCHETYPES[fi.archetype]) {
+        setSelectedArchetypeKey(fi.archetype);
         setShowArchetypeComparison(true);
       }
-
-      // Clear URL params to avoid re-import on refresh
-      window.history.replaceState({}, '', window.location.pathname);
       return; // Skip Stripe redirect handling
     }
 

@@ -7,6 +7,7 @@ import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapP
 import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
+import { ARCHETYPES, ARCHETYPE_LIST, calculateArchetypeEmployment } from './data/archetypes';
 import { calculateCombinedImpact, calculateGamingTax, calculatePayrollTax, calculateHouseholdTax, formatNumber, formatCurrency, formatJobs, isOnlinePropertyType } from './utils/calculations';
 import {
   validateLicense,
@@ -620,6 +621,10 @@ export default function App() {
   const [importedFromForecaster, setImportedFromForecaster] = useState(false);
   const [importedArchetype, setImportedArchetype] = useState(null);
 
+  // Archetype comparison
+  const [showArchetypeComparison, setShowArchetypeComparison] = useState(false);
+  const [selectedArchetypeKey, setSelectedArchetypeKey] = useState(null);
+
   // Check for saved license on mount and handle Stripe redirect
   useEffect(() => {
     // Check localStorage for saved license using getLicenseData helper
@@ -646,7 +651,6 @@ export default function App() {
       const importedFood = parseFloat(urlParams.get('food')) || null;
       const importedLodging = parseFloat(urlParams.get('lodging')) || null;
       const importedOther = parseFloat(urlParams.get('other')) || null;
-      const importedGamingEmp = parseFloat(urlParams.get('gaming_emp')) || null;
       const importedArchetypeKey = urlParams.get('archetype');
 
       // Pre-fill state
@@ -666,17 +670,6 @@ export default function App() {
         total: null
       });
 
-      // Pre-fill known employment data
-      if (importedGamingEmp) {
-        setKnownData({
-          gaming: { emp: Math.round(importedGamingEmp), wages: null },
-          food: { emp: null, wages: null },
-          lodging: { emp: null, wages: null },
-          other: { emp: null, wages: null }
-        });
-        setHasKnownData(true);
-      }
-
       // Show non-gaming revenue sections
       if (importedFood || importedLodging || importedOther) {
         setHasOtherRevenue(true);
@@ -686,6 +679,12 @@ export default function App() {
       setWizardComplete(true);
       setImportedFromForecaster(true);
       setImportedArchetype(importedArchetypeKey);
+
+      // Auto-enable archetype comparison when imported with an archetype key
+      if (importedArchetypeKey && ARCHETYPES[importedArchetypeKey]) {
+        setSelectedArchetypeKey(importedArchetypeKey);
+        setShowArchetypeComparison(true);
+      }
 
       // Clear URL params to avoid re-import on refresh
       window.history.replaceState({}, '', window.location.pathname);
@@ -1895,6 +1894,121 @@ More information about Dr. Philander is available at kahlil.co.`,
             >
               <X size={16} />
             </button>
+          </div>
+        )}
+
+        {/* Archetype Comparison Panel */}
+        {results && !isOnlinePropertyType(propertyType) && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-6 animate-fade-in-up">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <div className="p-1.5 rounded-lg bg-blue-100 text-blue-600 mt-0.5">
+                  <Users size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    Nevada Gaming Abstract Benchmark
+                  </p>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    Compare IO model employment with empirical staffing ratios from the 2024 Gaming Abstract.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowArchetypeComparison(!showArchetypeComparison)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+              >
+                {showArchetypeComparison ? 'Hide' : 'Compare'}
+                <ChevronDown size={14} className={`transition-transform ${showArchetypeComparison ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+
+            {showArchetypeComparison && (() => {
+              const gamingRev = inputMode === 'total' ? (revenues.total || 0) : (revenues.gaming || 0);
+              const archKey = selectedArchetypeKey;
+              const arch = archKey ? ARCHETYPES[archKey] : null;
+              const archetypeEmp = arch ? calculateArchetypeEmployment(gamingRev, archKey) : 0;
+              const ioDirectEmp = results?.totals?.employment?.direct || 0;
+
+              return (
+                <div className="mt-4 space-y-3">
+                  {/* Archetype Selector */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Operating Archetype</label>
+                    <select
+                      value={selectedArchetypeKey || ''}
+                      onChange={(e) => setSelectedArchetypeKey(e.target.value || null)}
+                      className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    >
+                      <option value="">Select an archetype...</option>
+                      {ARCHETYPE_LIST.map((a) => (
+                        <option key={a.key} value={a.key}>
+                          {a.name}{a.key === importedArchetype ? ' (From Forecaster)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Comparison Table */}
+                  {arch && (
+                    <div className="bg-white rounded-lg border border-blue-100 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-blue-100">
+                            <th className="text-left text-xs font-medium text-gray-500 px-4 py-2">Metric</th>
+                            <th className="text-right text-xs font-medium text-[#1a365d] px-4 py-2">IO Model</th>
+                            <th className="text-right text-xs font-medium text-blue-600 px-4 py-2">Archetype</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-blue-50">
+                            <td className="text-xs text-gray-600 px-4 py-2">Direct FTEs</td>
+                            <td className="text-right text-xs font-semibold text-[#1a365d] px-4 py-2 font-mono">
+                              {formatJobs(ioDirectEmp)}
+                            </td>
+                            <td className="text-right text-xs font-semibold text-blue-600 px-4 py-2 font-mono">
+                              {formatJobs(archetypeEmp)}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-blue-50">
+                            <td className="text-xs text-gray-600 px-4 py-2">FTEs per $1M GGR</td>
+                            <td className="text-right text-xs text-[#1a365d] px-4 py-2 font-mono">
+                              {gamingRev > 0 ? (ioDirectEmp / gamingRev).toFixed(1) : '-'}
+                            </td>
+                            <td className="text-right text-xs text-blue-600 px-4 py-2 font-mono">
+                              {arch.empPerMillionGGR.toFixed(1)}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="text-xs text-gray-600 px-4 py-2">Difference</td>
+                            <td colSpan={2} className="text-right text-xs px-4 py-2 font-mono">
+                              {(() => {
+                                const diff = ioDirectEmp - archetypeEmp;
+                                const pctDiff = archetypeEmp > 0 ? ((diff / archetypeEmp) * 100) : 0;
+                                const color = Math.abs(pctDiff) < 10 ? 'text-gray-500' : diff > 0 ? 'text-amber-600' : 'text-amber-600';
+                                return (
+                                  <span className={color}>
+                                    {diff > 0 ? '+' : ''}{formatJobs(diff)} ({diff > 0 ? '+' : ''}{pctDiff.toFixed(0)}%)
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {arch && (
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                      IO model employment is calculated from BEA input-output tables and QCEW data.
+                      Archetype benchmarks are empirical averages from the Nevada Gaming Abstract.
+                      Differences reflect methodological approach and market specifics.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 

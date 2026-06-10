@@ -104,7 +104,7 @@ GEMS computes three categories of tax revenue:
 |--------|---------|-----|
 | EPA State Input-Output (StateIO) models, via the [`stateior`](https://github.com/USEPA/stateior) R package | 2019 | State multipliers (pre-pandemic year chosen to avoid distorted 2020 relationships) |
 | BLS Quarterly Census of Employment and Wages (QCEW) | 2023 annual averages | Employment and wage coefficients |
-| BEA Detail IO Tables via `useeior` (USEEIOv2.0.1-411) | 2023 | Gambling-specific adjustment factors |
+| BEA Detail IO Tables via `useeior` (USEEIOv2.0.1-411) | 2017 | Gambling-specific adjustment factors |
 | State gaming commissions, AGA State of the States | Current | Gaming tax schedules |
 | BLS CPI-U annual averages | Current | Inflation adjustment |
 

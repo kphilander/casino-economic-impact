@@ -1108,7 +1108,7 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
     ['Source', 'Year', 'Use'],
     ['EPA State IO', '2019', 'Multipliers'],
     ['BLS QCEW', '2023', 'Employment/wages'],
-    ['BEA IO Tables', '2023', 'Gambling coefficients']
+    ['BEA IO Tables', '2017', 'Gambling coefficients']
   ];
 
   appendixB.addTable(vintageTable, {

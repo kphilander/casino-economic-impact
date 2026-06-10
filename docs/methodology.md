@@ -6,6 +6,7 @@
 **Model version:** 2026 (release edition)
 **Publisher:** GP Consulting
 **Live calculator:** https://gamblingpolicy.com/tools/economic-impact/
+**White paper (PDF):** https://gamblingpolicy.com/tools/economic-impact/GEMS-2026-Methodology.pdf — generated from [`generate_whitepaper.py`](generate_whitepaper.py); regenerate after content changes with `python3 docs/generate_whitepaper.py` (requires `pip install reportlab`)
 
 ### Suggested Citation
 

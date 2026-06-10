@@ -10,7 +10,7 @@ This repository contains GEMS (Gaming Economic Modeling System), the economic mo
 
 - **Product name:** GEMS (Gaming Economic Modeling System), published by GP Consulting. The descriptive phrase "Casino Economic Impact Model" is retained as a subtitle for clarity and search.
 - **Versioning:** The model version is the release edition year — the current release is **GEMS 2026**. Bump the version when a new edition is published. All product naming in the web app is centralized in [`webapp/src/brand.js`](webapp/src/brand.js); changing the product name or bumping the version is a one-file change.
-- **Methodology:** A versioned, citable methodology document lives at [`docs/methodology.md`](docs/methodology.md).
+- **Methodology:** A versioned, citable methodology document lives at [`docs/methodology.md`](docs/methodology.md). A downloadable white paper PDF is served by the web app at [`/GEMS-2026-Methodology.pdf`](https://gamblingpolicy.com/tools/economic-impact/GEMS-2026-Methodology.pdf) and linked from the app footer; regenerate it with `python3 docs/generate_whitepaper.py` after editing.
 - **Suggested citation:**
 
 > Philander, K. (2026). GEMS: Gaming Economic Modeling System (Version 2026) [Computer software]. GP Consulting. https://gamblingpolicy.com/tools/economic-impact/

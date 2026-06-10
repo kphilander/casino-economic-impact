@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, AlertTriangle, Building2, ShoppingCart, Key } from 'lucide-react';
+import { PURCHASING_ENABLED } from '../brand';
 
 /**
  * Modal shown when user tries to download PPTX for a property
@@ -81,13 +82,15 @@ function WrongPropertyModal({
           </button>
 
           {/* Add this property (paid) */}
-          <button
-            onClick={onAddProperty}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white rounded-xl font-semibold transition-colors"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            Add "{attempting}" ($295)
-          </button>
+          {PURCHASING_ENABLED && (
+            <button
+              onClick={onAddProperty}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white rounded-xl font-semibold transition-colors"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              Add "{attempting}" ($295)
+            </button>
+          )}
 
           {/* Enter different license key */}
           <button

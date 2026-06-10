@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import { X, CreditCard, Key, Check, AlertCircle, Loader2, Sparkles, Building2, FileDown } from 'lucide-react';
 import { validateLicenseRemote, isValidFormat } from '../utils/licenseValidator';
-import { BRAND } from '../brand';
+import { BRAND, PURCHASING_ENABLED } from '../brand';
 
 export default function PremiumModal({
   isOpen,
@@ -21,7 +21,7 @@ export default function PremiumModal({
   onDownloadSample,
   isGeneratingSample = false
 }) {
-  const [activeTab, setActiveTab] = useState('purchase'); // 'purchase' | 'license'
+  const [activeTab, setActiveTab] = useState(PURCHASING_ENABLED ? 'purchase' : 'license'); // 'purchase' | 'license'
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
   const [isValidating, setIsValidating] = useState(false);
@@ -121,7 +121,8 @@ export default function PremiumModal({
           </ul>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs (hidden while purchasing is disabled — only license entry remains) */}
+        {PURCHASING_ENABLED && (
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab('purchase')}
@@ -146,10 +147,11 @@ export default function PremiumModal({
             Enter License Key
           </button>
         </div>
+        )}
 
         {/* Tab Content */}
         <div className="p-6">
-          {activeTab === 'purchase' ? (
+          {PURCHASING_ENABLED && activeTab === 'purchase' ? (
             <div className="space-y-4">
               <div className="text-center">
                 <div className="text-4xl font-bold text-gray-900">$1,495</div>
@@ -262,8 +264,39 @@ export default function PremiumModal({
                 <a href={`mailto:${BRAND.email}?subject=License%20key%20recovery`} className="text-[#3182ce] hover:underline">
                   {BRAND.email}
                 </a>{' '}
-                with your Stripe receipt and we'll resend it.
+                with your receipt and we'll resend it.
               </p>
+
+              {!PURCHASING_ENABLED && (
+                <>
+                  <p className="text-xs text-center text-gray-500 border-t border-gray-100 pt-4">
+                    Need a license? Contact{' '}
+                    <a href={`mailto:${BRAND.email}?subject=Pro%20license%20inquiry`} className="text-[#3182ce] hover:underline">
+                      {BRAND.email}
+                    </a>
+                    .
+                  </p>
+                  {onDownloadSample && (
+                    <button
+                      onClick={onDownloadSample}
+                      disabled={isGeneratingSample}
+                      className="w-full py-2.5 px-4 rounded-xl font-medium flex items-center justify-center gap-2 border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300 transition-all"
+                    >
+                      {isGeneratingSample ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Generating sample...
+                        </>
+                      ) : (
+                        <>
+                          <FileDown size={16} />
+                          Download a sample report
+                        </>
+                      )}
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

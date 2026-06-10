@@ -1,9 +1,9 @@
 {
   "metadata": {
     "exportDate": "2026-02-09T10:19:07Z",
-    "dataYear": 2024,
+    "dataYear": 2023,
     "ioTableYear": 2019,
-    "qcewYear": 2019,
+    "qcewYear": 2023,
     "description": "State multipliers with property-type-specific coefficients",
     "propertyTypesIncluded": [
       "721120",

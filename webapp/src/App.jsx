@@ -18,7 +18,7 @@ import {
   addLicensedProperty,
   clearLicenseData
 } from './utils/licenseValidator';
-import { BRAND, PRODUCT_NAME_VERSIONED, PRODUCT_TITLE, getSuggestedCitation } from './brand';
+import { BRAND, PRODUCT_NAME_VERSIONED, PRODUCT_TITLE, PURCHASING_ENABLED, getSuggestedCitation } from './brand';
 import WatermarkOverlay from './components/WatermarkOverlay';
 import PremiumModal from './components/PremiumModal';
 import WrongPropertyModal from './components/WrongPropertyModal';
@@ -914,6 +914,7 @@ More information about Dr. Philander is available at kahlil.co.`,
 
   // Handle Stripe purchase
   const handlePurchase = async () => {
+    if (!PURCHASING_ENABLED) return;
     setIsPurchasing(true);
     try {
       // Save wizard state before redirect
@@ -2760,8 +2761,13 @@ More information about Dr. Philander is available at kahlil.co.`,
               GitHub
             </a>
             {' '}|{' '}
-            <a href="https://github.com/kphilander/casino-economic-impact/blob/main/docs/methodology.md" className="text-[#3182ce] hover:underline">
-              Methodology
+            <a
+              href={`${import.meta.env.BASE_URL}GEMS-2026-Methodology.pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#3182ce] hover:underline"
+            >
+              Methodology White Paper (PDF)
             </a>
             {' '}| Published by {BRAND.publisher}
           </p>

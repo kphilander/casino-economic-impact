@@ -77,15 +77,21 @@ S = {
                       rightIndent=12, textColor=NAVY),
     "reference": style("reference", fontSize=9, leading=13, leftIndent=18,
                        firstLineIndent=-18, spaceAfter=5),
-    "toc": style("toc", fontSize=10.5, leading=20, textColor=TEXT),
+    "toc": style("toc", fontSize=10.5, leading=17, textColor=TEXT),
+    "cell": style("cell", fontSize=9, leading=12, spaceAfter=0),
+    "cellHead": style("cellHead", fontName="Helvetica-Bold", fontSize=9,
+                      leading=12, textColor=colors.white, spaceAfter=0),
 }
 
 def table(data, widths, header=True):
-    t = Table(data, colWidths=widths, hAlign="LEFT")
+    # Wrap cells in Paragraphs so long text wraps inside the cell instead of
+    # overflowing the page
+    wrapped = []
+    for r, row in enumerate(data):
+        st = S["cellHead"] if (header and r == 0) else S["cell"]
+        wrapped.append([Paragraph(str(c).replace("\n", "<br/>"), st) for c in row])
+    t = Table(wrapped, colWidths=widths, hAlign="LEFT")
     cmds = [
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("TEXTCOLOR", (0, 0), (-1, -1), TEXT),
         ("GRID", (0, 0), (-1, -1), 0.5, BORDER),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("TOPPADDING", (0, 0), (-1, -1), 5),
@@ -96,8 +102,6 @@ def table(data, widths, header=True):
     if header:
         cmds += [
             ("BACKGROUND", (0, 0), (-1, 0), NAVY),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ]
     t.setStyle(TableStyle(cmds))
     return t
@@ -226,8 +230,7 @@ def build():
         "inputs used (state, property type, and revenue assumptions), as results depend on "
         "user-supplied inputs.", S["caption"]))
 
-    # --- Contents ---
-    el.append(PageBreak())
+    # --- Contents (same page as abstract) ---
     el.append(Paragraph("Contents", S["h1"]))
     for i, t in enumerate([
         "Introduction", "Modeling Framework", "Effect Decomposition",
@@ -271,7 +274,7 @@ def build():
         "derived from the Use table (the amount of each commodity required per dollar of output). "
         "The result <b>A</b> is an industry-by-industry direct requirements matrix.", S["body"]))
     el.append(Paragraph("2.2 Leontief Inverse and Type I Multipliers", S["h2"]))
-    el.append(Paragraph("L = (I − A)⁻¹", S["formula"]))
+    el.append(Paragraph("L = (I − A)<super>-1</super>", S["formula"]))
     el.append(Paragraph(
         "The Leontief inverse captures all rounds of inter-industry purchasing. Each column sum "
         "gives the Type I output multiplier — total output generated per dollar of direct output, "

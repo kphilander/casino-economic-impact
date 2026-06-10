@@ -34,6 +34,15 @@ export const PRODUCT_NAME_VERSIONED = `${BRAND.productName} ${BRAND.modelVersion
 export const PRODUCT_TITLE = `${PRODUCT_NAME_VERSIONED} — ${BRAND.productFullName}`;
 
 /**
+ * Master switch for self-serve purchasing (Stripe checkout buttons, pricing,
+ * and the $295 add-on property option). When false, all purchase UI is hidden
+ * — license key activation, recovery, and existing Pro licenses keep working,
+ * and the serverless checkout functions stay deployed. Flip to true to
+ * re-enable purchasing.
+ */
+export const PURCHASING_ENABLED = false;
+
+/**
  * Suggested citation for reports and the site footer.
  * APA-style software citation.
  */

@@ -18,7 +18,7 @@ import {
   addLicensedProperty,
   clearLicenseData
 } from './utils/licenseValidator';
-import { BRAND, PRODUCT_NAME_VERSIONED, PRODUCT_TITLE, getSuggestedCitation } from './brand';
+import { BRAND, PRODUCT_NAME_VERSIONED, PRODUCT_TITLE, PURCHASING_ENABLED, getSuggestedCitation } from './brand';
 import WatermarkOverlay from './components/WatermarkOverlay';
 import PremiumModal from './components/PremiumModal';
 import WrongPropertyModal from './components/WrongPropertyModal';
@@ -914,6 +914,7 @@ More information about Dr. Philander is available at kahlil.co.`,
 
   // Handle Stripe purchase
   const handlePurchase = async () => {
+    if (!PURCHASING_ENABLED) return;
     setIsPurchasing(true);
     try {
       // Save wizard state before redirect

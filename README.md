@@ -1,8 +1,19 @@
-# Casino Economic Impact Calculator
+# GEMS — Gaming Economic Modeling System
 
-This repository contains the economic model and web application for computing state-level economic impacts of casino and gaming operations across all 50 US states and the District of Columbia.
+**The Casino Economic Impact Model**
+
+This repository contains GEMS (Gaming Economic Modeling System), the economic model and web application for computing state-level economic impacts of casino and gaming operations across all 50 US states and the District of Columbia.
 
 **Live Calculator:** https://gamblingpolicy.com/tools/economic-impact/
+
+## Naming, Versioning & Citation
+
+- **Product name:** GEMS (Gaming Economic Modeling System), published by GP Consulting. The descriptive phrase "Casino Economic Impact Model" is retained as a subtitle for clarity and search.
+- **Versioning:** The model version is the release edition year — the current release is **GEMS 2026**. Bump the version when a new edition is published. All product naming in the web app is centralized in [`webapp/src/brand.js`](webapp/src/brand.js); changing the product name or bumping the version is a one-file change.
+- **Methodology:** A versioned, citable methodology document lives at [`docs/methodology.md`](docs/methodology.md).
+- **Suggested citation:**
+
+> Philander, K. (2026). GEMS: Gaming Economic Modeling System (Version 2026) [Computer software]. GP Consulting. https://gamblingpolicy.com/tools/economic-impact/
 
 ## Table of Contents
 
@@ -288,6 +299,7 @@ A React/Vite single-page application located in `webapp/`:
 webapp/
 ├── src/
 │   ├── App.jsx                          # Main application component
+│   ├── brand.js                         # Product name/version/citation (single source of truth)
 │   ├── components/
 │   │   ├── PageHeader.jsx               # Site header
 │   │   ├── PremiumModal.jsx             # License upgrade modal
@@ -304,9 +316,11 @@ webapp/
 │       ├── multipliers.json             # State multipliers
 │       ├── gamingTaxRates.json          # Gaming tax configurations
 │       └── employmentTaxRates.json      # Payroll/household tax rates
-├── netlify/functions/                   # Serverless payment functions
-│   ├── create-checkout.js               # Stripe checkout session
-│   └── verify-session.js               # Payment verification
+├── netlify/functions/                   # Serverless payment/license functions
+│   ├── create-checkout.js               # Stripe checkout session (Pro license)
+│   ├── create-checkout-addon.js         # Stripe checkout session (add-on property)
+│   ├── verify-session.js                # Payment verification + license key generation
+│   └── validate-license.js              # Server-side license checksum validation
 └── public/data/                         # Publicly served CSV data
 ```
 
@@ -360,15 +374,21 @@ The calculator operates on a freemium model:
 ### License Validation
 - Format: `PRO-YYYYMMDD-XXXXX` where `YYYYMMDD` is the expiration date
 - Checksum: 5-character base36 hash of `PRO` + date string + salt
-- Salt: `casino-impact-pro-2024` (shared between client validator and server-side generator)
-- Client-side validation in `licenseValidator.js`; server-side generation in `verify-session.js` (Netlify Function)
+- **Checksum verification is server-side only** (`validate-license.js` Netlify Function) — the salt never ships in the client bundle. Set the `LICENSE_SALT` environment variable; it falls back to the legacy value so previously issued keys remain valid.
+- The client (`licenseValidator.js`) performs only format and expiry parsing for already-activated keys, and calls `POST /api/validate-license` when activating a new key
+- License key expiry is anchored to the Stripe session's purchase date, so re-verifying a session regenerates the identical key (this enables key recovery and prevents license extension by revisiting the success URL)
+- After purchase, the key is displayed once with a copy button and a prompt to save it — licenses live in `localStorage`, which doesn't survive cleared browser data or new devices. Lost keys can be recovered via the purchase receipt.
 - Property name matching uses normalized comparison (strips "hotel", "casino", "resort", punctuation)
+
+### Sample Report
+Free-tier users can download a sample PPTX report generated from fixed demo data (Nevada casino hotel). Every slide is watermarked "SAMPLE — FOR EVALUATION ONLY" so prospective buyers can evaluate the deliverable before purchasing.
 
 ### Stripe Integration
 - **Checkout:** `POST /api/create-checkout` → creates Stripe session with `STRIPE_PRICE_ID`
 - **Add-on checkout:** `POST /api/create-checkout-addon` → uses `STRIPE_PRICE_ID_ADDON`
 - **Verification:** `GET /api/verify-session?session_id=...` → verifies payment, generates license key
-- Environment variables: `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_PRICE_ID_ADDON`
+- **License validation:** `POST /api/validate-license` → server-side checksum verification
+- Environment variables: `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_PRICE_ID_ADDON`, `LICENSE_SALT`
 
 ## Regenerating Data from Scratch
 

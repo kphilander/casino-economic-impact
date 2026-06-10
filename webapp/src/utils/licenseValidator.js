@@ -1,7 +1,7 @@
 /**
  * License Validation Utility
  *
- * Validates license keys for the Casino Impact Calculator Pro tier.
+ * Validates license keys for the Pro tier.
  *
  * License Format: PRO-YYYYMMDD-XXXXX
  * - PRO: Tier prefix
@@ -9,32 +9,16 @@
  * - XXXXX: 5-character checksum
  *
  * Example: PRO-20270209-A7B3C
+ *
+ * Checksum verification happens server-side (/api/validate-license) so the
+ * checksum salt never ships in the client bundle. The client performs only
+ * format and expiry checks — used for keys that were already server-validated
+ * at activation time.
  */
 
-// Secret salt for checksum generation (in production, use server-side validation)
-const LICENSE_SALT = 'casino-impact-pro-2024';
-
 /**
- * Generate a simple hash-based checksum
- * @param {string} input - String to hash
- * @returns {string} 5-character uppercase alphanumeric checksum
- */
-function generateChecksum(input) {
-  let hash = 0;
-  const str = input + LICENSE_SALT;
-
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-
-  // Convert to base36 and take 5 characters
-  return Math.abs(hash).toString(36).toUpperCase().padStart(5, '0').slice(0, 5);
-}
-
-/**
- * Validate a license key
+ * Validate a license key locally (format + expiry only, no checksum).
+ * Use validateLicenseRemote() to verify the checksum when activating a key.
  * @param {string} key - License key to validate
  * @returns {{ valid: boolean, error?: string, expiresAt?: Date }}
  */
@@ -46,32 +30,12 @@ export function validateLicense(key) {
   const trimmedKey = key.trim().toUpperCase();
 
   // Check format: PRO-YYYYMMDD-XXXXX
-  if (!trimmedKey.startsWith('PRO-')) {
+  const match = trimmedKey.match(/^PRO-(\d{8})-[A-Z0-9]{5}$/);
+  if (!match) {
     return { valid: false, error: 'Invalid license format' };
   }
 
-  const parts = trimmedKey.split('-');
-  if (parts.length !== 3) {
-    return { valid: false, error: 'Invalid license format' };
-  }
-
-  const [prefix, dateStr, checksum] = parts;
-
-  // Validate date format (YYYYMMDD)
-  if (!/^\d{8}$/.test(dateStr)) {
-    return { valid: false, error: 'Invalid date in license' };
-  }
-
-  // Validate checksum format
-  if (!/^[A-Z0-9]{5}$/.test(checksum)) {
-    return { valid: false, error: 'Invalid checksum format' };
-  }
-
-  // Verify checksum
-  const expectedChecksum = generateChecksum(prefix + dateStr);
-  if (checksum !== expectedChecksum) {
-    return { valid: false, error: 'Invalid license key' };
-  }
+  const dateStr = match[1];
 
   // Parse expiration date
   const year = parseInt(dateStr.slice(0, 4));
@@ -95,22 +59,36 @@ export function validateLicense(key) {
 }
 
 /**
- * Generate a license key (for admin use)
- * @param {Date} expirationDate - When the license expires
- * @returns {string} Generated license key
+ * Validate a license key against the server (full checksum verification).
+ * @param {string} key - License key to validate
+ * @returns {Promise<{ valid: boolean, error?: string, expiresAt?: Date, networkError?: boolean }>}
  */
-export function generateLicenseKey(expirationDate) {
-  const date = expirationDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // Default: 1 year
+export async function validateLicenseRemote(key) {
+  // Fail fast on malformed keys without a network round-trip
+  const localResult = validateLicense(key);
+  if (!localResult.valid) {
+    return localResult;
+  }
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const dateStr = `${year}${month}${day}`;
-
-  const prefix = 'PRO';
-  const checksum = generateChecksum(prefix + dateStr);
-
-  return `${prefix}-${dateStr}-${checksum}`;
+  try {
+    const res = await fetch('/api/validate-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: key.trim().toUpperCase() })
+    });
+    const data = await res.json();
+    return {
+      valid: !!data.valid,
+      error: data.error,
+      expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined
+    };
+  } catch (e) {
+    return {
+      valid: false,
+      error: 'Could not reach the license server. Please check your connection and try again.',
+      networkError: true
+    };
+  }
 }
 
 /**

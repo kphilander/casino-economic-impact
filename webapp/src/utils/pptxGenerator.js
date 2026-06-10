@@ -1,5 +1,5 @@
 /**
- * PPTX Report Generator for Casino Economic Impact Calculator
+ * PPTX Report Generator for GEMS (Gaming Economic Modeling System)
  *
  * Creates a professional PowerPoint presentation with economic impact results.
  * Structure: 8 main slides + 4 appendix slides + back cover = 13 total
@@ -25,6 +25,7 @@
 
 import pptxgen from 'pptxgenjs';
 import { formatNumber, formatCurrency, formatJobs } from './calculations';
+import { BRAND, PRODUCT_NAME_VERSIONED, getSuggestedCitation } from '../brand';
 
 /**
  * Fetch an image URL and convert to base64 data URL for embedding in PPTX
@@ -97,10 +98,10 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
   const pptx = new pptxgen();
 
   // Set presentation properties
-  pptx.author = authorInfo.name || 'Economic Impact Model';
+  pptx.author = authorInfo.name || BRAND.publisher;
   pptx.title = `Economic Impact Analysis - ${inputs.state}`;
-  pptx.subject = 'Casino Gaming Economic Impact';
-  pptx.company = authorInfo.institution || '';
+  pptx.subject = `Casino Gaming Economic Impact (${PRODUCT_NAME_VERSIONED})`;
+  pptx.company = authorInfo.institution || BRAND.publisher;
 
   // Set custom 16:9 layout
   pptx.defineLayout({ name: 'CUSTOM_16x9', width: SLIDE_WIDTH, height: SLIDE_HEIGHT });
@@ -115,10 +116,25 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
         .reduce((sum, [, v]) => sum + (v || 0), 0);
   const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+  // Sample reports get fixed demo data and a SAMPLE watermark on every slide
+  const isSample = !!inputs.isSample;
+
   // Build footer text with license attribution
-  const footerText = inputs.casinoName
-    ? `Economic Impact Analysis  |  Licensed for: ${inputs.casinoName}`
-    : 'Economic Impact Analysis';
+  const footerText = isSample
+    ? `${PRODUCT_NAME_VERSIONED} Economic Impact Analysis  |  SAMPLE REPORT — FOR EVALUATION ONLY`
+    : inputs.casinoName
+      ? `${PRODUCT_NAME_VERSIONED} Economic Impact Analysis  |  Licensed for: ${inputs.casinoName}`
+      : `${PRODUCT_NAME_VERSIONED} Economic Impact Analysis`;
+
+  // Diagonal SAMPLE watermark, baked into the slide masters so it appears on
+  // every content/appendix slide of sample reports
+  const sampleWatermarkObject = {
+    text: { text: 'SAMPLE', options: {
+      x: 1, y: 1.3, w: 8, h: 3,
+      fontSize: 110, fontFace: 'Helvetica', bold: true, color: 'BFC9D4',
+      transparency: 70, rotate: -20, align: 'center', valign: 'middle'
+    } }
+  };
 
   // Define master slide for main content (slides 2-7)
   pptx.defineSlideMaster({
@@ -126,6 +142,7 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
     background: { color: COLORS.white },
     slideNumber: { x: 9.2, y: '94%', w: 0.5, fontSize: FONT.caption, color: COLORS.white, align: 'right' },
     objects: [
+      ...(isSample ? [sampleWatermarkObject] : []),
       // Navy header bar
       { rect: { x: 0, y: 0, w: '100%', h: HEADER_HEIGHT, fill: { color: COLORS.navy } } },
       // Orange accent line
@@ -141,9 +158,11 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
   });
 
   // Build appendix footer text
-  const appendixFooterText = inputs.casinoName
-    ? `APPENDIX  |  Licensed for: ${inputs.casinoName}`
-    : 'APPENDIX';
+  const appendixFooterText = isSample
+    ? 'APPENDIX  |  SAMPLE REPORT — FOR EVALUATION ONLY'
+    : inputs.casinoName
+      ? `APPENDIX  |  Licensed for: ${inputs.casinoName}`
+      : 'APPENDIX';
 
   // Define appendix master slide (slides 9-13)
   pptx.defineSlideMaster({
@@ -151,6 +170,7 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
     background: { color: COLORS.white },
     slideNumber: { x: 9.2, y: '96%', w: 0.5, fontSize: FONT.caption - 1, color: COLORS.white, align: 'right' },
     objects: [
+      ...(isSample ? [sampleWatermarkObject] : []),
       // Gray header bar
       { rect: { x: 0, y: 0, w: '100%', h: 0.45, fill: { color: COLORS.secondary } } },
       // Orange accent line
@@ -264,6 +284,20 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
     fontSize: 11, fontFace: 'Helvetica', color: COLORS.white, transparency: 30
   });
 
+  // Product mark
+  slide1.addText(`Modeled with ${PRODUCT_NAME_VERSIONED} — ${BRAND.productFullName}`, {
+    x: 0.65, y: 3.6, w: 5.5, h: 0.22,
+    fontSize: 10, fontFace: 'Helvetica', color: COLORS.accentLight || '4299e1'
+  });
+
+  // Sample banner across the cover
+  if (isSample) {
+    slide1.addText('SAMPLE REPORT — FOR EVALUATION ONLY', {
+      x: 0.65, y: 4.0, w: 6, h: 0.3,
+      fontSize: 13, fontFace: 'Helvetica', bold: true, color: COLORS.warning, charSpacing: 2
+    });
+  }
+
   // Bottom info bar
   slide1.addShape('rect', {
     x: 0, y: SLIDE_HEIGHT - 0.5, w: '100%', h: 0.5,
@@ -282,7 +316,12 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
   });
 
   // License attribution - right side
-  if (inputs.casinoName) {
+  if (isSample) {
+    slide1.addText('SAMPLE — Not licensed for distribution', {
+      x: SLIDE_WIDTH - MARGIN - 4, y: SLIDE_HEIGHT - 0.32, w: 4, h: 0.22,
+      fontSize: 9, fontFace: 'Helvetica', color: COLORS.white, align: 'right', transparency: 20
+    });
+  } else if (inputs.casinoName) {
     slide1.addText(`Licensed for: ${inputs.casinoName}`, {
       x: SLIDE_WIDTH - MARGIN - 4, y: SLIDE_HEIGHT - 0.32, w: 4, h: 0.22,
       fontSize: 9, fontFace: 'Helvetica', color: COLORS.white, align: 'right', transparency: 20
@@ -999,6 +1038,11 @@ Built using the stateior R package (Ingwersen et al.).`, {
     fontSize: FONT.caption, fontFace: 'Helvetica', italic: true, color: COLORS.grayText
   });
 
+  appendixA.addText(`Suggested citation: ${getSuggestedCitation()}`, {
+    x: MARGIN, y: 4.45, w: 9.2, h: 0.4,
+    fontSize: FONT.caption - 1, fontFace: 'Helvetica', italic: true, color: COLORS.grayText
+  });
+
   // Add license footer to appendix A
 
   // ============================================================
@@ -1293,13 +1337,18 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
   });
 
   // Thank you message
-  backCover.addText('Thank you for using the Casino Economic Impact Model', {
-    x: 0.5, y: SLIDE_HEIGHT - 0.35, w: 5, h: 0.22,
+  backCover.addText(`Thank you for using ${PRODUCT_NAME_VERSIONED}, the ${BRAND.productFullName}`, {
+    x: 0.5, y: SLIDE_HEIGHT - 0.35, w: 5.5, h: 0.22,
     fontSize: 9, fontFace: 'Helvetica', color: COLORS.white, transparency: 30
   });
 
   // License attribution - right side
-  if (inputs.casinoName) {
+  if (isSample) {
+    backCover.addText('SAMPLE — Not licensed for distribution', {
+      x: SLIDE_WIDTH - MARGIN - 4, y: SLIDE_HEIGHT - 0.35, w: 4, h: 0.22,
+      fontSize: 9, fontFace: 'Helvetica', color: COLORS.white, align: 'right', transparency: 20
+    });
+  } else if (inputs.casinoName) {
     backCover.addText(`Licensed for: ${inputs.casinoName}`, {
       x: SLIDE_WIDTH - MARGIN - 4, y: SLIDE_HEIGHT - 0.35, w: 4, h: 0.22,
       fontSize: 9, fontFace: 'Helvetica', color: COLORS.white, align: 'right', transparency: 20
@@ -1309,7 +1358,7 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
   // ============================================================
   // Generate and return
   // ============================================================
-  const filename = `Economic_Impact_Report_${inputs.state.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+  const filename = `${isSample ? 'SAMPLE_' : ''}${BRAND.productName}_${BRAND.modelVersion}_Economic_Impact_${inputs.state.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
   const blob = await pptx.write({ outputType: 'blob' });
   return { blob, filename: filename + '.pptx' };
 }

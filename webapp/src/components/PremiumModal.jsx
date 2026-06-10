@@ -7,8 +7,9 @@
  */
 
 import React, { useState } from 'react';
-import { X, CreditCard, Key, Check, AlertCircle, Loader2, Sparkles, Building2 } from 'lucide-react';
-import { validateLicense, isValidFormat } from '../utils/licenseValidator';
+import { X, CreditCard, Key, Check, AlertCircle, Loader2, Sparkles, Building2, FileDown } from 'lucide-react';
+import { validateLicenseRemote, isValidFormat } from '../utils/licenseValidator';
+import { BRAND } from '../brand';
 
 export default function PremiumModal({
   isOpen,
@@ -16,7 +17,9 @@ export default function PremiumModal({
   onUpgrade,
   onPurchase,
   isPurchasing = false,
-  propertyName = ''
+  propertyName = '',
+  onDownloadSample,
+  isGeneratingSample = false
 }) {
   const [activeTab, setActiveTab] = useState('purchase'); // 'purchase' | 'license'
   const [licenseKey, setLicenseKey] = useState('');
@@ -29,10 +32,8 @@ export default function PremiumModal({
     setError('');
     setIsValidating(true);
 
-    // Small delay for UX
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const result = validateLicense(licenseKey);
+    // Checksum is verified server-side so the salt stays out of the bundle
+    const result = await validateLicenseRemote(licenseKey);
 
     if (result.valid) {
       // Save to localStorage and upgrade
@@ -181,6 +182,26 @@ export default function PremiumModal({
               <p className="text-xs text-center text-gray-500">
                 Secure payment powered by Stripe. You'll receive your license key instantly after purchase.
               </p>
+
+              {onDownloadSample && (
+                <button
+                  onClick={onDownloadSample}
+                  disabled={isGeneratingSample}
+                  className="w-full py-2.5 px-4 rounded-xl font-medium flex items-center justify-center gap-2 border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300 transition-all"
+                >
+                  {isGeneratingSample ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Generating sample...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown size={16} />
+                      Download a sample report first
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -234,6 +255,14 @@ export default function PremiumModal({
 
               <p className="text-xs text-center text-gray-500">
                 Enter the license key you received after purchase.
+              </p>
+
+              <p className="text-xs text-center text-gray-400">
+                Lost your key? Email{' '}
+                <a href={`mailto:${BRAND.email}?subject=License%20key%20recovery`} className="text-[#3182ce] hover:underline">
+                  {BRAND.email}
+                </a>{' '}
+                with your Stripe receipt and we'll resend it.
               </p>
             </div>
           )}

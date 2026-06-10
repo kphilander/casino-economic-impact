@@ -12,8 +12,18 @@
   status = 200
 
 [[redirects]]
+  from = "/api/create-checkout-addon"
+  to = "/.netlify/functions/create-checkout-addon"
+  status = 200
+
+[[redirects]]
   from = "/api/verify-session"
   to = "/.netlify/functions/verify-session"
+  status = 200
+
+[[redirects]]
+  from = "/api/validate-license"
+  to = "/.netlify/functions/validate-license"
   status = 200
 
 # SPA fallback - serve index.html for all routes

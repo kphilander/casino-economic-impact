@@ -23,10 +23,15 @@ function generateChecksum(input) {
 }
 
 /**
- * Generate a license key with 1-year expiration
+ * Generate a license key expiring 1 year after the purchase date.
+ *
+ * The expiry is anchored to the Stripe session's creation time (not "now")
+ * so that re-verifying the same session always regenerates the identical
+ * key — this is what makes the key-recovery flow safe and prevents license
+ * extension by revisiting the checkout success URL.
  */
-function generateLicenseKey() {
-  const expirationDate = new Date();
+function generateLicenseKey(purchaseDate) {
+  const expirationDate = new Date(purchaseDate);
   expirationDate.setFullYear(expirationDate.getFullYear() + 1);
 
   const year = expirationDate.getFullYear();
@@ -37,7 +42,7 @@ function generateLicenseKey() {
   const prefix = 'PRO';
   const checksum = generateChecksum(prefix + dateStr);
 
-  return `${prefix}-${dateStr}-${checksum}`;
+  return { key: `${prefix}-${dateStr}-${checksum}`, expiresAt: expirationDate };
 }
 
 exports.handler = async (event, context) => {
@@ -79,8 +84,10 @@ exports.handler = async (event, context) => {
 
     // Check if payment was successful
     if (session.payment_status === 'paid') {
-      // Generate a license key
-      const licenseKey = generateLicenseKey();
+      // Generate a license key anchored to the purchase date (session.created
+      // is a Unix timestamp in seconds)
+      const purchaseDate = new Date(session.created * 1000);
+      const { key: licenseKey, expiresAt } = generateLicenseKey(purchaseDate);
 
       return {
         statusCode: 200,
@@ -92,7 +99,7 @@ exports.handler = async (event, context) => {
           valid: true,
           licenseKey,
           email: session.customer_email || session.customer_details?.email,
-          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          expiresAt: expiresAt.toISOString(),
         }),
       };
     } else {

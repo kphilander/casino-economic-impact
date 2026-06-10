@@ -8,6 +8,7 @@
  */
 
 import pptxgen from 'pptxgenjs';
+import { BRAND, PRODUCT_NAME_VERSIONED, getSuggestedCitation } from '../brand';
 
 // EKG Professional color palette
 const COLORS = {
@@ -868,7 +869,7 @@ Fundamental equation:  X = (I - A)⁻¹ × Y
   });
 
   // Disclaimer footer
-  slideBack.addText('This report was generated using the Casino Economic Impact Model. Results are estimates based on Input-Output modeling and should be interpreted as indicative rather than definitive.', {
+  slideBack.addText(`This report was generated using ${PRODUCT_NAME_VERSIONED} (${BRAND.productFullName}) by ${BRAND.publisher}. Results are estimates based on Input-Output modeling and should be interpreted as indicative rather than definitive. Suggested citation: ${getSuggestedCitation()}`, {
     x: 0.8, y: 6.7, w: 8.4, h: 0.5,
     fontSize: 7, fontFace: 'Aptos Light', italic: true, color: COLORS.lightText, align: 'center'
   });

@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
-import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2 } from 'lucide-react';
+import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown } from 'lucide-react';
 import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
@@ -11,12 +11,14 @@ import { ARCHETYPES, ARCHETYPE_LIST, calculateArchetypeEmployment } from './data
 import { calculateCombinedImpact, calculateGamingTax, calculatePayrollTax, calculateHouseholdTax, formatNumber, formatCurrency, formatJobs, isOnlinePropertyType } from './utils/calculations';
 import {
   validateLicense,
+  validateLicenseRemote,
   canDownloadForProperty,
   getLicenseData,
   saveLicenseData,
   addLicensedProperty,
   clearLicenseData
 } from './utils/licenseValidator';
+import { BRAND, PRODUCT_NAME_VERSIONED, PRODUCT_TITLE, getSuggestedCitation } from './brand';
 import WatermarkOverlay from './components/WatermarkOverlay';
 import PremiumModal from './components/PremiumModal';
 import WrongPropertyModal from './components/WrongPropertyModal';
@@ -608,6 +610,9 @@ export default function App() {
   const [showWrongPropertyModal, setShowWrongPropertyModal] = useState(false);
   const [wrongPropertyInfo, setWrongPropertyInfo] = useState(null); // { licensedFor, attempting }
   const [showConfirmPropertyModal, setShowConfirmPropertyModal] = useState(false); // Confirm before tying license to property
+  const [purchasedLicense, setPurchasedLicense] = useState(null); // { key, email } — shown once after purchase so the user saves it
+  const [licenseKeyCopied, setLicenseKeyCopied] = useState(false);
+  const [isGeneratingSample, setIsGeneratingSample] = useState(false);
 
   // Gaming tax state
   const [gamingTaxCustomRate, setGamingTaxCustomRate] = useState(null); // User override rate (0-1)
@@ -634,6 +639,15 @@ export default function App() {
       if (result.valid) {
         setUserTier('pro');
         setLicensedProperties(savedProperties || []);
+        // Re-verify the checksum server-side in the background; downgrade only
+        // on an explicit rejection (not on network errors, e.g. local dev)
+        validateLicenseRemote(licenseKey).then(remote => {
+          if (!remote.valid && !remote.networkError) {
+            clearLicenseData();
+            setUserTier('free');
+            setLicensedProperties([]);
+          }
+        }).catch(() => {});
       } else {
         // License expired or invalid, remove it
         localStorage.removeItem('licenseKey');
@@ -732,6 +746,9 @@ export default function App() {
             saveLicenseData(data.licenseKey, []);
             setUserTier('pro');
             setLicensedProperties([]);
+            // Show the key so the user can save it — localStorage alone is
+            // fragile (cleared cache or a new device loses the license)
+            setPurchasedLicense({ key: data.licenseKey, email: data.email });
           }
           // Clear URL params
           window.history.replaceState({}, '', window.location.pathname);
@@ -1027,6 +1044,90 @@ More information about Dr. Philander is available at kahlil.co.`,
       alert(`Failed to generate PPTX: ${error.message}`);
     } finally {
       setIsGeneratingPPTX(false);
+    }
+  };
+
+  // Generate a sample report with fixed demo data so prospective buyers can
+  // see the deliverable before purchasing. Watermarked as SAMPLE throughout.
+  const handleDownloadSampleReport = async () => {
+    setIsGeneratingSample(true);
+
+    try {
+      const sampleState = 'Nevada';
+      const samplePropertyType = '721120';
+      const sampleRevenues = { gaming: 149.4, food: 28.1, lodging: 51.1, other: 31.5, total: null };
+      const emptyKnownData = {
+        gaming: { emp: null, wages: null },
+        food: { emp: null, wages: null },
+        lodging: { emp: null, wages: null },
+        other: { emp: null, wages: null }
+      };
+
+      const sampleResults = calculateCombinedImpact(
+        sampleRevenues,
+        multiplierData.multipliers,
+        multiplierData.gambling,
+        sampleState,
+        true,
+        emptyKnownData,
+        null,
+        samplePropertyType,
+        multiplierData.propertyTypes || null,
+        'department',
+        multiplierData.onlineGaming || null
+      );
+
+      const sampleStateTaxConfig = gamingTaxRatesData.rates[sampleState];
+      const sampleTaxConfig = buildTaxConfig(sampleStateTaxConfig, null, 70, samplePropertyType);
+      const sampleGamingTax = calculateGamingTax(sampleRevenues.gaming, sampleTaxConfig);
+      const sampleGamingTaxResult = {
+        amount: sampleGamingTax,
+        effectiveRate: sampleGamingTax / sampleRevenues.gaming,
+        ggr: sampleRevenues.gaming
+      };
+
+      const sampleStateEmpTaxRates = employmentTaxRatesData.states[sampleState];
+      const federal = employmentTaxRatesData.federal;
+      const w = sampleResults.totals.wages;
+      const e = sampleResults.totals.employment;
+      const samplePayrollTaxResult = {
+        direct: calculatePayrollTax(w.direct, e.direct, sampleStateEmpTaxRates, federal),
+        indirect: calculatePayrollTax(w.indirect, e.indirect, sampleStateEmpTaxRates, federal),
+        induced: calculatePayrollTax(w.induced, e.induced, sampleStateEmpTaxRates, federal),
+        get total() { return this.direct + this.indirect + this.induced; }
+      };
+      const sampleHouseholdTaxResult = {
+        direct: calculateHouseholdTax(w.direct, sampleStateEmpTaxRates),
+        indirect: calculateHouseholdTax(w.indirect, sampleStateEmpTaxRates),
+        induced: calculateHouseholdTax(w.induced, sampleStateEmpTaxRates),
+        get total() { return this.direct + this.indirect + this.induced; }
+      };
+
+      const { downloadPPTX } = await import('./utils/pptxGenerator');
+      await downloadPPTX(
+        sampleResults,
+        {
+          state: sampleState,
+          casinoName: 'Sample Casino Resort',
+          useGamblingSpecific: true,
+          revenues: sampleRevenues,
+          knownData: emptyKnownData,
+          propertyType: samplePropertyType,
+          propertyTypeLabel: PROPERTY_TYPE_OPTIONS.find(p => p.value === samplePropertyType)?.label || 'Casino Hotel',
+          inputMode: 'department',
+          gamingTaxResult: sampleGamingTaxResult,
+          stateTaxConfig: sampleStateTaxConfig,
+          payrollTaxResult: samplePayrollTaxResult,
+          householdTaxResult: sampleHouseholdTaxResult,
+          isSample: true
+        },
+        authorInfo
+      );
+    } catch (error) {
+      console.error('Failed to generate sample report:', error);
+      alert(`Failed to generate sample report: ${error.message}`);
+    } finally {
+      setIsGeneratingSample(false);
     }
   };
 
@@ -1806,7 +1907,57 @@ More information about Dr. Philander is available at kahlil.co.`,
         onPurchase={handlePurchase}
         isPurchasing={isPurchasing}
         propertyName={casinoName}
+        onDownloadSample={handleDownloadSampleReport}
+        isGeneratingSample={isGeneratingSample}
       />
+
+      {/* License Key Modal - shown once after purchase so the user saves the key */}
+      {purchasedLicense && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="bg-gradient-to-r from-[#1a365d] to-[#3182ce] rounded-t-2xl px-6 py-5 text-white">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Check size={22} className="text-emerald-300" />
+                Purchase Complete
+              </h2>
+              <p className="text-white/90 text-sm mt-1">Your Pro license is now active.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">Your license key</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 font-mono text-sm text-gray-900 break-all">
+                    {purchasedLicense.key}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard?.writeText(purchasedLicense.key);
+                      setLicenseKeyCopied(true);
+                      setTimeout(() => setLicenseKeyCopied(false), 2000);
+                    }}
+                    className="p-2.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-colors"
+                    aria-label="Copy license key"
+                  >
+                    {licenseKeyCopied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
+                  </button>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <strong>Save this key somewhere safe.</strong> Your license is stored in this
+                browser only — you'll need the key to activate it on another device or after
+                clearing your browser data. Lost keys can be recovered at {BRAND.email} with
+                your Stripe receipt{purchasedLicense.email ? ` (sent to ${purchasedLicense.email})` : ''}.
+              </div>
+              <button
+                onClick={() => setPurchasedLicense(null)}
+                className="w-full py-3 px-4 rounded-xl font-semibold bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white shadow-lg transition-all"
+              >
+                I've saved my key
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Wrong Property Modal */}
       <WrongPropertyModal
@@ -2023,13 +2174,32 @@ More information about Dr. Philander is available at kahlil.co.`,
                   isGenerating={isGeneratingPPTX}
                 />
               ) : (
-                <button
-                  onClick={() => setShowPremiumModal(true)}
-                  className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white shadow-lg hover:shadow-xl transition-all"
-                >
-                  <Lock size={20} />
-                  Download PPTX (Pro Feature)
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowPremiumModal(true)}
+                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Lock size={20} />
+                    Download PPTX (Pro Feature)
+                  </button>
+                  <button
+                    onClick={handleDownloadSampleReport}
+                    disabled={isGeneratingSample}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl font-medium border border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-300 transition-all"
+                  >
+                    {isGeneratingSample ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Generating sample...
+                      </>
+                    ) : (
+                      <>
+                        <FileDown size={16} />
+                        Download Sample Report
+                      </>
+                    )}
+                  </button>
+                </div>
               )
             )}
 
@@ -2585,11 +2755,18 @@ More information about Dr. Philander is available at kahlil.co.`,
         {/* Footer */}
         <footer role="contentinfo" className="mt-12 text-center text-sm text-gray-600 space-y-1">
           <p>
-            Gaming Economic Impact Model |{' '}
+            {PRODUCT_TITLE} |{' '}
             <a href="https://github.com/kphilander/casino-economic-impact" className="text-[#3182ce] hover:underline">
               GitHub
             </a>
-            {' '}| Methodology: Industry Technology Assumption (ITA)
+            {' '}|{' '}
+            <a href="https://github.com/kphilander/casino-economic-impact/blob/main/docs/methodology.md" className="text-[#3182ce] hover:underline">
+              Methodology
+            </a>
+            {' '}| Published by {BRAND.publisher}
+          </p>
+          <p className="text-xs text-gray-400 max-w-3xl mx-auto">
+            Suggested citation: {getSuggestedCitation()}
           </p>
           <p>
             <a

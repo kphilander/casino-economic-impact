@@ -674,7 +674,7 @@ Fundamental equation:  X = (I - A)⁻¹ × Y
       details: '• State-level employment by NAICS\n• Used for employment ratios'
     },
     {
-      name: 'BEA National IO Accounts (2017)',
+      name: 'BEA National IO Accounts (2023)',
       details: '• Commodity-by-industry tables\n• Gambling-specific coefficients'
     }
   ];

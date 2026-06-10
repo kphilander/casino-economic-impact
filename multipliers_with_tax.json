@@ -1,9 +1,9 @@
 {
   "metadata": {
     "exportDate": "2026-02-09T10:19:07Z",
-    "dataYear": 2024,
+    "dataYear": 2023,
     "ioTableYear": 2019,
-    "qcewYear": 2019,
+    "qcewYear": 2023,
     "description": "State multipliers with property-type-specific coefficients",
     "propertyTypesIncluded": ["721120", "713210", "713290", "722410"],
     "notes": ["Property type multipliers derived from BEA Detail IO tables via useeior", "Employment coefficients use state-level QCEW data where available", "CPI deflator should be applied to convert current dollars to 2019 for Emp_Coef calculations", "Tax columns (Direct_Tax_Coef, Type_I_Tax, Type_II_Tax) represent Taxes on Production & Imports (TOPI)", "TOPI for gambling (7132) uses adjustment ratio of 0.6086 (direct) and 0.7144 (multiplier) from BEA Detail IO"]

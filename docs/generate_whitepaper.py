@@ -408,7 +408,7 @@ def build():
          "State multipliers (pre-pandemic year avoids\ndistorted 2020 relationships)"],
         ["BLS Quarterly Census of Employment\nand Wages (QCEW)", "2023 annual\naverages",
          "Employment and wage coefficients"],
-        ["BEA Detail IO tables via useeior\n(USEEIOv2.0.1-411)", "2017\nbenchmark",
+        ["BEA Detail IO tables via useeior\n(USEEIOv2.0.1-411)", "2023",
          "Gambling-specific adjustment factors"],
         ["State gaming commissions,\nAGA State of the States", "Current",
          "Gaming tax schedules"],

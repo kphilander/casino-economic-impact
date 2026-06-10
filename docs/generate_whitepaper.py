@@ -234,7 +234,8 @@ def build():
     el.append(Paragraph("Contents", S["h1"]))
     for i, t in enumerate([
         "Introduction", "Modeling Framework", "Effect Decomposition",
-        "Employment Estimation", "Inflation Adjustment", "Gambling-Specific Adjustments",
+        "Employment Estimation", "Reporting Basis & Inflation Adjustment",
+        "Gambling-Specific Adjustments",
         "Tax Revenue Estimation", "Data Sources", "Sector and Property-Type Mapping",
         "Limitations and Appropriate Use", "Versioning", "References",
     ], start=1):
@@ -333,18 +334,29 @@ def build():
         "or wage figures, the model uses those values for the direct effect and estimates only the "
         "indirect and induced components.", S["body"]))
 
-    # --- 5. Inflation ---
-    el.append(Paragraph("5. Inflation Adjustment", S["h1"]))
+    # --- 5. Reporting basis & inflation ---
+    el.append(Paragraph("5. Reporting Basis & Inflation Adjustment", S["h1"]))
     el.append(Paragraph(
-        "Employment coefficients are calibrated to 2019 dollars (the base year of the IO tables). "
-        "Revenue entered in current-year dollars is deflated with the CPI-U annual average before "
-        "employment coefficients are applied:", S["body"]))
+        "<b>All monetary results the model reports — output, GDP, wages, and tax revenue — are in "
+        "current-year (nominal) dollars</b>, the same dollars the user enters. The dollar "
+        "multipliers and coefficients are unitless ratios applied directly to current-dollar "
+        "revenue, so their results are automatically in current dollars. No reported dollar figure "
+        "is deflated.", S["body"]))
+    el.append(Paragraph(
+        "Employment is the one quantity that needs a base-year adjustment, because the employment "
+        "coefficients carry a dollar denomination: they are jobs per $1M of value added expressed in "
+        "<b>2019 dollars</b> (the IO table base year, and the denominator used when the coefficients "
+        "were estimated). Applying that coefficient to a current-dollar GDP figure would mismatch "
+        "the price bases. The model therefore restates GDP in 2019 dollars purely as an internal "
+        "step in the jobs calculation, then applies the coefficient:", S["body"]))
     el.append(Paragraph(
         "Deflator = CPI_2019 / CPI_current_year<br/>"
         "Jobs = (GDP_current × Deflator) × Employment_Coefficient", S["formula"]))
     el.append(Paragraph(
-        "Without this adjustment, nominal revenue growth would be misread as real growth, "
-        "overstating employment by the cumulative inflation since the base year.", S["body"]))
+        "This conversion affects the employment estimate only; it does not change any dollar figure "
+        "the model displays. Without it, current-dollar GDP would be matched against a coefficient "
+        "denominated in cheaper 2019 dollars, overstating jobs by the cumulative price growth since "
+        "2019.", S["body"]))
 
     # --- 6. Gambling-specific adjustments ---
     el.append(Paragraph("6. Gambling-Specific Adjustments", S["h1"]))

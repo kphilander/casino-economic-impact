@@ -65,14 +65,18 @@ Jobs = GDP_effect × Employment_Coefficient
 
 Three coefficients capture the differing labor intensities of each effect type: `Emp_Coef` (direct — labor intensity of the gaming industry itself), `Indirect_Emp_Coef` (weighted average labor intensity of supplier industries), and `Induced_Emp_Coef` (weighted average labor intensity of household-spending industries). Coefficients are expressed as jobs per $1M of Value Added (GDP), not gross output, to avoid double-counting intermediate purchases.
 
-### 2.4 Inflation Adjustment
+### 2.4 Reporting Basis and the Employment Base-Year Adjustment
 
-Employment coefficients are calibrated to 2019 dollars (the IO table base year). Current-year revenue is deflated using the CPI-U annual average before employment coefficients are applied:
+**All monetary results the model reports — output, GDP, wages, and tax revenue — are in current-year (nominal) dollars**, the same dollars the user enters. The dollar multipliers and coefficients are unitless ratios applied directly to current-dollar revenue, so their results are automatically in current dollars. No reported dollar figure is deflated.
+
+Employment is the one quantity that needs a base-year adjustment, because the employment coefficients carry a dollar denomination: they are jobs per $1M of value added expressed in **2019 dollars** (the IO table base year, and the denominator used when the coefficients were estimated). Applying that coefficient to a current-dollar GDP figure would mismatch the price bases. The model therefore restates GDP in 2019 dollars purely as an internal step in the jobs calculation, then applies the coefficient:
 
 ```
 Deflator = CPI_2019 / CPI_current_year
 Jobs = (GDP_in_current_dollars × Deflator) × Employment_Coefficient
 ```
+
+This conversion affects the employment estimate only; it does not change any dollar figure the model displays. Without it, current-dollar GDP would be matched against a coefficient denominated in cheaper 2019 dollars, overstating jobs by the cumulative price growth since 2019.
 
 ### 2.5 Gambling-Specific Adjustments
 

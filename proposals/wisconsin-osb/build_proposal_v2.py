@@ -85,6 +85,15 @@ def data_table(doc, header, rows, col_widths, align_numbers=True):
     return table
 
 
+def ref_bullet(doc, runs, url):
+    """Bullet formatted as a reference: citation runs followed by a link."""
+    p = doc.add_paragraph(style="List Bullet")
+    for text, bold, italic in runs:
+        bp.set_font(p.add_run(text), size=10.5, bold=bold, italic=italic)
+    bp.add_hyperlink(p, url)
+    return p
+
+
 def cover_page_v2(doc):
     for _ in range(3):
         doc.add_paragraph()
@@ -260,14 +269,38 @@ def section_a_v2(doc):
             "more than 25,000 sports bettors across its client research projects. "
             "Selected publicly available examples of our work include the "
             "following:")
-    for url in (
-        "https://ideagrowth.org/research/",
-        "https://ideagrowth.org/wp-content/uploads/2020/01/Economic-Impact-of-NJ-iGaming_FULL-REPORT_12.19.19.pdf",
-        "https://www.in.gov/igc/files/Indiana-SportsBettingReport-Final-Oct18-1.pdf",
-        "https://sbcamericas.com/tag/the-more-you-know-the-bettor-defining-us-sports-betting-customer-personas/",
-        "http://www.indiangaming.org/info/alerts/Spectrum-Internet-Paper.pdf",
-    ):
-        bp.link_bullet(doc, url)
+    ref_bullet(doc, [
+        ("Meister Economic Consulting & Victor-Strategies (2019). ", False, False),
+        ("Economic Impact of New Jersey Online Gaming: Further Lessons "
+         "Learned. ", False, True),
+        ("Prepared for iDEA Growth (Interactive Digital Entertainment "
+         "Association). ", False, False),
+    ], "https://ideagrowth.org/wp-content/uploads/2020/01/Economic-Impact-of-NJ-iGaming_FULL-REPORT_12.19.19.pdf")
+    ref_bullet(doc, [
+        ("Eilers & Krejcik Gaming (2018). ", False, False),
+        ("Regulated Sports Betting in Indiana: Landscape, Analysis, and "
+         "Recommendations. ", False, True),
+        ("Prepared for the Indiana Gaming Commission. ", False, False),
+    ], "https://www.in.gov/igc/files/Indiana-SportsBettingReport-Final-Oct18-1.pdf")
+    ref_bullet(doc, [
+        ("Eilers & Krejcik Gaming, in partnership with Victor-Strategies "
+         "(2019). ", False, False),
+        ("The More You Know the Bettor: Defining U.S. Sports Betting Customer "
+         "Personas. ", False, True),
+        ("Consumer research report and article series published by SBC "
+         "Americas. ", False, False),
+    ], "https://sbcamericas.com/tag/the-more-you-know-the-bettor-defining-us-sports-betting-customer-personas/")
+    ref_bullet(doc, [
+        ("Spectrum Gaming Group (2010). ", False, False),
+        ("Internet Gaming White Paper. ", False, True),
+        ("Prepared for the National Indian Gaming Association. ", False, False),
+    ], "http://www.indiangaming.org/info/alerts/Spectrum-Internet-Paper.pdf")
+    ref_bullet(doc, [
+        ("iDEA Growth. ", False, False),
+        ("Research Library. ", False, True),
+        ("Repository of published iDEA-commissioned studies, including the "
+         "2024 rebuttal analysis discussed in Section A. ", False, False),
+    ], "https://ideagrowth.org/research/")
 
     doc.add_heading("Independence and Conflicts", level=2)
     bp.para(doc,

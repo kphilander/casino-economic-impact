@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, FolderOpen, Trash2, Clock, MapPin } from 'lucide-react';
 
 const PROPERTY_LABELS = {
@@ -25,6 +25,13 @@ function timeAgo(iso) {
  * delete removes the saved project.
  */
 export default function ProjectsDrawer({ open, projects, onClose, onOpenProject, onDelete }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[70] no-print" role="dialog" aria-label="Saved analyses">

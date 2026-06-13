@@ -1,9 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
-} from 'recharts';
-import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown, SlidersHorizontal } from 'lucide-react';
+import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown, SlidersHorizontal } from 'lucide-react';
 import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
@@ -24,7 +20,6 @@ import PremiumModal from './components/PremiumModal';
 import WrongPropertyModal from './components/WrongPropertyModal';
 import ConfirmPropertyModal from './components/ConfirmPropertyModal';
 import PageHeader from './components/PageHeader';
-import DashboardMetricCard from './components/dashboard/MetricCard';
 import DashboardImpactCompositionChart from './components/dashboard/ImpactCompositionChart';
 import DashboardEmploymentChart from './components/dashboard/EmploymentChart';
 import DashboardStateComparisonChart from './components/dashboard/StateComparisonChart';
@@ -61,37 +56,6 @@ const COLORS = {
   tech: '#3182ce'       // For online: Technology Infrastructure
 };
 
-// Metric Card Component
-function MetricCard({ icon: Icon, label, value, subtext, color = 'primary', badge }) {
-  const colorClasses = {
-    primary: 'bg-primary',   // GP Navy gradient
-    success: 'bg-accent',   // GP Blue gradient
-    purple: 'bg-primary-light',    // Navy to blue
-    amber: 'bg-accent'      // GP Blue gradient
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-5 card-hover">
-      <div className="flex items-start gap-3">
-        <div className={`p-2.5 rounded-lg ${colorClasses[color]} text-white flex-shrink-0`}>
-          <Icon size={20} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}</p>
-          <p className="text-xl font-bold text-gray-900 mt-0.5 leading-tight">{value}</p>
-          {subtext && <p className="text-xs text-gray-500 mt-1">{subtext}</p>}
-        </div>
-      </div>
-      {badge && (
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-            {badge}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // Input Field Component
 function InputField({ label, value, onChange, placeholder, helpText, type = 'number', prefix, suffix, id }) {
@@ -205,191 +169,6 @@ function getTermDefinitions(isOnline) {
 }
 const TERM_DEFINITIONS = getTermDefinitions(false);
 
-// Results Table Component
-function ResultsTable({ results, termDefs }) {
-  const TERM_DEFINITIONS = termDefs || getTermDefinitions(false);
-  const rows = [
-    { label: 'Output ($M)', key: 'output', format: (v) => formatNumber(v, 1) },
-    { label: 'GDP ($M)', key: 'gdp', format: (v) => formatNumber(v, 1) },
-    { label: 'Employment (FTEs)', key: 'employment', format: (v) => formatJobs(v) },
-    { label: 'Wages ($M)', key: 'wages', format: (v) => formatNumber(v, 1) },
-    { label: 'Tax Revenue ($M)', key: 'tax', format: (v) => formatNumber(v, 1) }
-  ];
-
-  return (
-    <div className="overflow-x-auto" role="region" aria-label="Economic impact results">
-      <table className="w-full" aria-label="Economic impact breakdown by effect type">
-        <caption className="sr-only">Economic impact summary showing direct, indirect, induced effects and multipliers</caption>
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th scope="col" className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Metric</th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-primary">
-              <DefTooltip text={TERM_DEFINITIONS.direct}>Direct</DefTooltip>
-            </th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-accent">
-              <DefTooltip text={TERM_DEFINITIONS.indirect}>Indirect</DefTooltip>
-            </th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-effect-induced">
-              <DefTooltip text={TERM_DEFINITIONS.induced}>Induced</DefTooltip>
-            </th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Total</th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-accent">
-              <DefTooltip text={TERM_DEFINITIONS.multiplier}>Multiplier</DefTooltip>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ label, key, format }) => (
-            <tr key={key} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                <DefTooltip text={TERM_DEFINITIONS[key]}>{label}</DefTooltip>
-              </th>
-              <td className="py-3 px-4 text-sm text-right text-primary">{format(results.totals[key].direct)}</td>
-              <td className="py-3 px-4 text-sm text-right text-accent">{format(results.totals[key].indirect)}</td>
-              <td className="py-3 px-4 text-sm text-right text-effect-induced">{format(results.totals[key].induced)}</td>
-              <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{format(results.totals[key].total)}</td>
-              <td className="py-3 px-4 text-sm text-right text-accent font-medium">
-                {results.multipliers[key] ? `${formatNumber(results.multipliers[key], 2)}x` : '-'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// Impact Breakdown Chart
-function ImpactBreakdownChart({ results }) {
-  const data = [
-    {
-      name: 'Output',
-      Direct: results.totals.output.direct,
-      Indirect: results.totals.output.indirect,
-      Induced: results.totals.output.induced
-    },
-    {
-      name: 'GDP',
-      Direct: results.totals.gdp.direct,
-      Indirect: results.totals.gdp.indirect,
-      Induced: results.totals.gdp.induced
-    },
-    {
-      name: 'Wages',
-      Direct: results.totals.wages.direct,
-      Indirect: results.totals.wages.indirect,
-      Induced: results.totals.wages.induced
-    },
-    {
-      name: 'Tax',
-      Direct: results.totals.tax.direct,
-      Indirect: results.totals.tax.indirect,
-      Induced: results.totals.tax.induced
-    }
-  ];
-
-  return (
-    <div role="img" aria-label={`Economic impact chart showing Output: $${formatNumber(results.totals.output.total, 1)}M, GDP: $${formatNumber(results.totals.gdp.total, 1)}M, Wages: $${formatNumber(results.totals.wages.total, 1)}M`}>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="name" tick={{ fill: '#4b5563' }} />
-          <YAxis tick={{ fill: '#4b5563' }} tickFormatter={(v) => `$${v}M`} />
-          <Tooltip
-            formatter={(value) => [`$${formatNumber(value, 1)}M`, '']}
-            contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-          />
-          <Legend />
-          <Bar dataKey="Direct" fill={COLORS.direct} radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Indirect" fill={COLORS.indirect} radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Induced" fill={COLORS.induced} radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// Employment Pie Chart
-function EmploymentPieChart({ results }) {
-  const data = [
-    { name: 'Direct', value: results.totals.employment.direct, color: COLORS.direct },
-    { name: 'Indirect', value: results.totals.employment.indirect, color: COLORS.indirect },
-    { name: 'Induced', value: results.totals.employment.induced, color: COLORS.induced }
-  ];
-
-  return (
-    <div role="img" aria-label={`Employment distribution: Direct ${formatJobs(results.totals.employment.direct)} jobs, Indirect ${formatJobs(results.totals.employment.indirect)} jobs, Induced ${formatJobs(results.totals.employment.induced)} jobs`}>
-      <ResponsiveContainer width="100%" height={250}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={90}
-            paddingAngle={3}
-            dataKey="value"
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-            labelLine={false}
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip formatter={(value) => [formatJobs(value) + ' jobs', '']} />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// State Comparison Chart
-function StateComparisonChart({ currentState, gamblingData }) {
-  const sortedData = useMemo(() => {
-    return [...gamblingData]
-      .sort((a, b) => b.Emp_Coef - a.Emp_Coef)
-      .map(d => ({
-        state: d.Abbrev,
-        fullName: d.State,
-        multiplier: d.Emp_Coef,
-        isSelected: d.State === currentState
-      }));
-  }, [gamblingData, currentState]);
-
-  const currentStateData = sortedData.find(d => d.isSelected);
-
-  return (
-    <div role="img" aria-label={`State comparison chart showing employment intensity. ${currentState} has ${formatNumber(currentStateData?.multiplier || 0, 1)} jobs per $1M GDP`}>
-      <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis
-            dataKey="state"
-            tick={{ fill: '#4b5563', fontSize: 10 }}
-            angle={-45}
-            textAnchor="end"
-            height={60}
-          />
-          <YAxis tick={{ fill: '#4b5563' }} domain={[0, 'auto']} />
-          <Tooltip
-            formatter={(value) => [formatNumber(value, 1), 'Jobs per $1M GDP']}
-            labelFormatter={(label, payload) => payload[0]?.payload?.fullName || label}
-            contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-          />
-          <Bar
-            dataKey="multiplier"
-            radius={[4, 4, 0, 0]}
-            fill="#3182ce"
-          >
-            {sortedData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.isSelected ? '#1a365d' : '#3182ce'} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 // Revenue Breakdown Table
 function RevenueBreakdownTable({ byRevenue }) {
@@ -453,69 +232,6 @@ function DownloadPPTXButton({ onClick, isGenerating }) {
   );
 }
 
-// Wizard Step Component
-function WizardStep({ stepNum, totalSteps, title, subtitle, children, onBack, onNext, nextLabel = 'Continue', showBack = true, canProceed = true }) {
-  return (
-    <div className="min-h-[calc(100vh-80px)] flex items-start justify-center py-12 px-4">
-      <div className="max-w-xl w-full">
-        {/* Step indicator pills */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {Array.from({ length: totalSteps }, (_, i) => (
-            <div
-              key={i}
-              className={`h-2 rounded-full transition-all duration-500 ${
-                i + 1 < stepNum ? 'w-2 bg-accent'
-                : i + 1 === stepNum ? 'w-10 progress-shimmer'
-                : 'w-2 bg-gray-300'
-              }`}
-            />
-          ))}
-        </div>
-
-        {/* Card */}
-        <div className="wizard-card p-8 sm:p-10">
-          {/* Step number badge */}
-          <div className="flex items-center gap-3 mb-5">
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white text-sm font-bold shadow-md">
-              {stepNum}
-            </span>
-            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Step {stepNum} of {totalSteps}</span>
-          </div>
-
-          <h2 className="text-2xl font-bold text-gray-900 mb-2 leading-tight">{title}</h2>
-          {subtitle && <p className="text-gray-500 mb-8 leading-relaxed">{subtitle}</p>}
-
-          <div className="mb-8">
-            {children}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-            {showBack && onBack ? (
-              <button
-                onClick={onBack}
-                className="px-5 py-2.5 text-gray-500 hover:text-gray-900 font-medium transition-colors rounded-lg hover:bg-gray-50"
-              >
-                ← Back
-              </button>
-            ) : <div />}
-            <button
-              onClick={onNext}
-              disabled={!canProceed}
-              className={`px-8 py-3 rounded-xl font-semibold transition-all ${
-                canProceed
-                  ? 'bg-primary text-white hover:bg-primary-dark shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {nextLabel} →
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Property type options with descriptions
 const PROPERTY_TYPE_OPTIONS = [
@@ -577,9 +293,8 @@ function buildTaxConfig(taxInfo, customRate, slotRevenuePct, propertyType = null
 
 // Main App Component
 export default function App() {
-  // Wizard state (the standalone wizard is retired; the report canvas is the
-  // single surface, so the app always renders "complete").
-  const [wizardStep, setWizardStep] = useState(0);
+  // The standalone 5-step wizard is retired; the report canvas is the single
+  // surface, so the app always renders "complete".
   const [wizardComplete, setWizardComplete] = useState(true);
 
   // Input state
@@ -642,6 +357,14 @@ export default function App() {
   const [scenarios, setScenarios] = useState([]);
   const [showSensitivity, setShowSensitivity] = useState(false);
   const [inputsOpen, setInputsOpen] = useState(false);
+
+  // Close the inputs slide-over on Escape
+  useEffect(() => {
+    if (!inputsOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') setInputsOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [inputsOpen]);
 
   // Check for saved license on mount and handle Stripe redirect
   useEffect(() => {

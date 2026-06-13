@@ -1,11 +1,6 @@
 import React from 'react';
 import { formatNumber, formatCurrency } from '../../utils/calculations';
-
-const COLORS = {
-  direct: '#1a365d',
-  indirect: '#3182ce',
-  induced: '#4299e1'
-};
+import { EFFECT as COLORS } from '../../theme';
 
 function ImpactBar({ label, direct, indirect, induced, total, multiplier, formatter }) {
   const max = total;
@@ -20,7 +15,7 @@ function ImpactBar({ label, direct, indirect, induced, total, multiplier, format
         <div className="flex items-baseline gap-2">
           <span className="text-base font-bold text-gray-900 tabular-nums">{formatter(total)}</span>
           {multiplier && (
-            <span className="text-xs font-semibold text-amber-500 tabular-nums">{formatNumber(multiplier, 2)}x</span>
+            <span className="text-xs font-semibold text-highlight tabular-nums">{formatNumber(multiplier, 2)}x</span>
           )}
         </div>
       </div>

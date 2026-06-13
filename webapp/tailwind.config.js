@@ -6,49 +6,76 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Serif display for report-grade headings; Inter for UI/body.
+        display: ['"Source Serif 4"', 'Georgia', 'Cambria', 'serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+      },
       colors: {
-        // GP Consulting color palette
+        // "Refined consulting" — navy ink, sparing blue accent, warm-cool neutrals.
+        ink: '#13243b',
         primary: {
           DEFAULT: '#1a365d',
-          50: '#f0f4f8',
-          100: '#e2e8f0',
+          50: '#f2f5f9',
+          100: '#e2e9f1',
           200: '#c3d0e0',
           300: '#94a9c2',
           400: '#5c7a9e',
           500: '#2c5282',
           600: '#1a365d',
           700: '#152a4d',
-          800: '#11223f',
+          800: '#11233f',
           900: '#0d1a30',
-          dark: '#152a4d',
+          dark: '#11233f',
           light: '#2c5282',
         },
         accent: {
-          DEFAULT: '#3182ce',
-          50: '#ebf8ff',
-          100: '#bee3f8',
-          200: '#90cdf4',
-          300: '#63b3ed',
-          400: '#4299e1',
-          500: '#3182ce',
-          600: '#2b6cb0',
-          700: '#2c5282',
-          800: '#2a4365',
-          900: '#1a365d',
-          light: '#4299e1',
+          DEFAULT: '#2b6cb0',
+          soft: '#ebf1f8',
+          50: '#eff5fb',
+          100: '#d8e6f4',
+          200: '#b3cde8',
+          300: '#86afd8',
+          400: '#5a8fc6',
+          500: '#2b6cb0',
+          600: '#225789',
+          700: '#1c4670',
+          800: '#173a5c',
+          900: '#13304b',
         },
-        // Semantic colors
-        background: {
-          DEFAULT: '#f0f4f8',
-          alt: '#e2e8f0',
+        // Muted "data-ink" effect ramp (Direct / Indirect / Induced)
+        effect: {
+          direct: '#1a365d',
+          indirect: '#5278a0',
+          induced: '#9bb0c8',
         },
+        surface: {
+          DEFAULT: '#ffffff',
+          sunken: '#f7f8fa',
+          raised: '#ffffff',
+        },
+        paper: '#f7f8fa',
+        hairline: '#e5e8ed',
+        positive: '#2f7a55',
+        negative: '#b04a3f',
+        highlight: '#b07a2b',
         text: {
-          DEFAULT: '#1a2a3a',
-          secondary: '#2d3748',
-          muted: '#718096',
+          DEFAULT: '#13243b',
+          secondary: '#3a4756',
+          muted: '#6b7785',
+          faint: '#9aa4b1',
         },
-        border: '#e2e8f0',
-      }
+        border: '#e5e8ed',
+      },
+      boxShadow: {
+        // Restrained, report-grade elevation — hairline + a whisper of depth.
+        card: '0 1px 2px rgba(19, 36, 59, 0.04)',
+        raised: '0 4px 16px rgba(19, 36, 59, 0.07)',
+        pop: '0 8px 28px rgba(19, 36, 59, 0.12)',
+      },
+      borderRadius: {
+        card: '14px',
+      },
     },
   },
   plugins: [],

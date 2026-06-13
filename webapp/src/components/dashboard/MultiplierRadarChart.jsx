@@ -4,6 +4,7 @@ import {
   Radar, ResponsiveContainer, Tooltip, Legend
 } from 'recharts';
 import { formatNumber } from '../../utils/calculations';
+import { NAVY, HIGHLIGHT } from '../../theme';
 
 export default function MultiplierRadarChart({ results, gamblingData, state }) {
   // Compute national averages from gambling data for comparison
@@ -46,31 +47,31 @@ export default function MultiplierRadarChart({ results, gamblingData, state }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-        <PolarGrid stroke="#e5e7eb" />
+        <PolarGrid stroke="#e7eaef" />
         <PolarAngleAxis
           dataKey="metric"
-          tick={{ fill: '#6b7280', fontSize: 11, fontWeight: 500 }}
+          tick={{ fill: '#6b7785', fontSize: 11, fontWeight: 500 }}
         />
         <PolarRadiusAxis
-          tick={{ fill: '#9ca3af', fontSize: 10 }}
+          tick={{ fill: '#9aa4b1', fontSize: 10 }}
           tickFormatter={(v) => `${v.toFixed(1)}x`}
           axisLine={false}
         />
         <Radar
           name={state}
           dataKey="value"
-          stroke="#1a365d"
-          fill="#1a365d"
-          fillOpacity={0.15}
+          stroke={NAVY}
+          fill={NAVY}
+          fillOpacity={0.13}
           strokeWidth={2}
-          dot={{ r: 4, fill: '#1a365d', stroke: '#fff', strokeWidth: 1.5 }}
+          dot={{ r: 4, fill: NAVY, stroke: '#fff', strokeWidth: 1.5 }}
         />
         {hasAverage && (
           <Radar
             name="National Avg"
             dataKey="average"
-            stroke="#f59e0b"
-            fill="#f59e0b"
+            stroke={HIGHLIGHT}
+            fill={HIGHLIGHT}
             fillOpacity={0.05}
             strokeWidth={1.5}
             strokeDasharray="4 3"

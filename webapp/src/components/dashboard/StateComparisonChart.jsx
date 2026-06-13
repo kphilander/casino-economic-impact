@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { formatNumber } from '../../utils/calculations';
 import { ChevronDown } from 'lucide-react';
+import { NAVY, EFFECT, HIGHLIGHT, GRID_STROKE } from '../../theme';
 
 export default function StateComparisonChart({ currentState, gamblingData }) {
   const [showAll, setShowAll] = useState(false);
@@ -43,7 +44,7 @@ export default function StateComparisonChart({ currentState, gamblingData }) {
           layout="vertical"
           margin={{ top: 5, right: 30, left: 5, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
           <XAxis
             type="number"
             tick={{ fill: '#9ca3af', fontSize: 11 }}
@@ -71,13 +72,13 @@ export default function StateComparisonChart({ currentState, gamblingData }) {
           />
           <ReferenceLine
             x={nationalAvg}
-            stroke="#f59e0b"
+            stroke={HIGHLIGHT}
             strokeDasharray="4 3"
             strokeWidth={1.5}
             label={{
               value: `Avg: ${formatNumber(nationalAvg, 1)}`,
               position: 'top',
-              fill: '#f59e0b',
+              fill: HIGHLIGHT,
               fontSize: 10,
               fontWeight: 600
             }}
@@ -86,8 +87,8 @@ export default function StateComparisonChart({ currentState, gamblingData }) {
             {displayData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={entry.isSelected ? '#1a365d' : '#bfdbfe'}
-                stroke={entry.isSelected ? '#1a365d' : 'none'}
+                fill={entry.isSelected ? NAVY : EFFECT.induced}
+                stroke={entry.isSelected ? NAVY : 'none'}
               />
             ))}
           </Bar>
@@ -95,9 +96,9 @@ export default function StateComparisonChart({ currentState, gamblingData }) {
       </ResponsiveContainer>
 
       {currentStateData && (
-        <p className="text-xs text-gray-500 text-center mt-2">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#1a365d] mr-1 align-middle" />
-          <span className="font-medium text-gray-700">{currentState}</span>: {formatNumber(currentStateData.multiplier, 1)} jobs per $1M GDP
+        <p className="text-xs text-text-muted text-center mt-2">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary mr-1 align-middle" />
+          <span className="font-medium text-text-secondary">{currentState}</span>: {formatNumber(currentStateData.multiplier, 1)} jobs per $1M GDP
           {currentStateData.multiplier > nationalAvg ? ' (above average)' : ' (below average)'}
         </p>
       )}
@@ -105,7 +106,7 @@ export default function StateComparisonChart({ currentState, gamblingData }) {
       <div className="flex justify-center mt-3">
         <button
           onClick={() => setShowAll(!showAll)}
-          className="flex items-center gap-1.5 text-xs font-medium text-[#3182ce] hover:text-[#1a365d] transition-colors"
+          className="flex items-center gap-1.5 text-xs font-medium text-accent hover:text-primary transition-colors"
         >
           {showAll ? 'Show top 10' : 'Show all 50 states'}
           <ChevronDown size={14} className={`transition-transform ${showAll ? 'rotate-180' : ''}`} />

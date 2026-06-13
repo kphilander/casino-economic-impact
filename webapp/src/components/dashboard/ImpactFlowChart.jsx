@@ -1,16 +1,17 @@
 import React from 'react';
 import { Sankey, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '../../utils/calculations';
+import { EFFECT } from '../../theme';
 
 const NODE_COLORS = {
-  0: '#1a365d',  // Revenue
-  1: '#1a365d',  // Direct
-  2: '#3182ce',  // Indirect
-  3: '#4299e1',  // Induced
-  4: '#2c5282',  // Output
-  5: '#3182ce',  // GDP
-  6: '#4299e1',  // Jobs
-  7: '#63b3ed',  // Wages
+  0: '#1a365d',          // Revenue
+  1: EFFECT.direct,      // Direct
+  2: EFFECT.indirect,    // Indirect
+  3: EFFECT.induced,     // Induced
+  4: '#2c5282',          // Output
+  5: EFFECT.indirect,    // GDP
+  6: EFFECT.induced,     // Jobs
+  7: '#7e9cbb',          // Wages
 };
 
 const NODE_LABELS = {
@@ -63,7 +64,7 @@ function SankeyNode({ x, y, width, height, index }) {
         y={textY}
         textAnchor={anchor}
         dominantBaseline={isMiddle ? 'auto' : 'central'}
-        fill={isMiddle ? color : '#374151'}
+        fill={isMiddle ? color : '#3a4756'}
         fontSize={isMiddle ? 13 : 12}
         fontWeight={700}
       >
@@ -154,11 +155,11 @@ export default function ImpactFlowChart({ results }) {
       </ResponsiveContainer>
       <div className="flex justify-center gap-6 mt-1">
         {[
-          { label: 'Direct', color: '#1a365d' },
-          { label: 'Indirect', color: '#3182ce' },
-          { label: 'Induced', color: '#4299e1' }
+          { label: 'Direct', color: EFFECT.direct },
+          { label: 'Indirect', color: EFFECT.indirect },
+          { label: 'Induced', color: EFFECT.induced }
         ].map(({ label, color }) => (
-          <span key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
+          <span key={label} className="flex items-center gap-1.5 text-xs text-text-muted">
             <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
             {label}
           </span>

@@ -27,19 +27,19 @@ export default function ResultsTable({ results, termDefs }) {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
-            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Metric</th>
-            <th className="text-right py-3 px-4 text-xs font-semibold text-[#1a365d] uppercase tracking-wider">
+          <tr className="border-b border-hairline">
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-text-faint uppercase tracking-[0.06em]">Metric</th>
+            <th className="text-right py-2.5 px-4 text-[11px] font-semibold text-effect-direct uppercase tracking-[0.06em]">
               <DefTooltip text={termDefs?.direct}>Direct</DefTooltip>
             </th>
-            <th className="text-right py-3 px-4 text-xs font-semibold text-[#3182ce] uppercase tracking-wider">
+            <th className="text-right py-2.5 px-4 text-[11px] font-semibold text-effect-indirect uppercase tracking-[0.06em]">
               <DefTooltip text={termDefs?.indirect}>Indirect</DefTooltip>
             </th>
-            <th className="text-right py-3 px-4 text-xs font-semibold text-[#4299e1] uppercase tracking-wider">
+            <th className="text-right py-2.5 px-4 text-[11px] font-semibold text-effect-induced uppercase tracking-[0.06em]">
               <DefTooltip text={termDefs?.induced}>Induced</DefTooltip>
             </th>
-            <th className="text-right py-3 px-4 text-xs font-semibold text-gray-900 uppercase tracking-wider">Total</th>
-            <th className="text-right py-3 px-4 text-xs font-semibold text-[#f59e0b] uppercase tracking-wider">
+            <th className="text-right py-2.5 px-4 text-[11px] font-semibold text-ink uppercase tracking-[0.06em]">Total</th>
+            <th className="text-right py-2.5 px-4 text-[11px] font-semibold text-highlight uppercase tracking-[0.06em]">
               <DefTooltip text={termDefs?.multiplier}>Mult.</DefTooltip>
             </th>
           </tr>
@@ -50,15 +50,15 @@ export default function ResultsTable({ results, termDefs }) {
               ? (results.totals[key].direct > 0 ? results.totals[key].total / results.totals[key].direct : '-')
               : results.multipliers[key];
             return (
-              <tr key={key} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
+              <tr key={key} className="border-b border-hairline/60 hover:bg-paper transition-colors">
+                <th scope="row" className="py-2.5 px-4 text-sm font-medium text-text-secondary text-left">
                   <DefTooltip text={termDefs?.[key]}>{label}</DefTooltip>
                 </th>
-                <td className="py-3 px-4 text-sm text-right text-[#1a365d] font-medium tabular-nums">{format(results.totals[key].direct)}</td>
-                <td className="py-3 px-4 text-sm text-right text-[#3182ce] tabular-nums">{format(results.totals[key].indirect)}</td>
-                <td className="py-3 px-4 text-sm text-right text-[#4299e1] tabular-nums">{format(results.totals[key].induced)}</td>
-                <td className="py-3 px-4 text-sm text-right font-bold text-gray-900 tabular-nums">{format(results.totals[key].total)}</td>
-                <td className="py-3 px-4 text-sm text-right font-semibold text-[#f59e0b] tabular-nums">
+                <td className="py-2.5 px-4 text-sm text-right text-effect-direct font-medium tabular-nums">{format(results.totals[key].direct)}</td>
+                <td className="py-2.5 px-4 text-sm text-right text-effect-indirect tabular-nums">{format(results.totals[key].indirect)}</td>
+                <td className="py-2.5 px-4 text-sm text-right text-effect-induced tabular-nums">{format(results.totals[key].induced)}</td>
+                <td className="py-2.5 px-4 text-sm text-right font-bold text-ink tabular-nums">{format(results.totals[key].total)}</td>
+                <td className="py-2.5 px-4 text-sm text-right font-semibold text-highlight tabular-nums">
                   {typeof mult === 'number' ? `${formatNumber(mult, 2)}x` : mult}
                 </td>
               </tr>

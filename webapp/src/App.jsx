@@ -53,16 +53,16 @@ const COLORS = {
 // Metric Card Component
 function MetricCard({ icon: Icon, label, value, subtext, color = 'primary', badge }) {
   const colorClasses = {
-    primary: 'from-[#1a365d] to-[#2c5282]',   // GP Navy gradient
-    success: 'from-[#3182ce] to-[#4299e1]',   // GP Blue gradient
-    purple: 'from-[#2c5282] to-[#3182ce]',    // Navy to blue
-    amber: 'from-[#3182ce] to-[#4299e1]'      // GP Blue gradient
+    primary: 'bg-primary',   // GP Navy gradient
+    success: 'bg-accent',   // GP Blue gradient
+    purple: 'bg-primary-light',    // Navy to blue
+    amber: 'bg-accent'      // GP Blue gradient
   };
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-5 card-hover">
       <div className="flex items-start gap-3">
-        <div className={`p-2.5 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white flex-shrink-0`}>
+        <div className={`p-2.5 rounded-lg ${colorClasses[color]} text-white flex-shrink-0`}>
           <Icon size={20} />
         </div>
         <div className="flex-1 min-w-0">
@@ -101,7 +101,7 @@ function InputField({ label, value, onChange, placeholder, helpText, type = 'num
           onChange={(e) => onChange(type === 'number' ? (e.target.value ? parseFloat(e.target.value) : null) : e.target.value)}
           placeholder={placeholder}
           aria-describedby={helpId}
-          className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#3182ce] focus:border-transparent transition-all ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-12' : ''}`}
+          className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-12' : ''}`}
         />
         {suffix && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" aria-hidden="true">{suffix}</span>
@@ -126,7 +126,7 @@ function SelectField({ label, value, onChange, options, helpText, id }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-describedby={helpId}
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#3182ce] focus:border-transparent transition-all appearance-none bg-white pr-10"
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all appearance-none bg-white pr-10"
         >
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -212,17 +212,17 @@ function ResultsTable({ results, termDefs }) {
         <thead>
           <tr className="border-b border-gray-200">
             <th scope="col" className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Metric</th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-[#1a365d]">
+            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-primary">
               <DefTooltip text={TERM_DEFINITIONS.direct}>Direct</DefTooltip>
             </th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-[#3182ce]">
+            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-accent">
               <DefTooltip text={TERM_DEFINITIONS.indirect}>Indirect</DefTooltip>
             </th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-[#4299e1]">
+            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-effect-induced">
               <DefTooltip text={TERM_DEFINITIONS.induced}>Induced</DefTooltip>
             </th>
             <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Total</th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-[#3182ce]">
+            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-accent">
               <DefTooltip text={TERM_DEFINITIONS.multiplier}>Multiplier</DefTooltip>
             </th>
           </tr>
@@ -233,11 +233,11 @@ function ResultsTable({ results, termDefs }) {
               <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
                 <DefTooltip text={TERM_DEFINITIONS[key]}>{label}</DefTooltip>
               </th>
-              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{format(results.totals[key].direct)}</td>
-              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{format(results.totals[key].indirect)}</td>
-              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{format(results.totals[key].induced)}</td>
+              <td className="py-3 px-4 text-sm text-right text-primary">{format(results.totals[key].direct)}</td>
+              <td className="py-3 px-4 text-sm text-right text-accent">{format(results.totals[key].indirect)}</td>
+              <td className="py-3 px-4 text-sm text-right text-effect-induced">{format(results.totals[key].induced)}</td>
               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{format(results.totals[key].total)}</td>
-              <td className="py-3 px-4 text-sm text-right text-[#3182ce] font-medium">
+              <td className="py-3 px-4 text-sm text-right text-accent font-medium">
                 {results.multipliers[key] ? `${formatNumber(results.multipliers[key], 2)}x` : '-'}
               </td>
             </tr>
@@ -430,7 +430,7 @@ function DownloadPPTXButton({ onClick, isGenerating }) {
         transition-all duration-200 shadow-lg
         ${isGenerating
           ? 'bg-gray-400 cursor-not-allowed'
-          : 'bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] hover:shadow-xl hover:-translate-y-0.5'
+          : 'bg-primary hover:bg-primary-dark hover:shadow-xl hover:-translate-y-0.5'
         }
         text-white
       `}
@@ -461,7 +461,7 @@ function WizardStep({ stepNum, totalSteps, title, subtitle, children, onBack, on
             <div
               key={i}
               className={`h-2 rounded-full transition-all duration-500 ${
-                i + 1 < stepNum ? 'w-2 bg-[#3182ce]'
+                i + 1 < stepNum ? 'w-2 bg-accent'
                 : i + 1 === stepNum ? 'w-10 progress-shimmer'
                 : 'w-2 bg-gray-300'
               }`}
@@ -473,7 +473,7 @@ function WizardStep({ stepNum, totalSteps, title, subtitle, children, onBack, on
         <div className="wizard-card p-8 sm:p-10">
           {/* Step number badge */}
           <div className="flex items-center gap-3 mb-5">
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-[#1a365d] to-[#3182ce] text-white text-sm font-bold shadow-md">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white text-sm font-bold shadow-md">
               {stepNum}
             </span>
             <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Step {stepNum} of {totalSteps}</span>
@@ -501,7 +501,7 @@ function WizardStep({ stepNum, totalSteps, title, subtitle, children, onBack, on
               disabled={!canProceed}
               className={`px-8 py-3 rounded-xl font-semibold transition-all ${
                 canProceed
-                  ? 'bg-gradient-to-r from-[#1a365d] to-[#2c5282] text-white hover:from-[#152a4d] hover:to-[#1a365d] shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+                  ? 'bg-primary text-white hover:bg-primary-dark shadow-lg hover:shadow-xl hover:-translate-y-0.5'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
             >
@@ -1164,7 +1164,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       return (
         <>
           <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
+          <div className="min-h-screen bg-paper">
             <WizardStep
               stepNum={1}
           totalSteps={totalSteps}
@@ -1187,7 +1187,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 id="property-type"
                 value={propertyType}
                 onChange={(e) => setPropertyType(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#3182ce] focus:border-transparent transition-all"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
               >
                 <option value="">Select property type...</option>
                 <optgroup label="Land-Based">
@@ -1240,7 +1240,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       return (
         <>
           <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
+          <div className="min-h-screen bg-paper">
             <WizardStep
               stepNum={2}
               totalSteps={totalSteps}
@@ -1282,7 +1282,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                         }}
                         className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
                           inputMode === 'total'
-                        ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
+                        ? 'border-accent bg-accent-soft text-primary'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -1296,7 +1296,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                     }}
                     className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
                       inputMode === 'department'
-                        ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
+                        ? 'border-accent bg-accent-soft text-primary'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -1349,7 +1349,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       return (
         <>
           <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
+          <div className="min-h-screen bg-paper">
             <WizardStep
               stepNum={3}
               totalSteps={totalSteps}
@@ -1366,7 +1366,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 onClick={() => setHasOtherRevenue(true)}
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
                   hasOtherRevenue
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
+                    ? 'border-accent bg-accent-soft text-primary'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -1381,7 +1381,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 }}
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
                   !hasOtherRevenue
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
+                    ? 'border-accent bg-accent-soft text-primary'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -1519,7 +1519,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       return (
         <>
           <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
+          <div className="min-h-screen bg-paper">
             <WizardStep
               stepNum={inputMode === 'total' ? 3 : 4}
               totalSteps={totalSteps}
@@ -1536,7 +1536,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 onClick={() => setHasKnownData(true)}
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
                   hasKnownData
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
+                    ? 'border-accent bg-accent-soft text-primary'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -1549,7 +1549,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 }}
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
                   !hasKnownData
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
+                    ? 'border-accent bg-accent-soft text-primary'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -1639,7 +1639,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       return (
         <>
           <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
+          <div className="min-h-screen bg-paper">
             <WizardStep
               stepNum={inputMode === 'total' ? 4 : 5}
               totalSteps={totalSteps}
@@ -1669,7 +1669,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                         /* Online: show the sub-config rate info */
                         <div>
                           <p className="text-gray-700">
-                            <span className="text-2xl font-bold text-[#1a365d]">
+                            <span className="text-2xl font-bold text-primary">
                               {formatNumber((displayTaxInfo.flatRate || displayTaxInfo.effectiveRate || 0) * 100, 2)}%
                             </span>
                             <span className="text-sm ml-2">on {propertyType === 'ONLINE_CASINO' ? 'iGaming GGR' : 'gross betting revenue'}</span>
@@ -1680,7 +1680,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                         </div>
                       ) : taxInfo.rateStructure === 'flat' ? (
                         <p className="text-gray-700">
-                          <span className="text-2xl font-bold text-[#1a365d]">
+                          <span className="text-2xl font-bold text-primary">
                             {formatNumber((taxInfo.flatRate || taxInfo.effectiveRate) * 100, 2)}%
                           </span>
                           <span className="text-sm ml-2">flat rate on GGR</span>
@@ -1771,9 +1771,9 @@ More information about Dr. Philander is available at kahlil.co.`,
                       {taxInfo.rateStructure === 'split_game_type' && taxInfo.slotsRate != null && taxInfo.tableRate != null && (
                         <div>
                           <p className="text-gray-700 mb-2">
-                            <span className="font-bold text-[#1a365d]">{formatNumber(taxInfo.slotsRate * 100, 0)}%</span> slots
+                            <span className="font-bold text-primary">{formatNumber(taxInfo.slotsRate * 100, 0)}%</span> slots
                             {' / '}
-                            <span className="font-bold text-[#1a365d]">{formatNumber(taxInfo.tableRate * 100, 0)}%</span> table games
+                            <span className="font-bold text-primary">{formatNumber(taxInfo.tableRate * 100, 0)}%</span> table games
                           </p>
                         </div>
                       )}
@@ -1826,7 +1826,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                         />
                         <div className="flex justify-between text-xs text-gray-500">
                           <span>All Tables</span>
-                          <span className="font-medium text-[#1a365d]">
+                          <span className="font-medium text-primary">
                             Effective: {formatNumber(preview.effectiveRate * 100, 1)}%
                           </span>
                           <span>All Slots</span>
@@ -1873,11 +1873,11 @@ More information about Dr. Philander is available at kahlil.co.`,
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-600">Estimated gaming tax on ${formatNumber(ggr, 1)}M GGR:</p>
-                        <p className="text-xl font-bold text-[#1a365d]">${formatNumber(preview.amount, 2)}M</p>
+                        <p className="text-xl font-bold text-primary">${formatNumber(preview.amount, 2)}M</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">Effective rate:</p>
-                        <p className="text-xl font-bold text-[#1a365d]">{formatNumber(preview.effectiveRate * 100, 2)}%</p>
+                        <p className="text-xl font-bold text-primary">{formatNumber(preview.effectiveRate * 100, 2)}%</p>
                       </div>
                     </div>
                   </div>
@@ -1896,7 +1896,7 @@ More information about Dr. Philander is available at kahlil.co.`,
   return (
     <>
       <PageHeader />
-      <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0] py-8 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-paper py-8 px-4 sm:px-6 lg:px-8">
       {/* Watermark for free tier */}
       <WatermarkOverlay show={userTier === 'free'} />
 
@@ -1916,7 +1916,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       {purchasedLicense && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-[#1a365d] to-[#3182ce] rounded-t-2xl px-6 py-5 text-white">
+            <div className="bg-primary rounded-t-2xl px-6 py-5 text-white">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Check size={22} className="text-emerald-300" />
                 Purchase Complete
@@ -1951,7 +1951,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               </div>
               <button
                 onClick={() => setPurchasedLicense(null)}
-                className="w-full py-3 px-4 rounded-xl font-semibold bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white shadow-lg transition-all"
+                className="w-full py-3 px-4 rounded-xl font-semibold bg-primary hover:bg-primary-dark text-white shadow-lg transition-all"
               >
                 I've saved my key
               </button>
@@ -2016,7 +2016,7 @@ More information about Dr. Philander is available at kahlil.co.`,
         <header role="banner" className="text-center mb-10">
           <button
             onClick={handleStartOver}
-            className="text-sm text-[#3182ce] hover:text-[#1a365d] font-medium"
+            className="text-sm text-accent hover:text-primary font-medium"
           >
             ← Start New Analysis
           </button>
@@ -2051,7 +2051,7 @@ More information about Dr. Philander is available at kahlil.co.`,
 
         {/* Archetype Comparison Panel */}
         {results && !isOnlinePropertyType(propertyType) && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-6 animate-fade-in-up">
+          <div className="bg-accent-soft border border-accent-100 rounded-xl p-4 mb-6 animate-fade-in-up">
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-3">
                 <div className="p-1.5 rounded-lg bg-blue-100 text-blue-600 mt-0.5">
@@ -2108,14 +2108,14 @@ More information about Dr. Philander is available at kahlil.co.`,
                         <thead>
                           <tr className="border-b border-blue-100">
                             <th className="text-left text-xs font-medium text-gray-500 px-4 py-2">Metric</th>
-                            <th className="text-right text-xs font-medium text-[#1a365d] px-4 py-2">IO Model</th>
+                            <th className="text-right text-xs font-medium text-primary px-4 py-2">IO Model</th>
                             <th className="text-right text-xs font-medium text-blue-600 px-4 py-2">Archetype</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr className="border-b border-blue-50">
                             <td className="text-xs text-gray-600 px-4 py-2">Direct FTEs</td>
-                            <td className="text-right text-xs font-semibold text-[#1a365d] px-4 py-2 font-mono">
+                            <td className="text-right text-xs font-semibold text-primary px-4 py-2 font-mono">
                               {formatJobs(ioDirectEmp)}
                             </td>
                             <td className="text-right text-xs font-semibold text-blue-600 px-4 py-2 font-mono">
@@ -2124,7 +2124,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                           </tr>
                           <tr className="border-b border-blue-50">
                             <td className="text-xs text-gray-600 px-4 py-2">FTEs per $1M GGR</td>
-                            <td className="text-right text-xs text-[#1a365d] px-4 py-2 font-mono">
+                            <td className="text-right text-xs text-primary px-4 py-2 font-mono">
                               {gamingRev > 0 ? (ioDirectEmp / gamingRev).toFixed(1) : '-'}
                             </td>
                             <td className="text-right text-xs text-blue-600 px-4 py-2 font-mono">
@@ -2178,7 +2178,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 <div className="space-y-2">
                   <button
                     onClick={() => setShowPremiumModal(true)}
-                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white shadow-lg hover:shadow-xl transition-all"
+                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold bg-primary hover:bg-primary-dark text-white shadow-lg hover:shadow-xl transition-all"
                   >
                     <Lock size={20} />
                     Download PPTX (Pro Feature)
@@ -2262,7 +2262,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             {/* Location & Analysis Type */}
             <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MapPin size={20} className="text-[#3182ce]" />
+                <MapPin size={20} className="text-accent" />
                 Location & Settings
               </h2>
 
@@ -2294,7 +2294,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             {/* Revenue Streams */}
             <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <DollarSign size={20} className="text-[#3182ce]" />
+                <DollarSign size={20} className="text-accent" />
                 Revenue Streams
               </h2>
 
@@ -2350,7 +2350,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 className="flex items-center justify-between w-full text-left"
               >
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Calculator size={20} className="text-[#1a365d]" />
+                  <Calculator size={20} className="text-primary" />
                   {isOnline ? 'Known Operational Data' : 'Known Property Data'}
                 </h2>
                 <ChevronDown
@@ -2412,7 +2412,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             {/* Gaming Tax Rate */}
             <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                <DollarSign size={20} className="text-[#1a365d]" />
+                <DollarSign size={20} className="text-primary" />
                 {isOnline ? (propertyType === 'ONLINE_CASINO' ? 'iGaming Tax Rate' : 'Sports Betting Tax Rate') : 'Gaming Tax Rate'}
               </h2>
               <div className="space-y-3">
@@ -2596,13 +2596,13 @@ More information about Dr. Philander is available at kahlil.co.`,
                         <thead>
                           <tr className="border-b border-gray-200">
                             <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Tax Type</th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-[#1a365d]">
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-primary">
                               <DefTooltip text={TERM_DEFINITIONS.direct}>Direct</DefTooltip>
                             </th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-[#3182ce]">
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-accent">
                               <DefTooltip text={TERM_DEFINITIONS.indirect}>Indirect</DefTooltip>
                             </th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-[#4299e1]">
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-effect-induced">
                               <DefTooltip text={TERM_DEFINITIONS.induced}>Induced</DefTooltip>
                             </th>
                             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Total</th>
@@ -2621,9 +2621,9 @@ More information about Dr. Philander is available at kahlil.co.`,
                                   {formatNumber(gamingTaxResult.effectiveRate * 100, 1)}% effective rate
                                 </span>
                               </th>
-                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(gamingTaxResult.amount)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">-</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">-</td>
+                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(gamingTaxResult.amount)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-accent">-</td>
+                              <td className="py-3 px-4 text-sm text-right text-effect-induced">-</td>
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(gamingTaxResult.amount)}</td>
                             </tr>
                           )}
@@ -2635,9 +2635,9 @@ More information about Dr. Philander is available at kahlil.co.`,
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">TOPI from IO model</span>
                               </th>
-                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(results.totals.tax.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{formatCurrency(results.totals.tax.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{formatCurrency(results.totals.tax.induced)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(results.totals.tax.direct)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(results.totals.tax.indirect)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(results.totals.tax.induced)}</td>
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(results.totals.tax.total)}</td>
                             </tr>
                           )}
@@ -2649,9 +2649,9 @@ More information about Dr. Philander is available at kahlil.co.`,
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">FICA, FUTA, SUTA{stateEmploymentTaxRates?.sdi_employer_rate > 0 ? ', SDI' : ''}{stateEmploymentTaxRates?.pfml_employer_rate > 0 ? ', PFML' : ''}</span>
                               </th>
-                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(payrollTaxResult.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{formatCurrency(payrollTaxResult.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{formatCurrency(payrollTaxResult.induced)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(payrollTaxResult.direct)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(payrollTaxResult.indirect)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(payrollTaxResult.induced)}</td>
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(payrollTaxResult.total)}</td>
                             </tr>
                           )}
@@ -2663,21 +2663,21 @@ More information about Dr. Philander is available at kahlil.co.`,
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">{formatNumber((stateEmploymentTaxRates?.household_tax_ratio || 0) * 100, 1)}% of wages (BEA ratio)</span>
                               </th>
-                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(householdTaxResult.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{formatCurrency(householdTaxResult.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{formatCurrency(householdTaxResult.induced)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(householdTaxResult.direct)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(householdTaxResult.indirect)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(householdTaxResult.induced)}</td>
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(householdTaxResult.total)}</td>
                             </tr>
                           )}
                           <tr className="bg-gray-50 border-t border-gray-200">
                             <th scope="row" className="py-3 px-4 text-sm font-bold text-gray-900 text-left">Total Tax Revenue</th>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-[#1a365d]">
+                            <td className="py-3 px-4 text-sm text-right font-bold text-primary">
                               {formatCurrency((gamingTaxResult?.amount || 0) + results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0))}
                             </td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-[#3182ce]">
+                            <td className="py-3 px-4 text-sm text-right font-bold text-accent">
                               {formatCurrency(results.totals.tax.indirect + (payrollTaxResult?.indirect || 0) + (householdTaxResult?.indirect || 0))}
                             </td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-[#4299e1]">
+                            <td className="py-3 px-4 text-sm text-right font-bold text-effect-induced">
                               {formatCurrency(results.totals.tax.induced + (payrollTaxResult?.induced || 0) + (householdTaxResult?.induced || 0))}
                             </td>
                             <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">
@@ -2757,7 +2757,7 @@ More information about Dr. Philander is available at kahlil.co.`,
         <footer role="contentinfo" className="mt-12 text-center text-sm text-gray-600 space-y-1">
           <p>
             {PRODUCT_TITLE} |{' '}
-            <a href="https://github.com/kphilander/casino-economic-impact" className="text-[#3182ce] hover:underline">
+            <a href="https://github.com/kphilander/casino-economic-impact" className="text-accent hover:underline">
               GitHub
             </a>
             {' '}|{' '}
@@ -2765,7 +2765,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               href={`${import.meta.env.BASE_URL}GEMS-2026-Methodology.pdf`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#3182ce] hover:underline"
+              className="text-accent hover:underline"
             >
               Methodology White Paper (PDF)
             </a>
@@ -2779,7 +2779,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               href="https://github.com/kphilander/casino-economic-impact/issues/new?labels=bug&template=bug_report.md"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-gray-500 hover:text-[#3182ce] hover:underline"
+              className="inline-flex items-center gap-1 text-gray-500 hover:text-accent hover:underline"
             >
               <Bug size={13} />
               Report a Bug
@@ -2792,7 +2792,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       {/* Floating "Request a Feature" button */}
       <button
         onClick={() => setShowFeatureModal(true)}
-        className="fixed bottom-6 right-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#f59e0b] to-[#d97706] px-6 py-4 text-base font-bold text-white shadow-[0_8px_30px_rgba(245,158,11,0.4)] transition-all hover:shadow-[0_8px_40px_rgba(245,158,11,0.6)] hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 z-50 animate-bounce-subtle"
+        className="fixed bottom-6 right-6 flex items-center gap-3 rounded-2xl bg-accent px-6 py-4 text-base font-bold text-white shadow-raised transition-all hover:shadow-pop hover:scale-105 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 z-50 animate-bounce-subtle"
         title="Request a feature"
       >
         <Lightbulb size={22} className="drop-shadow" />
@@ -2803,7 +2803,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       {showFeatureModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowFeatureModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between bg-gradient-to-r from-[#1a365d] to-[#2c5282] rounded-t-2xl px-6 py-4">
+            <div className="flex items-center justify-between bg-primary rounded-t-2xl px-6 py-4">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Lightbulb size={20} />
                 Request a Feature
@@ -2844,16 +2844,16 @@ More information about Dr. Philander is available at kahlil.co.`,
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="feat-name" className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-gray-400">(optional)</span></label>
-                      <input id="feat-name" name="name" type="text" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none" placeholder="Your name" />
+                      <input id="feat-name" name="name" type="text" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none" placeholder="Your name" />
                     </div>
                     <div>
                       <label htmlFor="feat-email" className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400">(optional)</span></label>
-                      <input id="feat-email" name="email" type="email" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none" placeholder="you@example.com" />
+                      <input id="feat-email" name="email" type="email" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none" placeholder="you@example.com" />
                     </div>
                   </div>
                   <div>
                     <label htmlFor="feat-type" className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                    <select id="feat-type" name="type" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none">
+                    <select id="feat-type" name="type" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none">
                       <option>Feature Request</option>
                       <option>Data Issue</option>
                       <option>Other</option>
@@ -2861,11 +2861,11 @@ More information about Dr. Philander is available at kahlil.co.`,
                   </div>
                   <div>
                     <label htmlFor="feat-message" className="block text-sm font-medium text-gray-700 mb-1">Message <span className="text-red-500">*</span></label>
-                    <textarea id="feat-message" name="message" required rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none resize-none" placeholder="Describe the feature you'd like to see, or the issue you've found..." />
+                    <textarea id="feat-message" name="message" required rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none resize-none" placeholder="Describe the feature you'd like to see, or the issue you've found..." />
                   </div>
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#1a365d] to-[#2c5282] px-4 py-2.5 text-sm font-semibold text-white shadow hover:shadow-lg transition-all"
+                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow hover:shadow-lg transition-all"
                   >
                     <Send size={16} />
                     Submit

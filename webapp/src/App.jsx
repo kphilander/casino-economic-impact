@@ -32,6 +32,15 @@ import DashboardMultiplierRadarChart from './components/dashboard/MultiplierRada
 import DashboardResultsTable from './components/dashboard/ResultsTable';
 import ImpactFlowChart from './components/dashboard/ImpactFlowChart';
 import SectionHeader from './components/dashboard/SectionHeader';
+import Toolbar from './components/dashboard/Toolbar';
+import ProjectsDrawer from './components/dashboard/ProjectsDrawer';
+import ScenarioCompare from './components/dashboard/ScenarioCompare';
+import SensitivityPanel from './components/dashboard/SensitivityPanel';
+import {
+  buildAnalysis, applyAnalysis, buildShareURL, readAnalysisFromURL, clearURLParam,
+  loadProjects, saveProject as saveProjectStore, deleteProject as deleteProjectStore,
+} from './utils/analysisState';
+import { buildResultsCSV, downloadCSV, printReport, slugify } from './utils/exporters';
 // Report generators are dynamically imported to reduce initial bundle size
 // import { generateReport } from './utils/reportGenerator';
 // import { downloadPPTX } from './utils/pptxGenerator';
@@ -630,6 +639,14 @@ export default function App() {
   const [showArchetypeComparison, setShowArchetypeComparison] = useState(false);
   const [selectedArchetypeKey, setSelectedArchetypeKey] = useState(null);
 
+  // Save / share / compare / sensitivity state
+  const [projects, setProjects] = useState([]);
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [compareActive, setCompareActive] = useState(false);
+  const [scenarios, setScenarios] = useState([]);
+  const [showSensitivity, setShowSensitivity] = useState(false);
+
   // Check for saved license on mount and handle Stripe redirect
   useEffect(() => {
     // Check localStorage for saved license using getLicenseData helper
@@ -790,6 +807,20 @@ export default function App() {
     }
   }, []);
 
+  // Load saved projects; restore a shared analysis from the URL (?a=...)
+  useEffect(() => {
+    setProjects(loadProjects());
+    const shared = readAnalysisFromURL();
+    if (shared) {
+      applyAnalysis(shared, {
+        setState, setCasinoName, setPropertyType, setInputMode,
+        setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
+      });
+      setWizardComplete(true);
+      clearURLParam();
+    }
+  }, []);
+
   // Calculate results using property-type-specific multipliers
   const isOnline = isOnlinePropertyType(propertyType);
   const results = useMemo(() => {
@@ -807,6 +838,13 @@ export default function App() {
       multiplierData.onlineGaming || null
     );
   }, [revenues, state, knownData, propertyType, inputMode]);
+
+  // Stable serialized analysis for the sensitivity/projection panel so it
+  // doesn't recompute its sweeps on every unrelated render.
+  const liveAnalysis = useMemo(() => buildAnalysis({
+    state, casinoName, propertyType, inputMode, revenues, knownData,
+    gamingTaxCustomRate, slotRevenuePct,
+  }), [state, casinoName, propertyType, inputMode, revenues, knownData, gamingTaxCustomRate, slotRevenuePct]);
 
   // Gaming tax calculation (separate from TOPI in IO model)
   const stateTaxConfig = gamingTaxRatesData.rates[state];
@@ -1149,6 +1187,70 @@ More information about Dr. Philander is available at kahlil.co.`,
     });
     setHasOtherRevenue(false);
     setHasKnownData(false);
+  };
+
+  // ---- Save / share / projects / export / scenario comparison ----
+  const currentAnalysis = () => buildAnalysis({
+    state, casinoName, propertyType, inputMode, revenues, knownData,
+    gamingTaxCustomRate, slotRevenuePct,
+  });
+
+  const restoreAnalysis = (analysis) => applyAnalysis(analysis, {
+    setState, setCasinoName, setPropertyType, setInputMode,
+    setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
+  });
+
+  const handleSaveProject = (name) => {
+    saveProjectStore(name || casinoName || 'Untitled analysis', currentAnalysis());
+    setProjects(loadProjects());
+  };
+
+  const handleOpenProject = (project) => {
+    restoreAnalysis(project.analysis);
+    setProjectsOpen(false);
+    setWizardComplete(true);
+  };
+
+  const handleDeleteProject = (id) => {
+    deleteProjectStore(id);
+    setProjects(loadProjects());
+  };
+
+  const handleCopyShare = async () => {
+    const url = buildShareURL(currentAnalysis());
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt('Copy this shareable link:', url);
+    }
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  };
+
+  const exportContext = () => ({
+    state, casinoName,
+    propertyTypeLabel: PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || null,
+    gamingTaxResult, payrollTaxResult, householdTaxResult,
+  });
+
+  const handleExportCSV = () => {
+    if (!results) return;
+    downloadCSV(`${slugify(casinoName, 'gems-analysis')}.csv`, buildResultsCSV(results, exportContext()));
+  };
+
+  const handleAddScenario = () => {
+    setScenarios(prev => (prev.length >= 4 ? prev : [...prev, {
+      id: `s_${Date.now().toString(36)}_${prev.length}`,
+      name: casinoName?.trim() || `${state} · ${PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || 'Scenario'}`,
+      analysis: currentAnalysis(),
+    }]));
+  };
+
+  const handleRemoveScenario = (id) => setScenarios(prev => prev.filter(s => s.id !== id));
+
+  const toggleCompare = () => {
+    if (!compareActive && scenarios.length === 0 && results) handleAddScenario();
+    setCompareActive(a => !a);
   };
 
   // ============================================================
@@ -2003,6 +2105,15 @@ More information about Dr. Philander is available at kahlil.co.`,
         onConfirm={handleConfirmPropertyAndDownload}
       />
 
+      {/* Saved analyses drawer */}
+      <ProjectsDrawer
+        open={projectsOpen}
+        projects={projects}
+        onClose={() => setProjectsOpen(false)}
+        onOpenProject={handleOpenProject}
+        onDelete={handleDeleteProject}
+      />
+
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"
@@ -2021,6 +2132,38 @@ More information about Dr. Philander is available at kahlil.co.`,
             ← Start New Analysis
           </button>
         </header>
+
+        {/* Action toolbar: save / open / share / export / compare */}
+        <Toolbar
+          disabled={!results}
+          defaultName={casinoName}
+          projectCount={projects.length}
+          onSaveProject={handleSaveProject}
+          onCopyShare={handleCopyShare}
+          shareCopied={shareCopied}
+          onOpenProjects={() => setProjectsOpen(true)}
+          onExportCSV={handleExportCSV}
+          onPrint={printReport}
+          compareActive={compareActive}
+          onToggleCompare={toggleCompare}
+          canCompare={!!results}
+        />
+
+        {/* Scenario comparison (full width) */}
+        {compareActive && (
+          <div className="dash-card p-6 mb-6 animate-fade-in-up">
+            <SectionHeader>Scenario Comparison</SectionHeader>
+            <p className="text-xs text-text-muted -mt-2 mb-4">
+              Capture snapshots of different states, tax rates, or revenue levels and compare their impact side by side. The first scenario is the baseline.
+            </p>
+            <ScenarioCompare
+              scenarios={scenarios}
+              onRemove={handleRemoveScenario}
+              onAddCurrent={handleAddScenario}
+              canAddCurrent={!!results && scenarios.length < 4}
+            />
+          </div>
+        )}
 
         {/* Revenue Forecaster import banner */}
         {importedFromForecaster && (
@@ -2707,6 +2850,31 @@ More information about Dr. Philander is available at kahlil.co.`,
                     <RevenueBreakdownTable byRevenue={results.byRevenue} />
                   </div>
                 )}
+
+                {/* Sensitivity & multi-year projections */}
+                <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '175ms' }}>
+                  <div className="flex items-center justify-between gap-4 mb-1">
+                    <SectionHeader className="mb-0">Sensitivity &amp; Projections</SectionHeader>
+                    <button
+                      onClick={() => setShowSensitivity(s => !s)}
+                      className="flex items-center gap-1 text-xs font-medium text-accent hover:text-primary no-print"
+                    >
+                      {showSensitivity ? 'Hide' : 'Show'}
+                      <ChevronDown size={14} className={`transition-transform ${showSensitivity ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                  {showSensitivity ? (
+                    <div className="mt-4">
+                      <SensitivityPanel analysis={liveAnalysis} />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-muted mt-1">
+                      See how output, GDP, jobs, and tax revenue respond as revenue or the gaming tax rate
+                      varies — and project cumulative impact over 3–10 years.{' '}
+                      <button onClick={() => setShowSensitivity(true)} className="text-accent font-medium hover:underline no-print">Open analysis →</button>
+                    </p>
+                  )}
+                </div>
 
                 {/* Charts Row 1: Composition + Employment */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,9 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
-} from 'recharts';
-import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown } from 'lucide-react';
+import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown, SlidersHorizontal } from 'lucide-react';
 import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
@@ -24,7 +20,6 @@ import PremiumModal from './components/PremiumModal';
 import WrongPropertyModal from './components/WrongPropertyModal';
 import ConfirmPropertyModal from './components/ConfirmPropertyModal';
 import PageHeader from './components/PageHeader';
-import DashboardMetricCard from './components/dashboard/MetricCard';
 import DashboardImpactCompositionChart from './components/dashboard/ImpactCompositionChart';
 import DashboardEmploymentChart from './components/dashboard/EmploymentChart';
 import DashboardStateComparisonChart from './components/dashboard/StateComparisonChart';
@@ -32,6 +27,17 @@ import DashboardMultiplierRadarChart from './components/dashboard/MultiplierRada
 import DashboardResultsTable from './components/dashboard/ResultsTable';
 import ImpactFlowChart from './components/dashboard/ImpactFlowChart';
 import SectionHeader from './components/dashboard/SectionHeader';
+import Toolbar from './components/dashboard/Toolbar';
+import ProjectsDrawer from './components/dashboard/ProjectsDrawer';
+import ScenarioCompare from './components/dashboard/ScenarioCompare';
+import SensitivityPanel from './components/dashboard/SensitivityPanel';
+import HeroSummary from './components/dashboard/HeroSummary';
+import ControlBar from './components/dashboard/ControlBar';
+import {
+  buildAnalysis, applyAnalysis, buildShareURL, readAnalysisFromURL, clearURLParam,
+  loadProjects, saveProject as saveProjectStore, deleteProject as deleteProjectStore,
+} from './utils/analysisState';
+import { buildResultsCSV, downloadCSV, printReport, slugify } from './utils/exporters';
 // Report generators are dynamically imported to reduce initial bundle size
 // import { generateReport } from './utils/reportGenerator';
 // import { downloadPPTX } from './utils/pptxGenerator';
@@ -50,37 +56,6 @@ const COLORS = {
   tech: '#3182ce'       // For online: Technology Infrastructure
 };
 
-// Metric Card Component
-function MetricCard({ icon: Icon, label, value, subtext, color = 'primary', badge }) {
-  const colorClasses = {
-    primary: 'from-[#1a365d] to-[#2c5282]',   // GP Navy gradient
-    success: 'from-[#3182ce] to-[#4299e1]',   // GP Blue gradient
-    purple: 'from-[#2c5282] to-[#3182ce]',    // Navy to blue
-    amber: 'from-[#3182ce] to-[#4299e1]'      // GP Blue gradient
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-5 card-hover">
-      <div className="flex items-start gap-3">
-        <div className={`p-2.5 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white flex-shrink-0`}>
-          <Icon size={20} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}</p>
-          <p className="text-xl font-bold text-gray-900 mt-0.5 leading-tight">{value}</p>
-          {subtext && <p className="text-xs text-gray-500 mt-1">{subtext}</p>}
-        </div>
-      </div>
-      {badge && (
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-            {badge}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // Input Field Component
 function InputField({ label, value, onChange, placeholder, helpText, type = 'number', prefix, suffix, id }) {
@@ -101,7 +76,7 @@ function InputField({ label, value, onChange, placeholder, helpText, type = 'num
           onChange={(e) => onChange(type === 'number' ? (e.target.value ? parseFloat(e.target.value) : null) : e.target.value)}
           placeholder={placeholder}
           aria-describedby={helpId}
-          className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#3182ce] focus:border-transparent transition-all ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-12' : ''}`}
+          className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-12' : ''}`}
         />
         {suffix && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" aria-hidden="true">{suffix}</span>
@@ -126,7 +101,7 @@ function SelectField({ label, value, onChange, options, helpText, id }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-describedby={helpId}
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#3182ce] focus:border-transparent transition-all appearance-none bg-white pr-10"
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all appearance-none bg-white pr-10"
         >
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -194,191 +169,6 @@ function getTermDefinitions(isOnline) {
 }
 const TERM_DEFINITIONS = getTermDefinitions(false);
 
-// Results Table Component
-function ResultsTable({ results, termDefs }) {
-  const TERM_DEFINITIONS = termDefs || getTermDefinitions(false);
-  const rows = [
-    { label: 'Output ($M)', key: 'output', format: (v) => formatNumber(v, 1) },
-    { label: 'GDP ($M)', key: 'gdp', format: (v) => formatNumber(v, 1) },
-    { label: 'Employment (FTEs)', key: 'employment', format: (v) => formatJobs(v) },
-    { label: 'Wages ($M)', key: 'wages', format: (v) => formatNumber(v, 1) },
-    { label: 'Tax Revenue ($M)', key: 'tax', format: (v) => formatNumber(v, 1) }
-  ];
-
-  return (
-    <div className="overflow-x-auto" role="region" aria-label="Economic impact results">
-      <table className="w-full" aria-label="Economic impact breakdown by effect type">
-        <caption className="sr-only">Economic impact summary showing direct, indirect, induced effects and multipliers</caption>
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th scope="col" className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Metric</th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-[#1a365d]">
-              <DefTooltip text={TERM_DEFINITIONS.direct}>Direct</DefTooltip>
-            </th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-[#3182ce]">
-              <DefTooltip text={TERM_DEFINITIONS.indirect}>Indirect</DefTooltip>
-            </th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-[#4299e1]">
-              <DefTooltip text={TERM_DEFINITIONS.induced}>Induced</DefTooltip>
-            </th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Total</th>
-            <th scope="col" className="text-right py-3 px-4 text-sm font-semibold text-[#3182ce]">
-              <DefTooltip text={TERM_DEFINITIONS.multiplier}>Multiplier</DefTooltip>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ label, key, format }) => (
-            <tr key={key} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                <DefTooltip text={TERM_DEFINITIONS[key]}>{label}</DefTooltip>
-              </th>
-              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{format(results.totals[key].direct)}</td>
-              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{format(results.totals[key].indirect)}</td>
-              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{format(results.totals[key].induced)}</td>
-              <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{format(results.totals[key].total)}</td>
-              <td className="py-3 px-4 text-sm text-right text-[#3182ce] font-medium">
-                {results.multipliers[key] ? `${formatNumber(results.multipliers[key], 2)}x` : '-'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// Impact Breakdown Chart
-function ImpactBreakdownChart({ results }) {
-  const data = [
-    {
-      name: 'Output',
-      Direct: results.totals.output.direct,
-      Indirect: results.totals.output.indirect,
-      Induced: results.totals.output.induced
-    },
-    {
-      name: 'GDP',
-      Direct: results.totals.gdp.direct,
-      Indirect: results.totals.gdp.indirect,
-      Induced: results.totals.gdp.induced
-    },
-    {
-      name: 'Wages',
-      Direct: results.totals.wages.direct,
-      Indirect: results.totals.wages.indirect,
-      Induced: results.totals.wages.induced
-    },
-    {
-      name: 'Tax',
-      Direct: results.totals.tax.direct,
-      Indirect: results.totals.tax.indirect,
-      Induced: results.totals.tax.induced
-    }
-  ];
-
-  return (
-    <div role="img" aria-label={`Economic impact chart showing Output: $${formatNumber(results.totals.output.total, 1)}M, GDP: $${formatNumber(results.totals.gdp.total, 1)}M, Wages: $${formatNumber(results.totals.wages.total, 1)}M`}>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="name" tick={{ fill: '#4b5563' }} />
-          <YAxis tick={{ fill: '#4b5563' }} tickFormatter={(v) => `$${v}M`} />
-          <Tooltip
-            formatter={(value) => [`$${formatNumber(value, 1)}M`, '']}
-            contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-          />
-          <Legend />
-          <Bar dataKey="Direct" fill={COLORS.direct} radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Indirect" fill={COLORS.indirect} radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Induced" fill={COLORS.induced} radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// Employment Pie Chart
-function EmploymentPieChart({ results }) {
-  const data = [
-    { name: 'Direct', value: results.totals.employment.direct, color: COLORS.direct },
-    { name: 'Indirect', value: results.totals.employment.indirect, color: COLORS.indirect },
-    { name: 'Induced', value: results.totals.employment.induced, color: COLORS.induced }
-  ];
-
-  return (
-    <div role="img" aria-label={`Employment distribution: Direct ${formatJobs(results.totals.employment.direct)} jobs, Indirect ${formatJobs(results.totals.employment.indirect)} jobs, Induced ${formatJobs(results.totals.employment.induced)} jobs`}>
-      <ResponsiveContainer width="100%" height={250}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={90}
-            paddingAngle={3}
-            dataKey="value"
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-            labelLine={false}
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip formatter={(value) => [formatJobs(value) + ' jobs', '']} />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// State Comparison Chart
-function StateComparisonChart({ currentState, gamblingData }) {
-  const sortedData = useMemo(() => {
-    return [...gamblingData]
-      .sort((a, b) => b.Emp_Coef - a.Emp_Coef)
-      .map(d => ({
-        state: d.Abbrev,
-        fullName: d.State,
-        multiplier: d.Emp_Coef,
-        isSelected: d.State === currentState
-      }));
-  }, [gamblingData, currentState]);
-
-  const currentStateData = sortedData.find(d => d.isSelected);
-
-  return (
-    <div role="img" aria-label={`State comparison chart showing employment intensity. ${currentState} has ${formatNumber(currentStateData?.multiplier || 0, 1)} jobs per $1M GDP`}>
-      <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis
-            dataKey="state"
-            tick={{ fill: '#4b5563', fontSize: 10 }}
-            angle={-45}
-            textAnchor="end"
-            height={60}
-          />
-          <YAxis tick={{ fill: '#4b5563' }} domain={[0, 'auto']} />
-          <Tooltip
-            formatter={(value) => [formatNumber(value, 1), 'Jobs per $1M GDP']}
-            labelFormatter={(label, payload) => payload[0]?.payload?.fullName || label}
-            contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-          />
-          <Bar
-            dataKey="multiplier"
-            radius={[4, 4, 0, 0]}
-            fill="#3182ce"
-          >
-            {sortedData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.isSelected ? '#1a365d' : '#3182ce'} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 // Revenue Breakdown Table
 function RevenueBreakdownTable({ byRevenue }) {
@@ -425,24 +215,16 @@ function DownloadPPTXButton({ onClick, isGenerating }) {
     <button
       onClick={onClick}
       disabled={isGenerating}
-      className={`
-        flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold
-        transition-all duration-200 shadow-lg
-        ${isGenerating
-          ? 'bg-gray-400 cursor-not-allowed'
-          : 'bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] hover:shadow-xl hover:-translate-y-0.5'
-        }
-        text-white
-      `}
+      className={`btn w-full py-3.5 px-4 text-[15px] ${isGenerating ? 'btn-secondary' : 'btn-brass'}`}
     >
       {isGenerating ? (
         <>
-          <Loader2 size={20} className="animate-spin" />
-          Generating PPTX...
+          <Loader2 size={18} className="animate-spin" />
+          Generating PPTX…
         </>
       ) : (
         <>
-          <Presentation size={20} />
+          <Presentation size={18} />
           Download PPTX Report
         </>
       )}
@@ -450,69 +232,6 @@ function DownloadPPTXButton({ onClick, isGenerating }) {
   );
 }
 
-// Wizard Step Component
-function WizardStep({ stepNum, totalSteps, title, subtitle, children, onBack, onNext, nextLabel = 'Continue', showBack = true, canProceed = true }) {
-  return (
-    <div className="min-h-[calc(100vh-80px)] flex items-start justify-center py-12 px-4">
-      <div className="max-w-xl w-full">
-        {/* Step indicator pills */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {Array.from({ length: totalSteps }, (_, i) => (
-            <div
-              key={i}
-              className={`h-2 rounded-full transition-all duration-500 ${
-                i + 1 < stepNum ? 'w-2 bg-[#3182ce]'
-                : i + 1 === stepNum ? 'w-10 progress-shimmer'
-                : 'w-2 bg-gray-300'
-              }`}
-            />
-          ))}
-        </div>
-
-        {/* Card */}
-        <div className="wizard-card p-8 sm:p-10">
-          {/* Step number badge */}
-          <div className="flex items-center gap-3 mb-5">
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-[#1a365d] to-[#3182ce] text-white text-sm font-bold shadow-md">
-              {stepNum}
-            </span>
-            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Step {stepNum} of {totalSteps}</span>
-          </div>
-
-          <h2 className="text-2xl font-bold text-gray-900 mb-2 leading-tight">{title}</h2>
-          {subtitle && <p className="text-gray-500 mb-8 leading-relaxed">{subtitle}</p>}
-
-          <div className="mb-8">
-            {children}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-            {showBack && onBack ? (
-              <button
-                onClick={onBack}
-                className="px-5 py-2.5 text-gray-500 hover:text-gray-900 font-medium transition-colors rounded-lg hover:bg-gray-50"
-              >
-                ← Back
-              </button>
-            ) : <div />}
-            <button
-              onClick={onNext}
-              disabled={!canProceed}
-              className={`px-8 py-3 rounded-xl font-semibold transition-all ${
-                canProceed
-                  ? 'bg-gradient-to-r from-[#1a365d] to-[#2c5282] text-white hover:from-[#152a4d] hover:to-[#1a365d] shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {nextLabel} →
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Property type options with descriptions
 const PROPERTY_TYPE_OPTIONS = [
@@ -574,9 +293,9 @@ function buildTaxConfig(taxInfo, customRate, slotRevenuePct, propertyType = null
 
 // Main App Component
 export default function App() {
-  // Wizard state
-  const [wizardStep, setWizardStep] = useState(0);
-  const [wizardComplete, setWizardComplete] = useState(false);
+  // The standalone 5-step wizard is retired; the report canvas is the single
+  // surface, so the app always renders "complete".
+  const [wizardComplete, setWizardComplete] = useState(true);
 
   // Input state
   const [state, setState] = useState('Nevada');
@@ -629,6 +348,23 @@ export default function App() {
   // Archetype comparison
   const [showArchetypeComparison, setShowArchetypeComparison] = useState(false);
   const [selectedArchetypeKey, setSelectedArchetypeKey] = useState(null);
+
+  // Save / share / compare / sensitivity state
+  const [projects, setProjects] = useState([]);
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [compareActive, setCompareActive] = useState(false);
+  const [scenarios, setScenarios] = useState([]);
+  const [showSensitivity, setShowSensitivity] = useState(false);
+  const [inputsOpen, setInputsOpen] = useState(false);
+
+  // Close the inputs slide-over on Escape
+  useEffect(() => {
+    if (!inputsOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') setInputsOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [inputsOpen]);
 
   // Check for saved license on mount and handle Stripe redirect
   useEffect(() => {
@@ -790,6 +526,20 @@ export default function App() {
     }
   }, []);
 
+  // Load saved projects; restore a shared analysis from the URL (?a=...)
+  useEffect(() => {
+    setProjects(loadProjects());
+    const shared = readAnalysisFromURL();
+    if (shared) {
+      applyAnalysis(shared, {
+        setState, setCasinoName, setPropertyType, setInputMode,
+        setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
+      });
+      setWizardComplete(true);
+      clearURLParam();
+    }
+  }, []);
+
   // Calculate results using property-type-specific multipliers
   const isOnline = isOnlinePropertyType(propertyType);
   const results = useMemo(() => {
@@ -807,6 +557,13 @@ export default function App() {
       multiplierData.onlineGaming || null
     );
   }, [revenues, state, knownData, propertyType, inputMode]);
+
+  // Stable serialized analysis for the sensitivity/projection panel so it
+  // doesn't recompute its sweeps on every unrelated render.
+  const liveAnalysis = useMemo(() => buildAnalysis({
+    state, casinoName, propertyType, inputMode, revenues, knownData,
+    gamingTaxCustomRate, slotRevenuePct,
+  }), [state, casinoName, propertyType, inputMode, revenues, knownData, gamingTaxCustomRate, slotRevenuePct]);
 
   // Gaming tax calculation (separate from TOPI in IO model)
   const stateTaxConfig = gamingTaxRatesData.rates[state];
@@ -1132,10 +889,9 @@ More information about Dr. Philander is available at kahlil.co.`,
     }
   };
 
-  // Reset wizard and start over
+  // Reset all inputs to defaults (stays on the report canvas)
   const handleStartOver = () => {
-    setWizardComplete(false);
-    setWizardStep(0);
+    setInputsOpen(false);
     setState('Nevada');
     setCasinoName('');
     setPropertyType('721120');
@@ -1151,744 +907,70 @@ More information about Dr. Philander is available at kahlil.co.`,
     setHasKnownData(false);
   };
 
-  // ============================================================
-  // WIZARD VIEW
-  // ============================================================
-  if (!wizardComplete) {
-    const totalSteps = 5;
+  // ---- Save / share / projects / export / scenario comparison ----
+  const currentAnalysis = () => buildAnalysis({
+    state, casinoName, propertyType, inputMode, revenues, knownData,
+    gamingTaxCustomRate, slotRevenuePct,
+  });
 
-    // Step 1: State Selection, Property Type, and Casino Name
-    if (wizardStep === 0) {
-      const selectedPropertyType = PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType);
+  const restoreAnalysis = (analysis) => applyAnalysis(analysis, {
+    setState, setCasinoName, setPropertyType, setInputMode,
+    setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
+  });
 
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
-            <WizardStep
-              stepNum={1}
-          totalSteps={totalSteps}
-          title="Tell us about your project"
-          subtitle="Select the state, type of gaming operation, and name your project."
-          onNext={() => setWizardStep(1)}
-          showBack={false}
-          canProceed={!!state && !!propertyType && !!casinoName?.trim()}
-        >
-          <div className="space-y-4">
-            <SelectField
-              label="State"
-              value={state}
-              onChange={setState}
-              options={stateOptions}
-            />
-            <div className="space-y-1">
-              <label htmlFor="property-type" className="block text-sm font-medium text-gray-700">Type of Gaming Operation</label>
-              <select
-                id="property-type"
-                value={propertyType}
-                onChange={(e) => setPropertyType(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#3182ce] focus:border-transparent transition-all"
-              >
-                <option value="">Select property type...</option>
-                <optgroup label="Land-Based">
-                  {PROPERTY_TYPE_OPTIONS.filter(p => p.category === 'land').map(p => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Online">
-                  {PROPERTY_TYPE_OPTIONS.filter(p => p.category === 'online').map(p => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </optgroup>
-              </select>
-              <p className="text-xs text-gray-600">{selectedPropertyType?.description || 'Select the type of gaming establishment for more accurate multipliers'}</p>
-            </div>
-            <InputField
-              label={isOnlinePropertyType(propertyType) ? "Operator or Project Name" : "Casino or Project Name"}
-              value={casinoName}
-              onChange={setCasinoName}
-              placeholder={isOnlinePropertyType(propertyType) ? "e.g., DraftKings, FanDuel, Proposed iGaming Platform" : "e.g., Bellagio, Proposed Downtown Casino"}
-              type="text"
-              helpText="This will appear on your report. You can change it anytime before downloading."
-            />
-          </div>
-        </WizardStep>
-          </div>
-        </>
-      );
+  const handleSaveProject = (name) => {
+    saveProjectStore(name || casinoName || 'Untitled analysis', currentAnalysis());
+    setProjects(loadProjects());
+  };
+
+  const handleOpenProject = (project) => {
+    restoreAnalysis(project.analysis);
+    setProjectsOpen(false);
+    setWizardComplete(true);
+  };
+
+  const handleDeleteProject = (id) => {
+    deleteProjectStore(id);
+    setProjects(loadProjects());
+  };
+
+  const handleCopyShare = async () => {
+    const url = buildShareURL(currentAnalysis());
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt('Copy this shareable link:', url);
     }
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  };
 
-    // Step 2: Revenue Input Mode and Revenue Entry
-    if (wizardStep === 1) {
-      // Determine if we can skip the "other revenue" step
-      const canProceedToNextStep = isOnline
-        ? (revenues.gaming > 0 || revenues.total > 0)
-        : inputMode === 'total'
-          ? revenues.total > 0
-          : revenues.gaming > 0;
+  const exportContext = () => ({
+    state, casinoName,
+    propertyTypeLabel: PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || null,
+    gamingTaxResult, payrollTaxResult, householdTaxResult,
+  });
 
-      // For total mode or online types, skip step 3 (other revenue) and go to step 4 (known data)
-      // Online operators have a single revenue stream (GGR); there are no "other revenue streams"
-      const handleNextStep = () => {
-        if (isOnline || inputMode === 'total') {
-          setWizardStep(3); // Skip to known data step
-        } else {
-          setWizardStep(2); // Go to other revenue step
-        }
-      };
+  const handleExportCSV = () => {
+    if (!results) return;
+    downloadCSV(`${slugify(casinoName, 'gems-analysis')}.csv`, buildResultsCSV(results, exportContext()));
+  };
 
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
-            <WizardStep
-              stepNum={2}
-              totalSteps={totalSteps}
-              title={isOnline ? "Enter gross gaming revenue" : "How would you like to enter revenue?"}
-              subtitle={isOnline
-                ? "Enter the total GGR for this online operation. Marketing, tech, and other costs are expenses funded by GGR — not separate revenue streams."
-                : "Choose whether to enter total property revenue or break it down by department."}
-              onBack={() => setWizardStep(0)}
-              onNext={handleNextStep}
-              canProceed={canProceedToNextStep}
-            >
-              <div className="space-y-6">
-                {isOnline ? (
-                  /* Online: single GGR input, no department toggle */
-                  <div className="animate-fade-in">
-                    <InputField
-                      label={propertyType === 'ONLINE_SPORTSBOOK' ? 'Gross Betting Revenue' : 'Gross Gaming Revenue (GGR)'}
-                      value={revenues.gaming || revenues.total}
-                      onChange={(val) => setRevenues({ ...revenues, gaming: val, total: val })}
-                      placeholder="100"
-                      prefix="$"
-                      suffix="M"
-                      helpText={`Total gross ${propertyType === 'ONLINE_SPORTSBOOK' ? 'betting' : 'gaming'} revenue — the single revenue stream for the online operation`}
-                    />
-                    <p className="mt-3 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
-                      <strong>Important:</strong> Employment, wages, and supply chain effects apply to the state where the operator's workforce is located — not necessarily where bettors are.
-                      If the operator is headquartered elsewhere, most economic impact (except gaming tax) occurs in that state.
-                      Enter actual in-state employment and wage data in the next step for the most accurate results.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Land-based: Input Mode Toggle */}
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => {
-                          setInputMode('total');
-                          setRevenues({ ...revenues, gaming: null, food: null, lodging: null, other: null, total: revenues.total || 100 });
-                        }}
-                        className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                          inputMode === 'total'
-                        ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="font-medium">Total Property Revenue</div>
-                    <div className="text-xs text-gray-500 mt-1">Enter one combined number</div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setInputMode('department');
-                      setRevenues({ ...revenues, total: null, gaming: revenues.gaming || 100 });
-                    }}
-                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                      inputMode === 'department'
-                        ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="font-medium">By Department</div>
-                    <div className="text-xs text-gray-500 mt-1">Gaming, F&B, lodging separately</div>
-                  </button>
-                </div>
+  const handleAddScenario = () => {
+    setScenarios(prev => (prev.length >= 4 ? prev : [...prev, {
+      id: `s_${Date.now().toString(36)}_${prev.length}`,
+      name: casinoName?.trim() || `${state} · ${PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || 'Scenario'}`,
+      analysis: currentAnalysis(),
+    }]));
+  };
 
-                {/* Revenue Input based on mode */}
-                {inputMode === 'total' ? (
-                  <div className="animate-fade-in">
-                    <InputField
-                      label="Total Property Revenue"
-                      value={revenues.total}
-                      onChange={(val) => setRevenues({ ...revenues, total: val })}
-                      placeholder="100"
-                      prefix="$"
-                      suffix="M"
-                      helpText={`All revenue from the ${PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || 'property'} will use integrated multipliers`}
-                    />
-                    <p className="mt-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                      <strong>Note:</strong> Total mode applies {propertyType === '721120' ? 'accommodation (hotel)' : 'property-specific'} multipliers to the entire revenue.
-                      Use "By Department" if you want gaming revenue analyzed separately with gambling-specific multipliers.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="animate-fade-in">
-                    <InputField
-                      label="Gaming Revenue (GGR)"
-                      value={revenues.gaming}
-                      onChange={(val) => setRevenues({ ...revenues, gaming: val })}
-                      placeholder="100"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Enter gross gaming revenue (win) in millions. Gaming-specific multipliers will be applied."
-                    />
-                  </div>
-                )}
-                  </>
-                )}
-              </div>
-            </WizardStep>
-          </div>
-        </>
-      );
-    }
+  const handleRemoveScenario = (id) => setScenarios(prev => prev.filter(s => s.id !== id));
 
-    // Step 3: Other Revenue Streams
-    if (wizardStep === 2) {
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
-            <WizardStep
-              stepNum={3}
-              totalSteps={totalSteps}
-              title={isOnline ? "Do you have other operational revenue?" : "Do you have other revenue streams?"}
-              subtitle={isOnline
-                ? "Include marketing/advertising, technology infrastructure, or other operational costs treated as separate revenue streams."
-                : "Include food & beverage, lodging, or other entertainment revenue if applicable."}
-              onBack={() => setWizardStep(1)}
-              onNext={() => setWizardStep(3)}
-            >
-          <div className="space-y-4">
-            <div className="flex gap-4 mb-6">
-              <button
-                onClick={() => setHasOtherRevenue(true)}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  hasOtherRevenue
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                Yes, add more
-              </button>
-              <button
-                onClick={() => {
-                  setHasOtherRevenue(false);
-                  setRevenues(isOnline
-                    ? { ...revenues, marketing: null, tech: null, other: null }
-                    : { ...revenues, food: null, lodging: null, other: null });
-                }}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  !hasOtherRevenue
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                {isOnline ? 'No, just GGR' : 'No, just gaming'}
-              </button>
-            </div>
+  const toggleCompare = () => {
+    if (!compareActive && scenarios.length === 0 && results) handleAddScenario();
+    setCompareActive(a => !a);
+  };
 
-            {hasOtherRevenue && (
-              <div className="space-y-4 animate-fade-in">
-                {isOnline ? (
-                  <>
-                    <InputField
-                      label="Marketing & Advertising"
-                      value={revenues.marketing}
-                      onChange={(val) => setRevenues({ ...revenues, marketing: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional — promotional spending, customer acquisition costs"
-                    />
-                    <InputField
-                      label="Technology Infrastructure"
-                      value={revenues.tech}
-                      onChange={(val) => setRevenues({ ...revenues, tech: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional — platform, servers, payment processing"
-                    />
-                    <InputField
-                      label="Other Operational Revenue"
-                      value={revenues.other}
-                      onChange={(val) => setRevenues({ ...revenues, other: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <InputField
-                      label="Food & Beverage Revenue"
-                      value={revenues.food}
-                      onChange={(val) => setRevenues({ ...revenues, food: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional"
-                    />
-                    <InputField
-                      label="Lodging Revenue"
-                      value={revenues.lodging}
-                      onChange={(val) => setRevenues({ ...revenues, lodging: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional"
-                    />
-                    <InputField
-                      label="Other Entertainment Revenue"
-                      value={revenues.other}
-                      onChange={(val) => setRevenues({ ...revenues, other: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional"
-                    />
-                  </>
-                )}
-              </div>
-            )}
-              </div>
-            </WizardStep>
-          </div>
-        </>
-      );
-    }
-
-    // Step 4: Known Property Data
-    if (wizardStep === 3) {
-      // Handle back navigation: skip step 3 if in total mode
-      const handleBackStep = () => {
-        if (inputMode === 'total') {
-          setWizardStep(1); // Go back to revenue input (skip other revenue step)
-        } else {
-          setWizardStep(2); // Go back to other revenue step
-        }
-      };
-
-      // Helper to update known data for a specific department
-      const updateKnownData = (dept, field, value) => {
-        setKnownData(prev => ({
-          ...prev,
-          [dept]: { ...prev[dept], [field]: value }
-        }));
-      };
-
-      // Clear all known data
-      const clearKnownData = () => {
-        if (isOnline) {
-          setKnownData({
-            gaming: { emp: null, wages: null },
-            marketing: { emp: null, wages: null },
-            tech: { emp: null, wages: null },
-            other: { emp: null, wages: null }
-          });
-        } else {
-          setKnownData({
-            gaming: { emp: null, wages: null },
-            food: { emp: null, wages: null },
-            lodging: { emp: null, wages: null },
-            other: { emp: null, wages: null }
-          });
-        }
-      };
-
-      // Determine which departments have revenue (for showing known data inputs)
-      const activeDepartments = inputMode === 'total'
-        ? [{ key: 'total', label: isOnline ? 'Operation Total' : 'Property Total' }]
-        : isOnline
-          ? [
-              { key: 'gaming', label: propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting' : 'Online Gaming', revenue: revenues.gaming },
-              { key: 'marketing', label: 'Marketing & Advertising', revenue: revenues.marketing },
-              { key: 'tech', label: 'Technology Infrastructure', revenue: revenues.tech },
-              { key: 'other', label: 'Other', revenue: revenues.other }
-            ].filter(d => d.revenue && d.revenue > 0)
-          : [
-              { key: 'gaming', label: 'Gaming', revenue: revenues.gaming },
-              { key: 'food', label: 'Food & Beverage', revenue: revenues.food },
-              { key: 'lodging', label: 'Lodging', revenue: revenues.lodging },
-              { key: 'other', label: 'Other', revenue: revenues.other }
-            ].filter(d => d.revenue && d.revenue > 0);
-
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
-            <WizardStep
-              stepNum={inputMode === 'total' ? 3 : 4}
-              totalSteps={totalSteps}
-              title={isOnline ? "Do you have known operational data?" : "Do you have known property data?"}
-              subtitle={isOnline
-                ? "If you know actual employment or wages for the online operation, enter them for more accurate direct effects."
-                : "If you know the actual direct employment or wages, you can enter them for more accurate results."}
-              onBack={handleBackStep}
-              onNext={() => setWizardStep(4)}
-            >
-          <div className="space-y-4">
-            <div className="flex gap-4 mb-6">
-              <button
-                onClick={() => setHasKnownData(true)}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  hasKnownData
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                Yes, I have data
-              </button>
-              <button
-                onClick={() => {
-                  setHasKnownData(false);
-                  clearKnownData();
-                }}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  !hasKnownData
-                    ? 'border-[#3182ce] bg-[#ebf8ff] text-[#1a365d]'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                No, calculate for me
-              </button>
-            </div>
-
-            {hasKnownData && (
-              <div className="space-y-6 animate-fade-in">
-                {inputMode === 'total' ? (
-                  // Total mode: single set of inputs
-                  <div className="space-y-4">
-                    <InputField
-                      label="Direct Employment (FTEs)"
-                      value={knownData.gaming?.emp}
-                      onChange={(v) => updateKnownData('gaming', 'emp', v)}
-                      placeholder="e.g., 500"
-                      helpText={isOnline ? "Full-time equivalent employees in the operation" : "Full-time equivalent employees at the property"}
-                    />
-                    <InputField
-                      label="Direct Wages"
-                      value={knownData.gaming?.wages}
-                      onChange={(v) => updateKnownData('gaming', 'wages', v)}
-                      placeholder="e.g., 25"
-                      prefix="$"
-                      suffix="M"
-                      helpText={isOnline ? "Total direct wages in millions (recommended — online wage estimates are approximate)" : "Total direct wages in millions"}
-                    />
-                  </div>
-                ) : (
-                  // Department mode: inputs for each revenue stream
-                  activeDepartments.map(({ key, label }) => (
-                    <div key={key} className="border border-gray-200 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-700 mb-3">{label}</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField
-                          label="FTEs"
-                          value={knownData[key]?.emp}
-                          onChange={(v) => updateKnownData(key, 'emp', v)}
-                          placeholder="FTEs"
-                          helpText="Full-time equivalents"
-                        />
-                        <InputField
-                          label="Wages"
-                          value={knownData[key]?.wages}
-                          onChange={(v) => updateKnownData(key, 'wages', v)}
-                          placeholder="$M"
-                          prefix="$"
-                          suffix="M"
-                          helpText="Optional"
-                        />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-              </div>
-            </WizardStep>
-          </div>
-        </>
-      );
-    }
-
-    // Step 5: Gaming Tax Rate Confirmation
-    if (wizardStep === 4) {
-      const taxInfo = gamingTaxRatesData.rates[state];
-      // For online types, check if the state has legalized the specific online vertical
-      const hasGaming = isOnline
-        ? (propertyType === 'ONLINE_CASINO' ? taxInfo?.hasIGaming : taxInfo?.hasSportsBetting)
-        : (taxInfo && taxInfo.hasCommercial);
-      // For online, use the sub-config (iGaming or sportsBetting) as the display tax info
-      const displayTaxInfo = isOnline
-        ? (propertyType === 'ONLINE_CASINO' ? taxInfo?.iGaming : taxInfo?.sportsBetting)
-        : taxInfo;
-      const ggr = inputMode === 'total' ? (revenues.total || 0) : (revenues.gaming || 0);
-
-      // Compute the tax that would apply with current settings
-      const computePreviewTax = () => {
-        if ((!hasGaming && (gamingTaxCustomRate == null || gamingTaxCustomRate === '')) || ggr <= 0) return { amount: 0, effectiveRate: 0 };
-        const config = buildTaxConfig(taxInfo, gamingTaxCustomRate, slotRevenuePct);
-        const amount = calculateGamingTax(ggr, config);
-        return { amount, effectiveRate: ggr > 0 ? amount / ggr : 0 };
-      };
-      const preview = computePreviewTax();
-
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0]">
-            <WizardStep
-              stepNum={inputMode === 'total' ? 4 : 5}
-              totalSteps={totalSteps}
-              title={isOnline
-                ? (propertyType === 'ONLINE_CASINO' ? 'Confirm iGaming Tax Rate' : 'Confirm Sports Betting Tax Rate')
-                : 'Confirm Gaming Tax Rate'}
-              subtitle={hasGaming
-                ? `Review the ${isOnline ? (propertyType === 'ONLINE_CASINO' ? 'iGaming' : 'sports betting') : 'gaming'} tax rate for ${state}. You can adjust or override it below.`
-                : isOnline
-                  ? `${state} has not yet authorized ${propertyType === 'ONLINE_CASINO' ? 'iGaming' : 'online sports betting'}. You can enter a custom rate for hypothetical analysis.`
-                  : `${state} does not have commercial casino gaming. You can enter a custom rate if applicable.`}
-              onBack={() => setWizardStep(3)}
-              onNext={() => setWizardComplete(true)}
-              nextLabel="Calculate Impact"
-            >
-              <div className="space-y-6">
-                {hasGaming ? (
-                  <>
-                    {/* State rate summary */}
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-gray-900">{state} {isOnline ? (propertyType === 'ONLINE_CASINO' ? 'iGaming' : 'Sports Betting') : 'Gaming'} Tax</h4>
-                        <span className="text-sm text-gray-500">Source: {(displayTaxInfo || taxInfo)?.sourceYear || '2024'}</span>
-                      </div>
-
-                      {isOnline && displayTaxInfo ? (
-                        /* Online: show the sub-config rate info */
-                        <div>
-                          <p className="text-gray-700">
-                            <span className="text-2xl font-bold text-[#1a365d]">
-                              {formatNumber((displayTaxInfo.flatRate || displayTaxInfo.effectiveRate || 0) * 100, 2)}%
-                            </span>
-                            <span className="text-sm ml-2">on {propertyType === 'ONLINE_CASINO' ? 'iGaming GGR' : 'gross betting revenue'}</span>
-                          </p>
-                          {displayTaxInfo.description && (
-                            <p className="text-xs text-gray-500 mt-2">{displayTaxInfo.description}</p>
-                          )}
-                        </div>
-                      ) : taxInfo.rateStructure === 'flat' ? (
-                        <p className="text-gray-700">
-                          <span className="text-2xl font-bold text-[#1a365d]">
-                            {formatNumber((taxInfo.flatRate || taxInfo.effectiveRate) * 100, 2)}%
-                          </span>
-                          <span className="text-sm ml-2">flat rate on GGR</span>
-                        </p>
-                      ) : null}
-
-                      {taxInfo.rateStructure === 'tiered' && taxInfo.tiers && (
-                        <div>
-                          <p className="text-sm text-gray-600 mb-2">Graduated tax brackets:</p>
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-blue-200">
-                                <th className="text-left py-1 text-gray-600">GGR Range</th>
-                                <th className="text-right py-1 text-gray-600">Rate</th>
-                                {ggr > 0 && <th className="text-right py-1 text-gray-600">Tax in Bracket</th>}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {taxInfo.tiers.map((tier, i) => {
-                                const nextThreshold = i < taxInfo.tiers.length - 1 ? taxInfo.tiers[i + 1].threshold : Infinity;
-                                const isActive = ggr > tier.threshold;
-                                const taxableInTier = isActive ? Math.min(ggr, nextThreshold) - tier.threshold : 0;
-                                const tierTax = taxableInTier * tier.rate;
-                                return (
-                                  <tr key={i} className={`border-b border-blue-100 ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                                    <td className="py-1">
-                                      ${formatNumber(tier.threshold, 0)}M
-                                      {nextThreshold < Infinity ? ` – $${formatNumber(nextThreshold, 0)}M` : '+'}
-                                    </td>
-                                    <td className="text-right py-1 font-medium">{formatNumber(tier.rate * 100, 1)}%</td>
-                                    {ggr > 0 && (
-                                      <td className="text-right py-1">
-                                        {isActive ? `$${formatNumber(tierTax, 2)}M` : '-'}
-                                      </td>
-                                    )}
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {taxInfo.rateStructure === 'split_tiered' && taxInfo.slotTiers && taxInfo.tableTiers && (
-                        <div>
-                          <p className="text-sm text-gray-600 mb-2">Separate graduated brackets for slots and table games:</p>
-                          {[{ label: 'Slot Machines', tiers: taxInfo.slotTiers, revShare: ggr * (slotRevenuePct / 100) },
-                            { label: 'Table Games', tiers: taxInfo.tableTiers, revShare: ggr * (1 - slotRevenuePct / 100) }
-                          ].map(({ label: gameLabel, tiers: gameTiers, revShare }) => (
-                            <div key={gameLabel} className="mb-3">
-                              <p className="text-xs font-semibold text-gray-700 mb-1">{gameLabel}</p>
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr className="border-b border-blue-200">
-                                    <th className="text-left py-1 text-gray-600">GGR Range</th>
-                                    <th className="text-right py-1 text-gray-600">Rate</th>
-                                    {ggr > 0 && <th className="text-right py-1 text-gray-600">Tax</th>}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {gameTiers.map((tier, i) => {
-                                    const nextThreshold = i < gameTiers.length - 1 ? gameTiers[i + 1].threshold : Infinity;
-                                    const isActive = revShare > tier.threshold;
-                                    const taxableInTier = isActive ? Math.min(revShare, nextThreshold) - tier.threshold : 0;
-                                    const tierTax = taxableInTier * tier.rate;
-                                    return (
-                                      <tr key={i} className={`border-b border-blue-100 ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                                        <td className="py-1">
-                                          ${formatNumber(tier.threshold, 0)}M
-                                          {nextThreshold < Infinity ? ` – $${formatNumber(nextThreshold, 0)}M` : '+'}
-                                        </td>
-                                        <td className="text-right py-1 font-medium">{formatNumber(tier.rate * 100, 1)}%</td>
-                                        {ggr > 0 && (
-                                          <td className="text-right py-1">
-                                            {isActive ? `$${formatNumber(tierTax, 2)}M` : '-'}
-                                          </td>
-                                        )}
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {taxInfo.rateStructure === 'split_game_type' && taxInfo.slotsRate != null && taxInfo.tableRate != null && (
-                        <div>
-                          <p className="text-gray-700 mb-2">
-                            <span className="font-bold text-[#1a365d]">{formatNumber(taxInfo.slotsRate * 100, 0)}%</span> slots
-                            {' / '}
-                            <span className="font-bold text-[#1a365d]">{formatNumber(taxInfo.tableRate * 100, 0)}%</span> table games
-                          </p>
-                        </div>
-                      )}
-
-                      {taxInfo.rateStructure === 'tribal_compact' && (
-                        <p className="text-gray-700">
-                          Tribal compact state — rates vary by tribe.
-                          <span className="block text-sm text-gray-500 mt-1">
-                            Estimated effective rate: {formatNumber((taxInfo.effectiveRate || 0) * 100, 1)}%
-                          </span>
-                        </p>
-                      )}
-
-                      {taxInfo.rateStructure === 'state_operated' && (
-                        <p className="text-gray-700">
-                          State-operated gaming — the state retains a share of revenue.
-                          <span className="block text-sm text-gray-500 mt-1">
-                            Effective state share: {formatNumber((taxInfo.effectiveRate || 0) * 100, 1)}%
-                          </span>
-                        </p>
-                      )}
-
-                      {(taxInfo.rateStructure === 'split_by_license' || taxInfo.rateStructure === 'split_by_facility') && (
-                        <p className="text-gray-700">
-                          Rates vary by {taxInfo.rateStructure === 'split_by_license' ? 'license category' : 'facility'}.
-                          <span className="block text-sm text-gray-500 mt-1">
-                            Estimated effective rate: {formatNumber((taxInfo.effectiveRate || 0) * 100, 1)}%
-                          </span>
-                        </p>
-                      )}
-
-                      {taxInfo.description && (
-                        <p className="text-xs text-gray-500 mt-2">{taxInfo.description}</p>
-                      )}
-                    </div>
-
-                    {/* Slot/table split slider - shown for split_game_type, split_tiered, or legacy slotTableSplit (not for online types) */}
-                    {!isOnline && (taxInfo.rateStructure === 'split_game_type' || taxInfo.rateStructure === 'split_tiered' || taxInfo.slotTableSplit) && !(gamingTaxCustomRate != null && gamingTaxCustomRate !== '') && (
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Slot Revenue Share: {slotRevenuePct}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={slotRevenuePct}
-                          onChange={(e) => setSlotRevenuePct(parseInt(e.target.value))}
-                          className="w-full accent-[#1a365d]"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>All Tables</span>
-                          <span className="font-medium text-[#1a365d]">
-                            Effective: {formatNumber(preview.effectiveRate * 100, 1)}%
-                          </span>
-                          <span>All Slots</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Local tax notes */}
-                    {taxInfo.localTaxNotes && (
-                      <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
-                        <p className="text-xs text-amber-800">
-                          <span className="font-semibold">Local taxes:</span> {taxInfo.localTaxNotes}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <p className="text-gray-600">
-                      {isOnline
-                        ? `${state} has not yet authorized ${propertyType === 'ONLINE_CASINO' ? 'iGaming' : 'online sports betting'}. Enter a custom rate below for a hypothetical analysis.`
-                        : taxInfo?.hasTribal
-                          ? `${state} has tribal gaming but no commercial casino GGR tax. Enter a custom rate below if you have a specific compact rate.`
-                          : `${state} does not currently have legal casino gaming. Enter a custom rate below for a hypothetical analysis.`}
-                    </p>
-                  </div>
-                )}
-
-                {/* Custom rate override */}
-                <div className="border-t border-gray-200 pt-4">
-                  <InputField
-                    label="Custom Tax Rate Override (%)"
-                    value={gamingTaxCustomRate != null && gamingTaxCustomRate !== '' ? gamingTaxCustomRate * 100 : null}
-                    onChange={(v) => setGamingTaxCustomRate(v != null && v !== '' ? v / 100 : null)}
-                    placeholder="Leave blank to use the state rate above"
-                    helpText="Override with a custom percentage (e.g., for tribal compacts, local adjustments, or proposed rates)"
-                    id="wizard-custom-tax-rate"
-                  />
-                </div>
-
-                {/* Preview */}
-                {ggr > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">Estimated gaming tax on ${formatNumber(ggr, 1)}M GGR:</p>
-                        <p className="text-xl font-bold text-[#1a365d]">${formatNumber(preview.amount, 2)}M</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">Effective rate:</p>
-                        <p className="text-xl font-bold text-[#1a365d]">{formatNumber(preview.effectiveRate * 100, 2)}%</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </WizardStep>
-          </div>
-        </>
-      );
-    }
-  }
 
   // ============================================================
   // DASHBOARD VIEW (after wizard completion)
@@ -1896,7 +978,32 @@ More information about Dr. Philander is available at kahlil.co.`,
   return (
     <>
       <PageHeader />
-      <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e2e8f0] py-8 px-4 sm:px-6 lg:px-8">
+
+      {/* Sticky control bar — high-frequency input levers */}
+      <ControlBar
+        stateValue={state}
+        setState={setState}
+        stateOptions={stateOptions}
+        propertyType={propertyType}
+        setPropertyType={setPropertyType}
+        propertyOptions={PROPERTY_TYPE_OPTIONS.filter(p => p.value).map(p => ({ value: p.value, label: p.label }))}
+        casinoName={casinoName}
+        setCasinoName={setCasinoName}
+        revenueLabel={isOnline ? 'GGR' : inputMode === 'total' ? 'Total Rev.' : 'Gaming Rev.'}
+        revenueValue={inputMode === 'total' ? revenues.total : revenues.gaming}
+        onRevenueChange={(v) => setRevenues(prev => inputMode === 'total'
+          ? { ...prev, total: v }
+          : { ...prev, gaming: v, ...(isOnline ? { total: v } : {}) })}
+        taxValue={(gamingTaxCustomRate != null && gamingTaxCustomRate !== '') ? gamingTaxCustomRate * 100 : null}
+        onTaxChange={(v) => setGamingTaxCustomRate(v != null && v !== '' ? v / 100 : null)}
+        taxPlaceholder="State rate"
+        onEditInputs={() => setInputsOpen(true)}
+        onDownload={() => (userTier === 'pro' ? handleDownloadPPTX() : setShowPremiumModal(true))}
+        downloadLabel="Download PPTX"
+        downloading={isGeneratingPPTX}
+      />
+
+      <div className="min-h-screen bg-paper py-8 px-4 sm:px-6 lg:px-8">
       {/* Watermark for free tier */}
       <WatermarkOverlay show={userTier === 'free'} />
 
@@ -1916,7 +1023,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       {purchasedLicense && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-[#1a365d] to-[#3182ce] rounded-t-2xl px-6 py-5 text-white">
+            <div className="bg-primary rounded-t-2xl px-6 py-5 text-white">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Check size={22} className="text-emerald-300" />
                 Purchase Complete
@@ -1951,7 +1058,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               </div>
               <button
                 onClick={() => setPurchasedLicense(null)}
-                className="w-full py-3 px-4 rounded-xl font-semibold bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white shadow-lg transition-all"
+                className="w-full py-3 px-4 rounded-xl font-semibold bg-primary hover:bg-primary-dark text-white shadow-lg transition-all"
               >
                 I've saved my key
               </button>
@@ -2003,6 +1110,15 @@ More information about Dr. Philander is available at kahlil.co.`,
         onConfirm={handleConfirmPropertyAndDownload}
       />
 
+      {/* Saved analyses drawer */}
+      <ProjectsDrawer
+        open={projectsOpen}
+        projects={projects}
+        onClose={() => setProjectsOpen(false)}
+        onOpenProject={handleOpenProject}
+        onDelete={handleDeleteProject}
+      />
+
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"
@@ -2011,16 +1127,48 @@ More information about Dr. Philander is available at kahlil.co.`,
         Skip to main content
       </a>
 
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <header role="banner" className="text-center mb-10">
+      <div className="max-w-5xl mx-auto">
+        {/* Reset */}
+        <div className="flex justify-end mb-3 no-print">
           <button
             onClick={handleStartOver}
-            className="text-sm text-[#3182ce] hover:text-[#1a365d] font-medium"
+            className="text-xs text-text-muted hover:text-primary font-medium"
           >
-            ← Start New Analysis
+            Reset to defaults
           </button>
-        </header>
+        </div>
+
+        {/* Action toolbar: save / open / share / export / compare */}
+        <Toolbar
+          disabled={!results}
+          defaultName={casinoName}
+          projectCount={projects.length}
+          onSaveProject={handleSaveProject}
+          onCopyShare={handleCopyShare}
+          shareCopied={shareCopied}
+          onOpenProjects={() => setProjectsOpen(true)}
+          onExportCSV={handleExportCSV}
+          onPrint={printReport}
+          compareActive={compareActive}
+          onToggleCompare={toggleCompare}
+          canCompare={!!results}
+        />
+
+        {/* Scenario comparison (full width) */}
+        {compareActive && (
+          <div className="dash-card p-6 mb-6 animate-fade-in-up">
+            <SectionHeader>Scenario Comparison</SectionHeader>
+            <p className="text-xs text-text-muted -mt-2 mb-4">
+              Capture snapshots of different states, tax rates, or revenue levels and compare their impact side by side. The first scenario is the baseline.
+            </p>
+            <ScenarioCompare
+              scenarios={scenarios}
+              onRemove={handleRemoveScenario}
+              onAddCurrent={handleAddScenario}
+              canAddCurrent={!!results && scenarios.length < 4}
+            />
+          </div>
+        )}
 
         {/* Revenue Forecaster import banner */}
         {importedFromForecaster && (
@@ -2051,7 +1199,7 @@ More information about Dr. Philander is available at kahlil.co.`,
 
         {/* Archetype Comparison Panel */}
         {results && !isOnlinePropertyType(propertyType) && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-6 animate-fade-in-up">
+          <div className="bg-accent-soft border border-accent-100 rounded-xl p-4 mb-6 animate-fade-in-up">
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-3">
                 <div className="p-1.5 rounded-lg bg-blue-100 text-blue-600 mt-0.5">
@@ -2108,14 +1256,14 @@ More information about Dr. Philander is available at kahlil.co.`,
                         <thead>
                           <tr className="border-b border-blue-100">
                             <th className="text-left text-xs font-medium text-gray-500 px-4 py-2">Metric</th>
-                            <th className="text-right text-xs font-medium text-[#1a365d] px-4 py-2">IO Model</th>
+                            <th className="text-right text-xs font-medium text-primary px-4 py-2">IO Model</th>
                             <th className="text-right text-xs font-medium text-blue-600 px-4 py-2">Archetype</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr className="border-b border-blue-50">
                             <td className="text-xs text-gray-600 px-4 py-2">Direct FTEs</td>
-                            <td className="text-right text-xs font-semibold text-[#1a365d] px-4 py-2 font-mono">
+                            <td className="text-right text-xs font-semibold text-primary px-4 py-2 font-mono">
                               {formatJobs(ioDirectEmp)}
                             </td>
                             <td className="text-right text-xs font-semibold text-blue-600 px-4 py-2 font-mono">
@@ -2124,7 +1272,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                           </tr>
                           <tr className="border-b border-blue-50">
                             <td className="text-xs text-gray-600 px-4 py-2">FTEs per $1M GGR</td>
-                            <td className="text-right text-xs text-[#1a365d] px-4 py-2 font-mono">
+                            <td className="text-right text-xs text-primary px-4 py-2 font-mono">
                               {gamingRev > 0 ? (ioDirectEmp / gamingRev).toFixed(1) : '-'}
                             </td>
                             <td className="text-right text-xs text-blue-600 px-4 py-2 font-mono">
@@ -2164,9 +1312,17 @@ More information about Dr. Philander is available at kahlil.co.`,
           </div>
         )}
 
-        <main id="main-content" role="main" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Input Panel */}
-          <aside className="lg:col-span-1 space-y-6" aria-label="Input parameters">
+        <main id="main-content" role="main" className="max-w-5xl mx-auto">
+          {/* Inputs slide-over — full input set; key levers live in the control bar */}
+          {inputsOpen && (
+          <div className="fixed inset-0 z-[65] no-print" role="dialog" aria-label="Inputs">
+            <div className="absolute inset-0 modal-backdrop" onClick={() => setInputsOpen(false)} />
+            <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-pop flex flex-col animate-fade-in">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-hairline flex-shrink-0">
+                <h2 className="font-display text-lg font-semibold text-ink flex items-center gap-2"><SlidersHorizontal size={18} className="text-accent" />Inputs</h2>
+                <button onClick={() => setInputsOpen(false)} className="text-text-muted hover:text-ink" aria-label="Close inputs"><X size={20} /></button>
+              </div>
+          <aside className="flex-1 overflow-y-auto p-4 space-y-6" aria-label="Input parameters">
             {/* Report Download Button */}
             {results && (
               userTier === 'pro' ? (
@@ -2178,10 +1334,10 @@ More information about Dr. Philander is available at kahlil.co.`,
                 <div className="space-y-2">
                   <button
                     onClick={() => setShowPremiumModal(true)}
-                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold bg-gradient-to-r from-[#1a365d] to-[#3182ce] hover:from-[#152a4d] hover:to-[#2c5282] text-white shadow-lg hover:shadow-xl transition-all"
+                    className="btn btn-brass w-full py-3.5 px-4 text-[15px]"
                   >
-                    <Lock size={20} />
-                    Download PPTX (Pro Feature)
+                    <Lock size={18} />
+                    Download PPTX Report
                   </button>
                   <button
                     onClick={handleDownloadSampleReport}
@@ -2262,7 +1418,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             {/* Location & Analysis Type */}
             <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MapPin size={20} className="text-[#3182ce]" />
+                <MapPin size={20} className="text-accent" />
                 Location & Settings
               </h2>
 
@@ -2294,7 +1450,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             {/* Revenue Streams */}
             <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <DollarSign size={20} className="text-[#3182ce]" />
+                <DollarSign size={20} className="text-accent" />
                 Revenue Streams
               </h2>
 
@@ -2350,7 +1506,7 @@ More information about Dr. Philander is available at kahlil.co.`,
                 className="flex items-center justify-between w-full text-left"
               >
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Calculator size={20} className="text-[#1a365d]" />
+                  <Calculator size={20} className="text-primary" />
                   {isOnline ? 'Known Operational Data' : 'Known Property Data'}
                 </h2>
                 <ChevronDown
@@ -2412,7 +1568,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             {/* Gaming Tax Rate */}
             <div className="dash-card p-6">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                <DollarSign size={20} className="text-[#1a365d]" />
+                <DollarSign size={20} className="text-primary" />
                 {isOnline ? (propertyType === 'ONLINE_CASINO' ? 'iGaming Tax Rate' : 'Sports Betting Tax Rate') : 'Gaming Tax Rate'}
               </h2>
               <div className="space-y-3">
@@ -2501,9 +1657,12 @@ More information about Dr. Philander is available at kahlil.co.`,
             </div>
 
           </aside>
+            </div>
+          </div>
+          )}
 
-          {/* Results Panel */}
-          <section className={`lg:col-span-2 space-y-6 ${userTier === 'free' ? 'protected-content' : ''}`} aria-label="Analysis results">
+          {/* Report canvas */}
+          <section className={`space-y-6 ${userTier === 'free' ? 'protected-content' : ''}`} aria-label="Analysis results">
             {results ? (
               <>
                 {/* Online methodology banner */}
@@ -2533,41 +1692,14 @@ More information about Dr. Philander is available at kahlil.co.`,
                   </div>
                 )}
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up">
-                  <DashboardMetricCard
-                    icon={TrendingUp}
-                    label="Total Output"
-                    rawValue={results.totals.output.total}
-                    formatter={formatCurrency}
-                    subtext={`${formatNumber(results.multipliers.output, 2)}x multiplier`}
-                    color="primary"
-                  />
-                  <DashboardMetricCard
-                    icon={DollarSign}
-                    label="Total GDP"
-                    rawValue={results.totals.gdp.total}
-                    formatter={formatCurrency}
-                    subtext={`${formatNumber(results.multipliers.gdp, 2)}x multiplier`}
-                    color="success"
-                  />
-                  <DashboardMetricCard
-                    icon={Users}
-                    label="Total Jobs"
-                    rawValue={results.totals.employment.total}
-                    formatter={(v) => formatJobs(v)}
-                    subtext={`${formatNumber(results.multipliers.employment, 2)}x multiplier`}
-                    color="purple"
-                  />
-                  <DashboardMetricCard
-                    icon={Building2}
-                    label="Total Wages"
-                    rawValue={results.totals.wages.total}
-                    formatter={formatCurrency}
-                    subtext={`${formatNumber(results.multipliers.wages, 2)}x multiplier`}
-                    color="amber"
-                  />
-                </div>
+                {/* Headline result band */}
+                <HeroSummary
+                  results={results}
+                  state={state}
+                  casinoName={casinoName}
+                  propertyTypeLabel={PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label}
+                  isOnline={isOnline}
+                />
 
                 {/* Economic Impact Flow (Sankey) */}
                 <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
@@ -2596,13 +1728,13 @@ More information about Dr. Philander is available at kahlil.co.`,
                         <thead>
                           <tr className="border-b border-gray-200">
                             <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Tax Type</th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-[#1a365d]">
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-primary">
                               <DefTooltip text={TERM_DEFINITIONS.direct}>Direct</DefTooltip>
                             </th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-[#3182ce]">
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-accent">
                               <DefTooltip text={TERM_DEFINITIONS.indirect}>Indirect</DefTooltip>
                             </th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-[#4299e1]">
+                            <th className="text-right py-3 px-4 text-sm font-semibold text-effect-induced">
                               <DefTooltip text={TERM_DEFINITIONS.induced}>Induced</DefTooltip>
                             </th>
                             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Total</th>
@@ -2621,9 +1753,9 @@ More information about Dr. Philander is available at kahlil.co.`,
                                   {formatNumber(gamingTaxResult.effectiveRate * 100, 1)}% effective rate
                                 </span>
                               </th>
-                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(gamingTaxResult.amount)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">-</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">-</td>
+                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(gamingTaxResult.amount)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-accent">-</td>
+                              <td className="py-3 px-4 text-sm text-right text-effect-induced">-</td>
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(gamingTaxResult.amount)}</td>
                             </tr>
                           )}
@@ -2635,9 +1767,9 @@ More information about Dr. Philander is available at kahlil.co.`,
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">TOPI from IO model</span>
                               </th>
-                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(results.totals.tax.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{formatCurrency(results.totals.tax.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{formatCurrency(results.totals.tax.induced)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(results.totals.tax.direct)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(results.totals.tax.indirect)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(results.totals.tax.induced)}</td>
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(results.totals.tax.total)}</td>
                             </tr>
                           )}
@@ -2649,9 +1781,9 @@ More information about Dr. Philander is available at kahlil.co.`,
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">FICA, FUTA, SUTA{stateEmploymentTaxRates?.sdi_employer_rate > 0 ? ', SDI' : ''}{stateEmploymentTaxRates?.pfml_employer_rate > 0 ? ', PFML' : ''}</span>
                               </th>
-                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(payrollTaxResult.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{formatCurrency(payrollTaxResult.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{formatCurrency(payrollTaxResult.induced)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(payrollTaxResult.direct)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(payrollTaxResult.indirect)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(payrollTaxResult.induced)}</td>
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(payrollTaxResult.total)}</td>
                             </tr>
                           )}
@@ -2663,21 +1795,21 @@ More information about Dr. Philander is available at kahlil.co.`,
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">{formatNumber((stateEmploymentTaxRates?.household_tax_ratio || 0) * 100, 1)}% of wages (BEA ratio)</span>
                               </th>
-                              <td className="py-3 px-4 text-sm text-right text-[#1a365d]">{formatCurrency(householdTaxResult.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#3182ce]">{formatCurrency(householdTaxResult.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-[#4299e1]">{formatCurrency(householdTaxResult.induced)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(householdTaxResult.direct)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(householdTaxResult.indirect)}</td>
+                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(householdTaxResult.induced)}</td>
                               <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(householdTaxResult.total)}</td>
                             </tr>
                           )}
                           <tr className="bg-gray-50 border-t border-gray-200">
                             <th scope="row" className="py-3 px-4 text-sm font-bold text-gray-900 text-left">Total Tax Revenue</th>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-[#1a365d]">
+                            <td className="py-3 px-4 text-sm text-right font-bold text-primary">
                               {formatCurrency((gamingTaxResult?.amount || 0) + results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0))}
                             </td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-[#3182ce]">
+                            <td className="py-3 px-4 text-sm text-right font-bold text-accent">
                               {formatCurrency(results.totals.tax.indirect + (payrollTaxResult?.indirect || 0) + (householdTaxResult?.indirect || 0))}
                             </td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-[#4299e1]">
+                            <td className="py-3 px-4 text-sm text-right font-bold text-effect-induced">
                               {formatCurrency(results.totals.tax.induced + (payrollTaxResult?.induced || 0) + (householdTaxResult?.induced || 0))}
                             </td>
                             <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">
@@ -2707,6 +1839,31 @@ More information about Dr. Philander is available at kahlil.co.`,
                     <RevenueBreakdownTable byRevenue={results.byRevenue} />
                   </div>
                 )}
+
+                {/* Sensitivity & multi-year projections */}
+                <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '175ms' }}>
+                  <div className="flex items-center justify-between gap-4 mb-1">
+                    <SectionHeader className="mb-0">Sensitivity &amp; Projections</SectionHeader>
+                    <button
+                      onClick={() => setShowSensitivity(s => !s)}
+                      className="flex items-center gap-1 text-xs font-medium text-accent hover:text-primary no-print"
+                    >
+                      {showSensitivity ? 'Hide' : 'Show'}
+                      <ChevronDown size={14} className={`transition-transform ${showSensitivity ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                  {showSensitivity ? (
+                    <div className="mt-4">
+                      <SensitivityPanel analysis={liveAnalysis} />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-muted mt-1">
+                      See how output, GDP, jobs, and tax revenue respond as revenue or the gaming tax rate
+                      varies — and project cumulative impact over 3–10 years.{' '}
+                      <button onClick={() => setShowSensitivity(true)} className="text-accent font-medium hover:underline no-print">Open analysis →</button>
+                    </p>
+                  )}
+                </div>
 
                 {/* Charts Row 1: Composition + Employment */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2757,7 +1914,7 @@ More information about Dr. Philander is available at kahlil.co.`,
         <footer role="contentinfo" className="mt-12 text-center text-sm text-gray-600 space-y-1">
           <p>
             {PRODUCT_TITLE} |{' '}
-            <a href="https://github.com/kphilander/casino-economic-impact" className="text-[#3182ce] hover:underline">
+            <a href="https://github.com/kphilander/casino-economic-impact" className="text-accent hover:underline">
               GitHub
             </a>
             {' '}|{' '}
@@ -2765,7 +1922,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               href={`${import.meta.env.BASE_URL}GEMS-2026-Methodology.pdf`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#3182ce] hover:underline"
+              className="text-accent hover:underline"
             >
               Methodology White Paper (PDF)
             </a>
@@ -2779,7 +1936,7 @@ More information about Dr. Philander is available at kahlil.co.`,
               href="https://github.com/kphilander/casino-economic-impact/issues/new?labels=bug&template=bug_report.md"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-gray-500 hover:text-[#3182ce] hover:underline"
+              className="inline-flex items-center gap-1 text-gray-500 hover:text-accent hover:underline"
             >
               <Bug size={13} />
               Report a Bug
@@ -2792,7 +1949,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       {/* Floating "Request a Feature" button */}
       <button
         onClick={() => setShowFeatureModal(true)}
-        className="fixed bottom-6 right-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#f59e0b] to-[#d97706] px-6 py-4 text-base font-bold text-white shadow-[0_8px_30px_rgba(245,158,11,0.4)] transition-all hover:shadow-[0_8px_40px_rgba(245,158,11,0.6)] hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 z-50 animate-bounce-subtle"
+        className="fixed bottom-6 right-6 flex items-center gap-3 rounded-2xl bg-accent px-6 py-4 text-base font-bold text-white shadow-raised transition-all hover:shadow-pop hover:scale-105 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 z-50 animate-bounce-subtle"
         title="Request a feature"
       >
         <Lightbulb size={22} className="drop-shadow" />
@@ -2803,7 +1960,7 @@ More information about Dr. Philander is available at kahlil.co.`,
       {showFeatureModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowFeatureModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between bg-gradient-to-r from-[#1a365d] to-[#2c5282] rounded-t-2xl px-6 py-4">
+            <div className="flex items-center justify-between bg-primary rounded-t-2xl px-6 py-4">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Lightbulb size={20} />
                 Request a Feature
@@ -2844,16 +2001,16 @@ More information about Dr. Philander is available at kahlil.co.`,
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="feat-name" className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-gray-400">(optional)</span></label>
-                      <input id="feat-name" name="name" type="text" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none" placeholder="Your name" />
+                      <input id="feat-name" name="name" type="text" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none" placeholder="Your name" />
                     </div>
                     <div>
                       <label htmlFor="feat-email" className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400">(optional)</span></label>
-                      <input id="feat-email" name="email" type="email" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none" placeholder="you@example.com" />
+                      <input id="feat-email" name="email" type="email" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none" placeholder="you@example.com" />
                     </div>
                   </div>
                   <div>
                     <label htmlFor="feat-type" className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                    <select id="feat-type" name="type" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none">
+                    <select id="feat-type" name="type" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none">
                       <option>Feature Request</option>
                       <option>Data Issue</option>
                       <option>Other</option>
@@ -2861,11 +2018,11 @@ More information about Dr. Philander is available at kahlil.co.`,
                   </div>
                   <div>
                     <label htmlFor="feat-message" className="block text-sm font-medium text-gray-700 mb-1">Message <span className="text-red-500">*</span></label>
-                    <textarea id="feat-message" name="message" required rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3182ce] focus:ring-1 focus:ring-[#3182ce] focus:outline-none resize-none" placeholder="Describe the feature you'd like to see, or the issue you've found..." />
+                    <textarea id="feat-message" name="message" required rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none resize-none" placeholder="Describe the feature you'd like to see, or the issue you've found..." />
                   </div>
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#1a365d] to-[#2c5282] px-4 py-2.5 text-sm font-semibold text-white shadow hover:shadow-lg transition-all"
+                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow hover:shadow-lg transition-all"
                   >
                     <Send size={16} />
                     Submit

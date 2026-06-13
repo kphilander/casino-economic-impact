@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { EFFECT, NAVY, ACCENT, MUTED } from '../../theme';
 
 function useCountUp(target, duration = 800) {
   const [value, setValue] = useState(0);
@@ -25,45 +26,35 @@ function useCountUp(target, duration = 800) {
 }
 
 const ACCENT_COLORS = {
-  primary: '#1a365d',
-  success: '#3182ce',
+  primary: NAVY,
+  success: ACCENT,
   purple: '#2c5282',
-  amber: '#4299e1'
+  amber: EFFECT.indirect,
 };
 
-const ICON_BG = {
-  primary: 'bg-[#1a365d]/10 text-[#1a365d]',
-  success: 'bg-[#3182ce]/10 text-[#3182ce]',
-  purple: 'bg-[#2c5282]/10 text-[#2c5282]',
-  amber: 'bg-[#4299e1]/10 text-[#4299e1]'
-};
-
+/**
+ * Report-grade metric card: hairline border, a thin left navy rule, an
+ * uppercase micro-label, and a serif display figure for the headline number.
+ */
 export default function MetricCard({ icon: Icon, label, rawValue, formatter, subtext, color = 'primary' }) {
   const animatedValue = useCountUp(rawValue);
-  const accent = ACCENT_COLORS[color];
+  const accent = ACCENT_COLORS[color] || NAVY;
 
   return (
-    <div
-      className="relative bg-white rounded-2xl border border-gray-200 p-5 transition-all hover:-translate-y-0.5"
-      style={{
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)',
-      }}
-    >
-      {/* Top accent bar */}
-      <div
-        className="absolute top-0 left-3 right-3 h-[3px] rounded-b-full"
-        style={{ background: accent, opacity: 0.6 }}
-      />
-      <div className="flex items-start gap-3 mt-1">
-        <div className={`p-2 rounded-xl ${ICON_BG[color]} flex-shrink-0`}>
-          <Icon size={18} />
-        </div>
+    <div className="relative bg-white rounded-card border border-hairline px-5 py-4 shadow-card transition-all hover:border-[#d4dae3]">
+      <div className="absolute top-4 bottom-4 left-0 w-[3px] rounded-r" style={{ background: accent }} />
+      <div className="flex items-start gap-3 pl-2">
+        {Icon && (
+          <div className="mt-0.5 text-text-faint flex-shrink-0" style={{ color: accent }}>
+            <Icon size={18} strokeWidth={1.75} />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">{label}</p>
-          <p className="text-xl font-bold text-gray-900 mt-0.5 leading-tight tabular-nums">
+          <p className="text-[10.5px] text-text-faint font-semibold uppercase tracking-[0.08em]">{label}</p>
+          <p className="font-display text-[1.6rem] font-semibold text-ink mt-0.5 leading-none tabular-nums">
             {formatter ? formatter(animatedValue) : animatedValue.toFixed(1)}
           </p>
-          {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
+          {subtext && <p className="text-xs text-text-muted mt-1.5">{subtext}</p>}
         </div>
       </div>
     </div>

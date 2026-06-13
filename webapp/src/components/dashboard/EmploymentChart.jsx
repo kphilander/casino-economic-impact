@@ -1,10 +1,11 @@
 import React from 'react';
 import { formatJobs, formatNumber } from '../../utils/calculations';
+import { EFFECT } from '../../theme';
 
 const EFFECTS = [
-  { key: 'direct', label: 'Direct', color: '#1a365d', description: 'Jobs at the operation itself' },
-  { key: 'indirect', label: 'Indirect', color: '#3182ce', description: 'Jobs in the supply chain' },
-  { key: 'induced', label: 'Induced', color: '#4299e1', description: 'Jobs from employee spending' },
+  { key: 'direct', label: 'Direct', color: EFFECT.direct, description: 'Jobs at the operation itself' },
+  { key: 'indirect', label: 'Indirect', color: EFFECT.indirect, description: 'Jobs in the supply chain' },
+  { key: 'induced', label: 'Induced', color: EFFECT.induced, description: 'Jobs from employee spending' },
 ];
 
 export default function EmploymentChart({ results }) {
@@ -15,12 +16,12 @@ export default function EmploymentChart({ results }) {
     <div className="space-y-4">
       {/* Big total */}
       <div className="text-center py-3">
-        <p className="text-4xl font-bold text-gray-900 tabular-nums">{formatJobs(total)}</p>
-        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mt-1">Total Full-Time Equivalent Jobs</p>
+        <p className="font-display text-4xl font-semibold text-ink tabular-nums">{formatJobs(total)}</p>
+        <p className="text-[10.5px] text-text-faint font-semibold uppercase tracking-[0.08em] mt-1.5">Total Full-Time Equivalent Jobs</p>
       </div>
 
       {/* Stacked bar */}
-      <div className="flex h-8 rounded-full overflow-hidden bg-gray-100 mx-2">
+      <div className="flex h-8 rounded-lg overflow-hidden bg-paper border border-hairline mx-2">
         {EFFECTS.map(({ key, color }) => {
           const pct = total > 0 ? (emp[key] / total) * 100 : 0;
           return (

@@ -20,6 +20,9 @@ EI_*.csv
 .Rproj.user/
 *.Rproj
 
+# Python artifacts
+__pycache__/
+
 # Webapp build output
 webapp/dist/
 

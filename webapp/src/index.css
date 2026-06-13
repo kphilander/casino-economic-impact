@@ -3,12 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --ink: #13243b;
+  --ink: #0e1d31;
   --navy: #1a365d;
-  --accent: #2b6cb0;
-  --paper: #f7f8fa;
-  --hairline: #e5e8ed;
-  --muted: #6b7785;
+  --navy-dark: #0f2440;
+  --accent: #2563a8;
+  --brass: #b7892f;
+  --brass-light: #d9af5e;
+  --paper: #f5f6f8;
+  --hairline: #e3e7ec;
+  --muted: #5c6776;
 }
 
 html {
@@ -119,7 +122,21 @@ body {
   background: var(--accent);
   color: #fff;
 }
-.btn-accent:not(:disabled):hover { background: #225789; }
+.btn-accent:not(:disabled):hover { background: #1f5189; }
+
+/* Loud primary CTA — brass, for the headline conversion action */
+.btn-brass {
+  background: linear-gradient(180deg, #c2922e 0%, #ad7d24 100%);
+  color: #fff;
+  border-color: #9c7424;
+  box-shadow: 0 6px 18px rgba(183, 137, 47, 0.32);
+  letter-spacing: 0.01em;
+}
+.btn-brass:not(:disabled):hover {
+  background: linear-gradient(180deg, #cc9c34 0%, #b7892f 100%);
+  box-shadow: 0 10px 26px rgba(183, 137, 47, 0.42);
+  transform: translateY(-1px);
+}
 
 /* ---------------------------------------------------------------- inputs */
 input:focus, select:focus, textarea:focus { outline: none; }
@@ -140,12 +157,39 @@ input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
 
 /* ---------------------------------------------------------------- section rule */
-/* Thin navy tab replaces the old gradient pill */
+/* Thin tab: brass cap over navy — ties the gold signature into every section */
 .section-rule {
   width: 3px;
-  height: 1.1rem;
+  height: 1.15rem;
   border-radius: 2px;
-  background: var(--navy);
+  background: linear-gradient(180deg, var(--brass) 0%, var(--brass) 38%, var(--navy) 38%, var(--navy) 100%);
+}
+
+/* ---------------------------------------------------------------- hero band */
+/* The headline-result band — dark navy with a brass hairline and deep shadow */
+.hero {
+  position: relative;
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(183,137,47,0.14) 0%, rgba(183,137,47,0) 42%),
+    linear-gradient(135deg, #1c3a63 0%, #142943 38%, #0e1d31 100%);
+  background-color: #0e1d31;
+  color: #fff;
+  box-shadow: 0 18px 48px rgba(14, 29, 49, 0.28);
+  overflow: hidden;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brass) 0%, var(--brass-light) 45%, transparent 80%);
+}
+.hero-figure {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1;
 }
 
 /* Header */

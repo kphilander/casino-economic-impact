@@ -36,6 +36,7 @@ import Toolbar from './components/dashboard/Toolbar';
 import ProjectsDrawer from './components/dashboard/ProjectsDrawer';
 import ScenarioCompare from './components/dashboard/ScenarioCompare';
 import SensitivityPanel from './components/dashboard/SensitivityPanel';
+import HeroSummary from './components/dashboard/HeroSummary';
 import {
   buildAnalysis, applyAnalysis, buildShareURL, readAnalysisFromURL, clearURLParam,
   loadProjects, saveProject as saveProjectStore, deleteProject as deleteProjectStore,
@@ -434,24 +435,16 @@ function DownloadPPTXButton({ onClick, isGenerating }) {
     <button
       onClick={onClick}
       disabled={isGenerating}
-      className={`
-        flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold
-        transition-all duration-200 shadow-lg
-        ${isGenerating
-          ? 'bg-gray-400 cursor-not-allowed'
-          : 'bg-primary hover:bg-primary-dark hover:shadow-xl hover:-translate-y-0.5'
-        }
-        text-white
-      `}
+      className={`btn w-full py-3.5 px-4 text-[15px] ${isGenerating ? 'btn-secondary' : 'btn-brass'}`}
     >
       {isGenerating ? (
         <>
-          <Loader2 size={20} className="animate-spin" />
-          Generating PPTX...
+          <Loader2 size={18} className="animate-spin" />
+          Generating PPTX…
         </>
       ) : (
         <>
-          <Presentation size={20} />
+          <Presentation size={18} />
           Download PPTX Report
         </>
       )}
@@ -2321,10 +2314,10 @@ More information about Dr. Philander is available at kahlil.co.`,
                 <div className="space-y-2">
                   <button
                     onClick={() => setShowPremiumModal(true)}
-                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold bg-primary hover:bg-primary-dark text-white shadow-lg hover:shadow-xl transition-all"
+                    className="btn btn-brass w-full py-3.5 px-4 text-[15px]"
                   >
-                    <Lock size={20} />
-                    Download PPTX (Pro Feature)
+                    <Lock size={18} />
+                    Download PPTX Report
                   </button>
                   <button
                     onClick={handleDownloadSampleReport}
@@ -2676,41 +2669,14 @@ More information about Dr. Philander is available at kahlil.co.`,
                   </div>
                 )}
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up">
-                  <DashboardMetricCard
-                    icon={TrendingUp}
-                    label="Total Output"
-                    rawValue={results.totals.output.total}
-                    formatter={formatCurrency}
-                    subtext={`${formatNumber(results.multipliers.output, 2)}x multiplier`}
-                    color="primary"
-                  />
-                  <DashboardMetricCard
-                    icon={DollarSign}
-                    label="Total GDP"
-                    rawValue={results.totals.gdp.total}
-                    formatter={formatCurrency}
-                    subtext={`${formatNumber(results.multipliers.gdp, 2)}x multiplier`}
-                    color="success"
-                  />
-                  <DashboardMetricCard
-                    icon={Users}
-                    label="Total Jobs"
-                    rawValue={results.totals.employment.total}
-                    formatter={(v) => formatJobs(v)}
-                    subtext={`${formatNumber(results.multipliers.employment, 2)}x multiplier`}
-                    color="purple"
-                  />
-                  <DashboardMetricCard
-                    icon={Building2}
-                    label="Total Wages"
-                    rawValue={results.totals.wages.total}
-                    formatter={formatCurrency}
-                    subtext={`${formatNumber(results.multipliers.wages, 2)}x multiplier`}
-                    color="amber"
-                  />
-                </div>
+                {/* Headline result band */}
+                <HeroSummary
+                  results={results}
+                  state={state}
+                  casinoName={casinoName}
+                  propertyTypeLabel={PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label}
+                  isOnline={isOnline}
+                />
 
                 {/* Economic Impact Flow (Sankey) */}
                 <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '50ms' }}>

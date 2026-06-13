@@ -8,7 +8,7 @@ import { BRAND, PRODUCT_NAME_VERSIONED } from '../brand';
 function PageHeader({ children }) {
   return (
     <div className="page-header no-print">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-1.5">

@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
-import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown } from 'lucide-react';
+import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, MessageCircle, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown, SlidersHorizontal } from 'lucide-react';
 import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
@@ -37,6 +37,7 @@ import ProjectsDrawer from './components/dashboard/ProjectsDrawer';
 import ScenarioCompare from './components/dashboard/ScenarioCompare';
 import SensitivityPanel from './components/dashboard/SensitivityPanel';
 import HeroSummary from './components/dashboard/HeroSummary';
+import ControlBar from './components/dashboard/ControlBar';
 import {
   buildAnalysis, applyAnalysis, buildShareURL, readAnalysisFromURL, clearURLParam,
   loadProjects, saveProject as saveProjectStore, deleteProject as deleteProjectStore,
@@ -576,9 +577,10 @@ function buildTaxConfig(taxInfo, customRate, slotRevenuePct, propertyType = null
 
 // Main App Component
 export default function App() {
-  // Wizard state
+  // Wizard state (the standalone wizard is retired; the report canvas is the
+  // single surface, so the app always renders "complete").
   const [wizardStep, setWizardStep] = useState(0);
-  const [wizardComplete, setWizardComplete] = useState(false);
+  const [wizardComplete, setWizardComplete] = useState(true);
 
   // Input state
   const [state, setState] = useState('Nevada');
@@ -639,6 +641,7 @@ export default function App() {
   const [compareActive, setCompareActive] = useState(false);
   const [scenarios, setScenarios] = useState([]);
   const [showSensitivity, setShowSensitivity] = useState(false);
+  const [inputsOpen, setInputsOpen] = useState(false);
 
   // Check for saved license on mount and handle Stripe redirect
   useEffect(() => {
@@ -1163,10 +1166,9 @@ More information about Dr. Philander is available at kahlil.co.`,
     }
   };
 
-  // Reset wizard and start over
+  // Reset all inputs to defaults (stays on the report canvas)
   const handleStartOver = () => {
-    setWizardComplete(false);
-    setWizardStep(0);
+    setInputsOpen(false);
     setState('Nevada');
     setCasinoName('');
     setPropertyType('721120');
@@ -1246,744 +1248,6 @@ More information about Dr. Philander is available at kahlil.co.`,
     setCompareActive(a => !a);
   };
 
-  // ============================================================
-  // WIZARD VIEW
-  // ============================================================
-  if (!wizardComplete) {
-    const totalSteps = 5;
-
-    // Step 1: State Selection, Property Type, and Casino Name
-    if (wizardStep === 0) {
-      const selectedPropertyType = PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType);
-
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-paper">
-            <WizardStep
-              stepNum={1}
-          totalSteps={totalSteps}
-          title="Tell us about your project"
-          subtitle="Select the state, type of gaming operation, and name your project."
-          onNext={() => setWizardStep(1)}
-          showBack={false}
-          canProceed={!!state && !!propertyType && !!casinoName?.trim()}
-        >
-          <div className="space-y-4">
-            <SelectField
-              label="State"
-              value={state}
-              onChange={setState}
-              options={stateOptions}
-            />
-            <div className="space-y-1">
-              <label htmlFor="property-type" className="block text-sm font-medium text-gray-700">Type of Gaming Operation</label>
-              <select
-                id="property-type"
-                value={propertyType}
-                onChange={(e) => setPropertyType(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
-              >
-                <option value="">Select property type...</option>
-                <optgroup label="Land-Based">
-                  {PROPERTY_TYPE_OPTIONS.filter(p => p.category === 'land').map(p => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Online">
-                  {PROPERTY_TYPE_OPTIONS.filter(p => p.category === 'online').map(p => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </optgroup>
-              </select>
-              <p className="text-xs text-gray-600">{selectedPropertyType?.description || 'Select the type of gaming establishment for more accurate multipliers'}</p>
-            </div>
-            <InputField
-              label={isOnlinePropertyType(propertyType) ? "Operator or Project Name" : "Casino or Project Name"}
-              value={casinoName}
-              onChange={setCasinoName}
-              placeholder={isOnlinePropertyType(propertyType) ? "e.g., DraftKings, FanDuel, Proposed iGaming Platform" : "e.g., Bellagio, Proposed Downtown Casino"}
-              type="text"
-              helpText="This will appear on your report. You can change it anytime before downloading."
-            />
-          </div>
-        </WizardStep>
-          </div>
-        </>
-      );
-    }
-
-    // Step 2: Revenue Input Mode and Revenue Entry
-    if (wizardStep === 1) {
-      // Determine if we can skip the "other revenue" step
-      const canProceedToNextStep = isOnline
-        ? (revenues.gaming > 0 || revenues.total > 0)
-        : inputMode === 'total'
-          ? revenues.total > 0
-          : revenues.gaming > 0;
-
-      // For total mode or online types, skip step 3 (other revenue) and go to step 4 (known data)
-      // Online operators have a single revenue stream (GGR); there are no "other revenue streams"
-      const handleNextStep = () => {
-        if (isOnline || inputMode === 'total') {
-          setWizardStep(3); // Skip to known data step
-        } else {
-          setWizardStep(2); // Go to other revenue step
-        }
-      };
-
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-paper">
-            <WizardStep
-              stepNum={2}
-              totalSteps={totalSteps}
-              title={isOnline ? "Enter gross gaming revenue" : "How would you like to enter revenue?"}
-              subtitle={isOnline
-                ? "Enter the total GGR for this online operation. Marketing, tech, and other costs are expenses funded by GGR — not separate revenue streams."
-                : "Choose whether to enter total property revenue or break it down by department."}
-              onBack={() => setWizardStep(0)}
-              onNext={handleNextStep}
-              canProceed={canProceedToNextStep}
-            >
-              <div className="space-y-6">
-                {isOnline ? (
-                  /* Online: single GGR input, no department toggle */
-                  <div className="animate-fade-in">
-                    <InputField
-                      label={propertyType === 'ONLINE_SPORTSBOOK' ? 'Gross Betting Revenue' : 'Gross Gaming Revenue (GGR)'}
-                      value={revenues.gaming || revenues.total}
-                      onChange={(val) => setRevenues({ ...revenues, gaming: val, total: val })}
-                      placeholder="100"
-                      prefix="$"
-                      suffix="M"
-                      helpText={`Total gross ${propertyType === 'ONLINE_SPORTSBOOK' ? 'betting' : 'gaming'} revenue — the single revenue stream for the online operation`}
-                    />
-                    <p className="mt-3 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
-                      <strong>Important:</strong> Employment, wages, and supply chain effects apply to the state where the operator's workforce is located — not necessarily where bettors are.
-                      If the operator is headquartered elsewhere, most economic impact (except gaming tax) occurs in that state.
-                      Enter actual in-state employment and wage data in the next step for the most accurate results.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Land-based: Input Mode Toggle */}
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => {
-                          setInputMode('total');
-                          setRevenues({ ...revenues, gaming: null, food: null, lodging: null, other: null, total: revenues.total || 100 });
-                        }}
-                        className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                          inputMode === 'total'
-                        ? 'border-accent bg-accent-soft text-primary'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="font-medium">Total Property Revenue</div>
-                    <div className="text-xs text-gray-500 mt-1">Enter one combined number</div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setInputMode('department');
-                      setRevenues({ ...revenues, total: null, gaming: revenues.gaming || 100 });
-                    }}
-                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                      inputMode === 'department'
-                        ? 'border-accent bg-accent-soft text-primary'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="font-medium">By Department</div>
-                    <div className="text-xs text-gray-500 mt-1">Gaming, F&B, lodging separately</div>
-                  </button>
-                </div>
-
-                {/* Revenue Input based on mode */}
-                {inputMode === 'total' ? (
-                  <div className="animate-fade-in">
-                    <InputField
-                      label="Total Property Revenue"
-                      value={revenues.total}
-                      onChange={(val) => setRevenues({ ...revenues, total: val })}
-                      placeholder="100"
-                      prefix="$"
-                      suffix="M"
-                      helpText={`All revenue from the ${PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || 'property'} will use integrated multipliers`}
-                    />
-                    <p className="mt-3 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                      <strong>Note:</strong> Total mode applies {propertyType === '721120' ? 'accommodation (hotel)' : 'property-specific'} multipliers to the entire revenue.
-                      Use "By Department" if you want gaming revenue analyzed separately with gambling-specific multipliers.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="animate-fade-in">
-                    <InputField
-                      label="Gaming Revenue (GGR)"
-                      value={revenues.gaming}
-                      onChange={(val) => setRevenues({ ...revenues, gaming: val })}
-                      placeholder="100"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Enter gross gaming revenue (win) in millions. Gaming-specific multipliers will be applied."
-                    />
-                  </div>
-                )}
-                  </>
-                )}
-              </div>
-            </WizardStep>
-          </div>
-        </>
-      );
-    }
-
-    // Step 3: Other Revenue Streams
-    if (wizardStep === 2) {
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-paper">
-            <WizardStep
-              stepNum={3}
-              totalSteps={totalSteps}
-              title={isOnline ? "Do you have other operational revenue?" : "Do you have other revenue streams?"}
-              subtitle={isOnline
-                ? "Include marketing/advertising, technology infrastructure, or other operational costs treated as separate revenue streams."
-                : "Include food & beverage, lodging, or other entertainment revenue if applicable."}
-              onBack={() => setWizardStep(1)}
-              onNext={() => setWizardStep(3)}
-            >
-          <div className="space-y-4">
-            <div className="flex gap-4 mb-6">
-              <button
-                onClick={() => setHasOtherRevenue(true)}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  hasOtherRevenue
-                    ? 'border-accent bg-accent-soft text-primary'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                Yes, add more
-              </button>
-              <button
-                onClick={() => {
-                  setHasOtherRevenue(false);
-                  setRevenues(isOnline
-                    ? { ...revenues, marketing: null, tech: null, other: null }
-                    : { ...revenues, food: null, lodging: null, other: null });
-                }}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  !hasOtherRevenue
-                    ? 'border-accent bg-accent-soft text-primary'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                {isOnline ? 'No, just GGR' : 'No, just gaming'}
-              </button>
-            </div>
-
-            {hasOtherRevenue && (
-              <div className="space-y-4 animate-fade-in">
-                {isOnline ? (
-                  <>
-                    <InputField
-                      label="Marketing & Advertising"
-                      value={revenues.marketing}
-                      onChange={(val) => setRevenues({ ...revenues, marketing: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional — promotional spending, customer acquisition costs"
-                    />
-                    <InputField
-                      label="Technology Infrastructure"
-                      value={revenues.tech}
-                      onChange={(val) => setRevenues({ ...revenues, tech: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional — platform, servers, payment processing"
-                    />
-                    <InputField
-                      label="Other Operational Revenue"
-                      value={revenues.other}
-                      onChange={(val) => setRevenues({ ...revenues, other: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <InputField
-                      label="Food & Beverage Revenue"
-                      value={revenues.food}
-                      onChange={(val) => setRevenues({ ...revenues, food: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional"
-                    />
-                    <InputField
-                      label="Lodging Revenue"
-                      value={revenues.lodging}
-                      onChange={(val) => setRevenues({ ...revenues, lodging: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional"
-                    />
-                    <InputField
-                      label="Other Entertainment Revenue"
-                      value={revenues.other}
-                      onChange={(val) => setRevenues({ ...revenues, other: val })}
-                      placeholder="0"
-                      prefix="$"
-                      suffix="M"
-                      helpText="Optional"
-                    />
-                  </>
-                )}
-              </div>
-            )}
-              </div>
-            </WizardStep>
-          </div>
-        </>
-      );
-    }
-
-    // Step 4: Known Property Data
-    if (wizardStep === 3) {
-      // Handle back navigation: skip step 3 if in total mode
-      const handleBackStep = () => {
-        if (inputMode === 'total') {
-          setWizardStep(1); // Go back to revenue input (skip other revenue step)
-        } else {
-          setWizardStep(2); // Go back to other revenue step
-        }
-      };
-
-      // Helper to update known data for a specific department
-      const updateKnownData = (dept, field, value) => {
-        setKnownData(prev => ({
-          ...prev,
-          [dept]: { ...prev[dept], [field]: value }
-        }));
-      };
-
-      // Clear all known data
-      const clearKnownData = () => {
-        if (isOnline) {
-          setKnownData({
-            gaming: { emp: null, wages: null },
-            marketing: { emp: null, wages: null },
-            tech: { emp: null, wages: null },
-            other: { emp: null, wages: null }
-          });
-        } else {
-          setKnownData({
-            gaming: { emp: null, wages: null },
-            food: { emp: null, wages: null },
-            lodging: { emp: null, wages: null },
-            other: { emp: null, wages: null }
-          });
-        }
-      };
-
-      // Determine which departments have revenue (for showing known data inputs)
-      const activeDepartments = inputMode === 'total'
-        ? [{ key: 'total', label: isOnline ? 'Operation Total' : 'Property Total' }]
-        : isOnline
-          ? [
-              { key: 'gaming', label: propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting' : 'Online Gaming', revenue: revenues.gaming },
-              { key: 'marketing', label: 'Marketing & Advertising', revenue: revenues.marketing },
-              { key: 'tech', label: 'Technology Infrastructure', revenue: revenues.tech },
-              { key: 'other', label: 'Other', revenue: revenues.other }
-            ].filter(d => d.revenue && d.revenue > 0)
-          : [
-              { key: 'gaming', label: 'Gaming', revenue: revenues.gaming },
-              { key: 'food', label: 'Food & Beverage', revenue: revenues.food },
-              { key: 'lodging', label: 'Lodging', revenue: revenues.lodging },
-              { key: 'other', label: 'Other', revenue: revenues.other }
-            ].filter(d => d.revenue && d.revenue > 0);
-
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-paper">
-            <WizardStep
-              stepNum={inputMode === 'total' ? 3 : 4}
-              totalSteps={totalSteps}
-              title={isOnline ? "Do you have known operational data?" : "Do you have known property data?"}
-              subtitle={isOnline
-                ? "If you know actual employment or wages for the online operation, enter them for more accurate direct effects."
-                : "If you know the actual direct employment or wages, you can enter them for more accurate results."}
-              onBack={handleBackStep}
-              onNext={() => setWizardStep(4)}
-            >
-          <div className="space-y-4">
-            <div className="flex gap-4 mb-6">
-              <button
-                onClick={() => setHasKnownData(true)}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  hasKnownData
-                    ? 'border-accent bg-accent-soft text-primary'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                Yes, I have data
-              </button>
-              <button
-                onClick={() => {
-                  setHasKnownData(false);
-                  clearKnownData();
-                }}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                  !hasKnownData
-                    ? 'border-accent bg-accent-soft text-primary'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                No, calculate for me
-              </button>
-            </div>
-
-            {hasKnownData && (
-              <div className="space-y-6 animate-fade-in">
-                {inputMode === 'total' ? (
-                  // Total mode: single set of inputs
-                  <div className="space-y-4">
-                    <InputField
-                      label="Direct Employment (FTEs)"
-                      value={knownData.gaming?.emp}
-                      onChange={(v) => updateKnownData('gaming', 'emp', v)}
-                      placeholder="e.g., 500"
-                      helpText={isOnline ? "Full-time equivalent employees in the operation" : "Full-time equivalent employees at the property"}
-                    />
-                    <InputField
-                      label="Direct Wages"
-                      value={knownData.gaming?.wages}
-                      onChange={(v) => updateKnownData('gaming', 'wages', v)}
-                      placeholder="e.g., 25"
-                      prefix="$"
-                      suffix="M"
-                      helpText={isOnline ? "Total direct wages in millions (recommended — online wage estimates are approximate)" : "Total direct wages in millions"}
-                    />
-                  </div>
-                ) : (
-                  // Department mode: inputs for each revenue stream
-                  activeDepartments.map(({ key, label }) => (
-                    <div key={key} className="border border-gray-200 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-700 mb-3">{label}</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField
-                          label="FTEs"
-                          value={knownData[key]?.emp}
-                          onChange={(v) => updateKnownData(key, 'emp', v)}
-                          placeholder="FTEs"
-                          helpText="Full-time equivalents"
-                        />
-                        <InputField
-                          label="Wages"
-                          value={knownData[key]?.wages}
-                          onChange={(v) => updateKnownData(key, 'wages', v)}
-                          placeholder="$M"
-                          prefix="$"
-                          suffix="M"
-                          helpText="Optional"
-                        />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-              </div>
-            </WizardStep>
-          </div>
-        </>
-      );
-    }
-
-    // Step 5: Gaming Tax Rate Confirmation
-    if (wizardStep === 4) {
-      const taxInfo = gamingTaxRatesData.rates[state];
-      // For online types, check if the state has legalized the specific online vertical
-      const hasGaming = isOnline
-        ? (propertyType === 'ONLINE_CASINO' ? taxInfo?.hasIGaming : taxInfo?.hasSportsBetting)
-        : (taxInfo && taxInfo.hasCommercial);
-      // For online, use the sub-config (iGaming or sportsBetting) as the display tax info
-      const displayTaxInfo = isOnline
-        ? (propertyType === 'ONLINE_CASINO' ? taxInfo?.iGaming : taxInfo?.sportsBetting)
-        : taxInfo;
-      const ggr = inputMode === 'total' ? (revenues.total || 0) : (revenues.gaming || 0);
-
-      // Compute the tax that would apply with current settings
-      const computePreviewTax = () => {
-        if ((!hasGaming && (gamingTaxCustomRate == null || gamingTaxCustomRate === '')) || ggr <= 0) return { amount: 0, effectiveRate: 0 };
-        const config = buildTaxConfig(taxInfo, gamingTaxCustomRate, slotRevenuePct);
-        const amount = calculateGamingTax(ggr, config);
-        return { amount, effectiveRate: ggr > 0 ? amount / ggr : 0 };
-      };
-      const preview = computePreviewTax();
-
-      return (
-        <>
-          <PageHeader />
-          <div className="min-h-screen bg-paper">
-            <WizardStep
-              stepNum={inputMode === 'total' ? 4 : 5}
-              totalSteps={totalSteps}
-              title={isOnline
-                ? (propertyType === 'ONLINE_CASINO' ? 'Confirm iGaming Tax Rate' : 'Confirm Sports Betting Tax Rate')
-                : 'Confirm Gaming Tax Rate'}
-              subtitle={hasGaming
-                ? `Review the ${isOnline ? (propertyType === 'ONLINE_CASINO' ? 'iGaming' : 'sports betting') : 'gaming'} tax rate for ${state}. You can adjust or override it below.`
-                : isOnline
-                  ? `${state} has not yet authorized ${propertyType === 'ONLINE_CASINO' ? 'iGaming' : 'online sports betting'}. You can enter a custom rate for hypothetical analysis.`
-                  : `${state} does not have commercial casino gaming. You can enter a custom rate if applicable.`}
-              onBack={() => setWizardStep(3)}
-              onNext={() => setWizardComplete(true)}
-              nextLabel="Calculate Impact"
-            >
-              <div className="space-y-6">
-                {hasGaming ? (
-                  <>
-                    {/* State rate summary */}
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-gray-900">{state} {isOnline ? (propertyType === 'ONLINE_CASINO' ? 'iGaming' : 'Sports Betting') : 'Gaming'} Tax</h4>
-                        <span className="text-sm text-gray-500">Source: {(displayTaxInfo || taxInfo)?.sourceYear || '2024'}</span>
-                      </div>
-
-                      {isOnline && displayTaxInfo ? (
-                        /* Online: show the sub-config rate info */
-                        <div>
-                          <p className="text-gray-700">
-                            <span className="text-2xl font-bold text-primary">
-                              {formatNumber((displayTaxInfo.flatRate || displayTaxInfo.effectiveRate || 0) * 100, 2)}%
-                            </span>
-                            <span className="text-sm ml-2">on {propertyType === 'ONLINE_CASINO' ? 'iGaming GGR' : 'gross betting revenue'}</span>
-                          </p>
-                          {displayTaxInfo.description && (
-                            <p className="text-xs text-gray-500 mt-2">{displayTaxInfo.description}</p>
-                          )}
-                        </div>
-                      ) : taxInfo.rateStructure === 'flat' ? (
-                        <p className="text-gray-700">
-                          <span className="text-2xl font-bold text-primary">
-                            {formatNumber((taxInfo.flatRate || taxInfo.effectiveRate) * 100, 2)}%
-                          </span>
-                          <span className="text-sm ml-2">flat rate on GGR</span>
-                        </p>
-                      ) : null}
-
-                      {taxInfo.rateStructure === 'tiered' && taxInfo.tiers && (
-                        <div>
-                          <p className="text-sm text-gray-600 mb-2">Graduated tax brackets:</p>
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-blue-200">
-                                <th className="text-left py-1 text-gray-600">GGR Range</th>
-                                <th className="text-right py-1 text-gray-600">Rate</th>
-                                {ggr > 0 && <th className="text-right py-1 text-gray-600">Tax in Bracket</th>}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {taxInfo.tiers.map((tier, i) => {
-                                const nextThreshold = i < taxInfo.tiers.length - 1 ? taxInfo.tiers[i + 1].threshold : Infinity;
-                                const isActive = ggr > tier.threshold;
-                                const taxableInTier = isActive ? Math.min(ggr, nextThreshold) - tier.threshold : 0;
-                                const tierTax = taxableInTier * tier.rate;
-                                return (
-                                  <tr key={i} className={`border-b border-blue-100 ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                                    <td className="py-1">
-                                      ${formatNumber(tier.threshold, 0)}M
-                                      {nextThreshold < Infinity ? ` – $${formatNumber(nextThreshold, 0)}M` : '+'}
-                                    </td>
-                                    <td className="text-right py-1 font-medium">{formatNumber(tier.rate * 100, 1)}%</td>
-                                    {ggr > 0 && (
-                                      <td className="text-right py-1">
-                                        {isActive ? `$${formatNumber(tierTax, 2)}M` : '-'}
-                                      </td>
-                                    )}
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {taxInfo.rateStructure === 'split_tiered' && taxInfo.slotTiers && taxInfo.tableTiers && (
-                        <div>
-                          <p className="text-sm text-gray-600 mb-2">Separate graduated brackets for slots and table games:</p>
-                          {[{ label: 'Slot Machines', tiers: taxInfo.slotTiers, revShare: ggr * (slotRevenuePct / 100) },
-                            { label: 'Table Games', tiers: taxInfo.tableTiers, revShare: ggr * (1 - slotRevenuePct / 100) }
-                          ].map(({ label: gameLabel, tiers: gameTiers, revShare }) => (
-                            <div key={gameLabel} className="mb-3">
-                              <p className="text-xs font-semibold text-gray-700 mb-1">{gameLabel}</p>
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr className="border-b border-blue-200">
-                                    <th className="text-left py-1 text-gray-600">GGR Range</th>
-                                    <th className="text-right py-1 text-gray-600">Rate</th>
-                                    {ggr > 0 && <th className="text-right py-1 text-gray-600">Tax</th>}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {gameTiers.map((tier, i) => {
-                                    const nextThreshold = i < gameTiers.length - 1 ? gameTiers[i + 1].threshold : Infinity;
-                                    const isActive = revShare > tier.threshold;
-                                    const taxableInTier = isActive ? Math.min(revShare, nextThreshold) - tier.threshold : 0;
-                                    const tierTax = taxableInTier * tier.rate;
-                                    return (
-                                      <tr key={i} className={`border-b border-blue-100 ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                                        <td className="py-1">
-                                          ${formatNumber(tier.threshold, 0)}M
-                                          {nextThreshold < Infinity ? ` – $${formatNumber(nextThreshold, 0)}M` : '+'}
-                                        </td>
-                                        <td className="text-right py-1 font-medium">{formatNumber(tier.rate * 100, 1)}%</td>
-                                        {ggr > 0 && (
-                                          <td className="text-right py-1">
-                                            {isActive ? `$${formatNumber(tierTax, 2)}M` : '-'}
-                                          </td>
-                                        )}
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {taxInfo.rateStructure === 'split_game_type' && taxInfo.slotsRate != null && taxInfo.tableRate != null && (
-                        <div>
-                          <p className="text-gray-700 mb-2">
-                            <span className="font-bold text-primary">{formatNumber(taxInfo.slotsRate * 100, 0)}%</span> slots
-                            {' / '}
-                            <span className="font-bold text-primary">{formatNumber(taxInfo.tableRate * 100, 0)}%</span> table games
-                          </p>
-                        </div>
-                      )}
-
-                      {taxInfo.rateStructure === 'tribal_compact' && (
-                        <p className="text-gray-700">
-                          Tribal compact state — rates vary by tribe.
-                          <span className="block text-sm text-gray-500 mt-1">
-                            Estimated effective rate: {formatNumber((taxInfo.effectiveRate || 0) * 100, 1)}%
-                          </span>
-                        </p>
-                      )}
-
-                      {taxInfo.rateStructure === 'state_operated' && (
-                        <p className="text-gray-700">
-                          State-operated gaming — the state retains a share of revenue.
-                          <span className="block text-sm text-gray-500 mt-1">
-                            Effective state share: {formatNumber((taxInfo.effectiveRate || 0) * 100, 1)}%
-                          </span>
-                        </p>
-                      )}
-
-                      {(taxInfo.rateStructure === 'split_by_license' || taxInfo.rateStructure === 'split_by_facility') && (
-                        <p className="text-gray-700">
-                          Rates vary by {taxInfo.rateStructure === 'split_by_license' ? 'license category' : 'facility'}.
-                          <span className="block text-sm text-gray-500 mt-1">
-                            Estimated effective rate: {formatNumber((taxInfo.effectiveRate || 0) * 100, 1)}%
-                          </span>
-                        </p>
-                      )}
-
-                      {taxInfo.description && (
-                        <p className="text-xs text-gray-500 mt-2">{taxInfo.description}</p>
-                      )}
-                    </div>
-
-                    {/* Slot/table split slider - shown for split_game_type, split_tiered, or legacy slotTableSplit (not for online types) */}
-                    {!isOnline && (taxInfo.rateStructure === 'split_game_type' || taxInfo.rateStructure === 'split_tiered' || taxInfo.slotTableSplit) && !(gamingTaxCustomRate != null && gamingTaxCustomRate !== '') && (
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Slot Revenue Share: {slotRevenuePct}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={slotRevenuePct}
-                          onChange={(e) => setSlotRevenuePct(parseInt(e.target.value))}
-                          className="w-full accent-[#1a365d]"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>All Tables</span>
-                          <span className="font-medium text-primary">
-                            Effective: {formatNumber(preview.effectiveRate * 100, 1)}%
-                          </span>
-                          <span>All Slots</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Local tax notes */}
-                    {taxInfo.localTaxNotes && (
-                      <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
-                        <p className="text-xs text-amber-800">
-                          <span className="font-semibold">Local taxes:</span> {taxInfo.localTaxNotes}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <p className="text-gray-600">
-                      {isOnline
-                        ? `${state} has not yet authorized ${propertyType === 'ONLINE_CASINO' ? 'iGaming' : 'online sports betting'}. Enter a custom rate below for a hypothetical analysis.`
-                        : taxInfo?.hasTribal
-                          ? `${state} has tribal gaming but no commercial casino GGR tax. Enter a custom rate below if you have a specific compact rate.`
-                          : `${state} does not currently have legal casino gaming. Enter a custom rate below for a hypothetical analysis.`}
-                    </p>
-                  </div>
-                )}
-
-                {/* Custom rate override */}
-                <div className="border-t border-gray-200 pt-4">
-                  <InputField
-                    label="Custom Tax Rate Override (%)"
-                    value={gamingTaxCustomRate != null && gamingTaxCustomRate !== '' ? gamingTaxCustomRate * 100 : null}
-                    onChange={(v) => setGamingTaxCustomRate(v != null && v !== '' ? v / 100 : null)}
-                    placeholder="Leave blank to use the state rate above"
-                    helpText="Override with a custom percentage (e.g., for tribal compacts, local adjustments, or proposed rates)"
-                    id="wizard-custom-tax-rate"
-                  />
-                </div>
-
-                {/* Preview */}
-                {ggr > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">Estimated gaming tax on ${formatNumber(ggr, 1)}M GGR:</p>
-                        <p className="text-xl font-bold text-primary">${formatNumber(preview.amount, 2)}M</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">Effective rate:</p>
-                        <p className="text-xl font-bold text-primary">{formatNumber(preview.effectiveRate * 100, 2)}%</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </WizardStep>
-          </div>
-        </>
-      );
-    }
-  }
 
   // ============================================================
   // DASHBOARD VIEW (after wizard completion)
@@ -1991,6 +1255,31 @@ More information about Dr. Philander is available at kahlil.co.`,
   return (
     <>
       <PageHeader />
+
+      {/* Sticky control bar — high-frequency input levers */}
+      <ControlBar
+        stateValue={state}
+        setState={setState}
+        stateOptions={stateOptions}
+        propertyType={propertyType}
+        setPropertyType={setPropertyType}
+        propertyOptions={PROPERTY_TYPE_OPTIONS.filter(p => p.value).map(p => ({ value: p.value, label: p.label }))}
+        casinoName={casinoName}
+        setCasinoName={setCasinoName}
+        revenueLabel={isOnline ? 'GGR' : inputMode === 'total' ? 'Total Rev.' : 'Gaming Rev.'}
+        revenueValue={inputMode === 'total' ? revenues.total : revenues.gaming}
+        onRevenueChange={(v) => setRevenues(prev => inputMode === 'total'
+          ? { ...prev, total: v }
+          : { ...prev, gaming: v, ...(isOnline ? { total: v } : {}) })}
+        taxValue={(gamingTaxCustomRate != null && gamingTaxCustomRate !== '') ? gamingTaxCustomRate * 100 : null}
+        onTaxChange={(v) => setGamingTaxCustomRate(v != null && v !== '' ? v / 100 : null)}
+        taxPlaceholder="State rate"
+        onEditInputs={() => setInputsOpen(true)}
+        onDownload={() => (userTier === 'pro' ? handleDownloadPPTX() : setShowPremiumModal(true))}
+        downloadLabel="Download PPTX"
+        downloading={isGeneratingPPTX}
+      />
+
       <div className="min-h-screen bg-paper py-8 px-4 sm:px-6 lg:px-8">
       {/* Watermark for free tier */}
       <WatermarkOverlay show={userTier === 'free'} />
@@ -2115,16 +1404,16 @@ More information about Dr. Philander is available at kahlil.co.`,
         Skip to main content
       </a>
 
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <header role="banner" className="text-center mb-10">
+      <div className="max-w-5xl mx-auto">
+        {/* Reset */}
+        <div className="flex justify-end mb-3 no-print">
           <button
             onClick={handleStartOver}
-            className="text-sm text-accent hover:text-primary font-medium"
+            className="text-xs text-text-muted hover:text-primary font-medium"
           >
-            ← Start New Analysis
+            Reset to defaults
           </button>
-        </header>
+        </div>
 
         {/* Action toolbar: save / open / share / export / compare */}
         <Toolbar
@@ -2300,9 +1589,17 @@ More information about Dr. Philander is available at kahlil.co.`,
           </div>
         )}
 
-        <main id="main-content" role="main" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Input Panel */}
-          <aside className="lg:col-span-1 space-y-6" aria-label="Input parameters">
+        <main id="main-content" role="main" className="max-w-5xl mx-auto">
+          {/* Inputs slide-over — full input set; key levers live in the control bar */}
+          {inputsOpen && (
+          <div className="fixed inset-0 z-[65] no-print" role="dialog" aria-label="Inputs">
+            <div className="absolute inset-0 modal-backdrop" onClick={() => setInputsOpen(false)} />
+            <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-pop flex flex-col animate-fade-in">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-hairline flex-shrink-0">
+                <h2 className="font-display text-lg font-semibold text-ink flex items-center gap-2"><SlidersHorizontal size={18} className="text-accent" />Inputs</h2>
+                <button onClick={() => setInputsOpen(false)} className="text-text-muted hover:text-ink" aria-label="Close inputs"><X size={20} /></button>
+              </div>
+          <aside className="flex-1 overflow-y-auto p-4 space-y-6" aria-label="Input parameters">
             {/* Report Download Button */}
             {results && (
               userTier === 'pro' ? (
@@ -2637,9 +1934,12 @@ More information about Dr. Philander is available at kahlil.co.`,
             </div>
 
           </aside>
+            </div>
+          </div>
+          )}
 
-          {/* Results Panel */}
-          <section className={`lg:col-span-2 space-y-6 ${userTier === 'free' ? 'protected-content' : ''}`} aria-label="Analysis results">
+          {/* Report canvas */}
+          <section className={`space-y-6 ${userTier === 'free' ? 'protected-content' : ''}`} aria-label="Analysis results">
             {results ? (
               <>
                 {/* Online methodology banner */}

@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { Save, FolderOpen, Share2, Download, Printer, FileSpreadsheet, GitCompare, Check, X } from 'lucide-react';
+import { Save, FolderOpen, Share2, Download, Printer, FileSpreadsheet, FileText, Presentation, GitCompare, Check, X } from 'lucide-react';
 import Button from '../ui/Button';
 
 /**
  * Dashboard action bar: save/open named projects, copy a shareable link,
- * export (CSV / print-to-PDF), and toggle scenario comparison. PPTX export
- * stays in the results sidebar (it is license-gated).
+ * export (Word report / PPTX deck / CSV / print-to-PDF), and toggle scenario
+ * comparison. The Word and PPTX reports are license-gated (Pro) — the parent
+ * handles the paywall when those callbacks fire.
  */
 export default function Toolbar({
   disabled, defaultName, projectCount,
   onSaveProject, onCopyShare, shareCopied,
-  onOpenProjects, onExportCSV, onPrint,
+  onOpenProjects, onExportCSV, onPrint, onExportWord, onExportPPTX,
+  generatingWord, generatingPPTX,
   compareActive, onToggleCompare, canCompare,
 }) {
   const [saving, setSaving] = useState(false);
@@ -50,7 +52,21 @@ export default function Toolbar({
             {exportOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setExportOpen(false)} />
-                <div className="absolute left-0 mt-1.5 z-20 w-52 bg-white border border-hairline rounded-xl shadow-pop py-1.5">
+                <div className="absolute left-0 mt-1.5 z-20 w-60 bg-white border border-hairline rounded-xl shadow-pop py-1.5">
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-text-faint">Full report</p>
+                  {onExportWord && (
+                    <button onClick={() => { onExportWord(); setExportOpen(false); }} disabled={generatingWord}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text-secondary hover:bg-paper disabled:opacity-60">
+                      <FileText size={16} className="text-accent" /> {generatingWord ? 'Building Word report…' : 'Word report (.docx)'}
+                    </button>
+                  )}
+                  {onExportPPTX && (
+                    <button onClick={() => { onExportPPTX(); setExportOpen(false); }} disabled={generatingPPTX}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text-secondary hover:bg-paper disabled:opacity-60">
+                      <Presentation size={16} className="text-accent" /> {generatingPPTX ? 'Building deck…' : 'PowerPoint deck (.pptx)'}
+                    </button>
+                  )}
+                  <p className="px-3 pt-2 pb-1 mt-1 border-t border-hairline text-[10px] font-semibold uppercase tracking-wide text-text-faint">Data</p>
                   <button onClick={() => { onExportCSV(); setExportOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text-secondary hover:bg-paper">
                     <FileSpreadsheet size={16} className="text-text-muted" /> CSV (Excel)
@@ -59,9 +75,6 @@ export default function Toolbar({
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text-secondary hover:bg-paper">
                     <Printer size={16} className="text-text-muted" /> Print / Save as PDF
                   </button>
-                  <p className="px-3 pt-1.5 mt-1 border-t border-hairline text-[11px] text-text-faint">
-                    PPTX report is in the results panel →
-                  </p>
                 </div>
               </>
             )}

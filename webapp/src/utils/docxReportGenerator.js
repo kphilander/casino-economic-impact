@@ -56,14 +56,14 @@ function lead(content) {
   const children = Array.isArray(content) ? content : [r(content, { size: 23, color: C.ink })];
   return new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after: 200, line: 300 }, children });
 }
-function H1(text) {
-  return new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun({ text, font: SERIF, bold: true, color: C.navy, size: 32 })] });
+function H1(text, { brk = true } = {}) {
+  return new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: brk, keepNext: true, spacing: { after: 80 }, children: [new TextRun({ text, font: SERIF, bold: true, color: C.navy, size: 32 })] });
 }
-function appendixH1(text) {
-  return new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun({ text, font: SERIF, bold: true, color: C.navy, size: 28 })] });
+function appendixH1(text, { brk = false } = {}) {
+  return new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: brk, keepNext: true, spacing: { before: 280, after: 80 }, children: [new TextRun({ text, font: SERIF, bold: true, color: C.navy, size: 28 })] });
 }
 function H2(text) {
-  return new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text, font: SERIF, bold: true, color: C.navy, size: 25 })] });
+  return new Paragraph({ heading: HeadingLevel.HEADING_2, keepNext: true, children: [new TextRun({ text, font: SERIF, bold: true, color: C.navy, size: 25 })] });
 }
 function bullet(content) {
   return new Paragraph({ bullet: { level: 0 }, alignment: AlignmentType.JUSTIFIED, spacing: { after: 90, line: 280 },
@@ -125,6 +125,53 @@ function dataTable(headers, rows, { colWidths } = {}) {
 
 const dataRow = (a) => { a.isTotal = false; return a; };
 const totalRow = (a) => { a.isTotal = true; return a; };
+
+// ---- data-bar visualizations ----------------------------------------------
+// Effect ramp for the stacked composition bars (on-brand: navy → blue → brass).
+const BAR = { direct: '14304F', indirect: '2563A8', induced: 'B7892F' };
+
+/** A horizontal stacked bar showing direct/indirect/induced composition of a
+ *  metric. Segment widths are proportional to value; share labels appear in
+ *  segments wide enough to hold them. */
+function stackedBar({ direct, indirect, induced }) {
+  const segs = [
+    { v: Math.max(direct, 0), color: BAR.direct },
+    { v: Math.max(indirect, 0), color: BAR.indirect },
+    { v: Math.max(induced, 0), color: BAR.induced },
+  ];
+  const total = segs.reduce((s, x) => s + x.v, 0) || 1;
+  const fullW = 9360;
+  let widths = segs.map((s) => Math.max(Math.round((s.v / total) * fullW), 70));
+  const sum = widths.reduce((a, b) => a + b, 0);
+  widths[widths.length - 1] += fullW - sum; // true up to full width
+  const cells = segs.map((s, i) => new TableCell({
+    width: { size: widths[i], type: WidthType.DXA },
+    shading: { type: ShadingType.CLEAR, fill: s.color },
+    verticalAlign: VerticalAlign.CENTER,
+    margins: { top: 20, bottom: 20, left: 30, right: 30 },
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({
+      text: widths[i] > 620 ? `${Math.round((s.v / total) * 100)}%` : '',
+      font: SANS, bold: true, color: 'FFFFFF', size: 16,
+    })] })],
+  }));
+  return new Table({
+    width: { size: fullW, type: WidthType.DXA }, columnWidths: widths, layout: 'fixed',
+    borders: { top: noB, bottom: noB, left: noB, right: noB, insideHorizontal: noB,
+      insideVertical: { style: BorderStyle.SINGLE, size: 8, color: 'FFFFFF' } },
+    rows: [new TableRow({ height: { value: 320, rule: 'atLeast' }, children: cells })],
+  });
+}
+
+/** Legend for the stacked bars. */
+function barLegend() {
+  const item = (color, label, last) => [
+    new TextRun({ text: '■ ', font: SANS, color, size: 20 }),
+    new TextRun({ text: label + (last ? '' : '       '), font: SANS, color: C.muted, size: 16 }),
+  ];
+  return new Paragraph({ spacing: { before: 80, after: 220 }, children: [
+    ...item(BAR.direct, 'Direct'), ...item(BAR.indirect, 'Indirect'), ...item(BAR.induced, 'Induced', true),
+  ] });
+}
 
 // ---- value formatters -----------------------------------------------------
 const n = (v) => formatNumber(v, 1);
@@ -248,14 +295,18 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
   // ---------------------------------------------------------------- BODY
   const B = [];
   const sec = (...kids) => kids.forEach((k) => B.push(k));
+  // Sequential exhibit/figure numbering, robust to which optional sections appear.
+  let exN = 0, figN = 0;
+  const ex = (title) => caption(`Exhibit ${++exN}.  ${title}`);
+  const fig = (title) => caption(`Figure ${++figN}.  ${title}`);
 
   // ===== 1. EXECUTIVE SUMMARY
   sec(
-    new Paragraph({ pageBreakBefore: true, heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: '1   Executive Summary', font: SERIF, bold: true, color: C.navy, size: 32 })] }),
+    H1('1   Executive Summary', { brk: false }),
     lead(`This report estimates the economic footprint of ${op} on the economy of ${stateName}. Drawing on ${m$(totalRevenue)} of ${isOnline ? 'gross gaming revenue' : 'operating revenue'} and an input-output model of the ${stateName} economy, it quantifies how that activity propagates through the state — supporting production, value added, jobs, and household income well beyond the operation itself — and estimates the public revenue the activity generates.`),
     P(`Economic activity does not stop at the point of sale. When ${op} pays its employees, purchases goods and services from suppliers, and remits taxes, it sets in motion a chain of transactions that ripples across the wider economy. Suppliers expand to meet the operation's orders and, in turn, draw on their own suppliers; employees throughout this chain spend their wages on housing, food, healthcare, and retail, supporting still more businesses. Input-output analysis traces these linkages and expresses the full effect in a common set of economic measures.`),
     P(`The principal findings are summarized below and developed in detail in Sections 6 and 7.`),
-    caption('Exhibit 1.  Summary of estimated annual economic impacts'),
+    ex('Summary of estimated annual economic impacts'),
     dataTable(['Measure', 'Direct', 'Total', 'Multiplier'], [
       dataRow(['Economic output ($M)', n(t.output.direct), n(t.output.total), x(mlt.output)]),
       dataRow(['Value added / GSP ($M)', n(t.gdp.direct), n(t.gdp.total), x(mlt.gdp)]),
@@ -270,6 +321,9 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     bullet([r(`Support for `, {}), r(`${j(t.employment.total)} full-time-equivalent jobs`, { bold: true, color: C.ink }), r(`, of which ${j(t.employment.direct)} are at the operation itself and ${j(t.employment.indirect + t.employment.induced)} are sustained across suppliers and the broader community.`)]),
     bullet([r(`${m$(t.wages.total)} in labor income`, { bold: true, color: C.ink }), r(` — wages, salaries, and benefits earned by workers across all three layers of impact.`)]),
     bullet([r(`Approximately `, {}), r(`${m$(totalTax)} in annual public revenue`, { bold: true, color: C.ink }), r(`, combining gaming-specific taxes with production, payroll, and household taxes generated by the activity.`)]),
+    fig('Composition of total economic output, by effect'),
+    stackedBar(t.output),
+    barLegend(),
     P([
       r(`These estimates are conservative by construction. They measure activity contained within ${stateName}, excluding spending that "leaks" to other states, and they report `, {}),
       r(`gross`, { italics: true }),
@@ -397,10 +451,10 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
 
   // ===== 6. ECONOMIC RESULTS
   sec(
-    new Paragraph({ pageBreakBefore: true, heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: '6   Results: Economic Impacts', font: SERIF, bold: true, color: C.navy, size: 32 })] }),
+    H1('6   Results: Economic Impacts'),
     H2('6.1   Summary of total impacts'),
     P(`Applying the framework and data described above, the model estimates that ${op} supports total annual economic activity of ${m$(t.output.total)} in output, ${m$(t.gdp.total)} in value added, ${j(t.employment.total)} full-time-equivalent jobs, and ${m$(t.wages.total)} in labor income within ${stateName}. Exhibit 2 sets out the full decomposition of each measure into its direct, indirect, and induced components, together with the implied Type II multiplier.`),
-    caption('Exhibit 2.  Estimated annual economic impacts by measure and effect'),
+    ex('Estimated annual economic impacts by measure and effect'),
     dataTable(['Measure', 'Direct', 'Indirect', 'Induced', 'Total', 'Mult.'], [
       dataRow(['Output ($M)', n(t.output.direct), n(t.output.indirect), n(t.output.induced), n(t.output.total), x(mlt.output)]),
       dataRow(['Value added / GSP ($M)', n(t.gdp.direct), n(t.gdp.indirect), n(t.gdp.induced), n(t.gdp.total), x(mlt.gdp)]),
@@ -414,6 +468,9 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     P(`Value added — output net of the cost of intermediate inputs — is estimated at ${m$(t.gdp.total)}, comprising ${m$(t.gdp.direct)} directly, ${m$(t.gdp.indirect)} indirectly, and ${m$(t.gdp.induced)} through induced effects. Because it avoids the double-counting inherent in output, value added is the measure most directly comparable to ${stateName}'s gross domestic product and is the preferred headline indicator of the operation's net economic contribution. The value-added multiplier of ${formatNumber(mlt.gdp, 2)} reflects the share of each round of activity that represents genuine new value rather than the pass-through of intermediate purchases.`),
     H2('6.4   Employment'),
     P(`The activity is estimated to support ${j(t.employment.total)} full-time-equivalent jobs across ${stateName}. Of these, ${j(t.employment.direct)} are at the operation itself, ${j(t.employment.indirect)} are sustained among suppliers, and ${j(t.employment.induced)} arise in the broader economy as workers spend their earnings. The employment multiplier of ${formatNumber(mlt.employment, 2)} means that every job at the operation is associated with ${formatNumber(mlt.employment - 1, 2)} additional jobs elsewhere in the state. Employment is reported on a full-time-equivalent basis; the corresponding headcount, which includes part-time and seasonal positions, would be higher.`),
+    fig('Employment supported, by effect'),
+    stackedBar(t.employment),
+    barLegend(),
     H2('6.5   Labor income'),
     P(`Labor income — wages, salaries, and benefits — is estimated at ${m$(t.wages.total)}, of which ${m$(t.wages.direct)} is paid directly by the operation and ${m$(t.wages.indirect + t.wages.induced)} is earned across the supply chain and the broader economy. Labor income represents the portion of value added that flows to households as compensation and is a key channel through which the operation's activity supports living standards in ${stateName}. It is also the basis for the payroll and household tax estimates presented in Section 7.`),
     H2('6.6   Composition and quality of employment'),
@@ -425,8 +482,8 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
   if (byRevenue.length > 1) {
     sec(
       H2('6.8   Impacts by revenue stream'),
-      P(`Where the operation's revenue is resolved into distinct streams, the contribution of each can be examined separately. Exhibit 3 reports the total economic impact attributable to each revenue stream, reflecting the different labor intensities and supply-chain structures of gaming and ancillary activities.`),
-      caption('Exhibit 3.  Total economic impact by revenue stream'),
+      P(`Where the operation's revenue is resolved into distinct streams, the contribution of each can be examined separately. The exhibit below reports the total economic impact attributable to each revenue stream, reflecting the different labor intensities and supply-chain structures of gaming and ancillary activities.`),
+      ex('Total economic impact by revenue stream'),
       dataTable(['Revenue stream', 'Revenue ($M)', 'Output ($M)', 'GSP ($M)', 'Jobs (FTE)', 'Income ($M)'],
         byRevenue.map((b) => dataRow([b.label, n(b.revenue), n(b.output.total), n(b.gdp.total), j(b.employment.total), n(b.wages.total)])),
         { colWidths: [3000, 1620, 1620, 1500, 1500, 1620] }),
@@ -457,8 +514,8 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       ? `Household taxes — federal, state, and local income taxes and related personal taxes paid by the workers supported by the activity — are estimated at ${m$(household.total)}, based on published effective personal-tax ratios applied to labor income by effect type.`
       : `Household taxes paid by supported workers are estimated from effective personal-tax ratios; where applicable they are included in the combined total below.`),
     H2('7.5   Total fiscal impact'),
-    P(`Exhibit ${byRevenue.length > 1 ? '4' : '3'} combines the four sources into a single estimate of the public revenue generated by ${op}.`),
-    caption(`Exhibit ${byRevenue.length > 1 ? '4' : '3'}.  Estimated annual public revenue by source`),
+    P(`The exhibit below combines these sources into a single estimate of the public revenue generated by ${op}.`),
+    ex('Estimated annual public revenue by source'),
     buildTaxTable(results, inputs),
     sourceLine(`${PRODUCT_NAME_VERSIONED} model estimates. Gaming tax reflects the ${stateName} statutory schedule; other taxes are estimated from federal effective-rate data.`),
   );
@@ -468,7 +525,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
 
   // ===== 8. DISCUSSION
   sec(
-    new Paragraph({ pageBreakBefore: true, heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: '8   Discussion', font: SERIF, bold: true, color: C.navy, size: 32 })] }),
+    H1('8   Discussion'),
     H2('8.1   Interpreting the findings'),
     P(`The results indicate that ${op} is associated with a substantial and broad-based economic contribution to ${stateName}, extending well beyond the operation's own payroll and output. The value-added estimate of ${m$(t.gdp.total)} and the support of ${j(t.employment.total)} jobs are the figures most useful for comparison with other economic activities and with the state economy as a whole. The multipliers indicate that a meaningful share of this activity is retained within the state, reflecting in-state supply relationships and local household spending.`),
     H2('8.2   Gross versus net impacts: substitution and displacement'),
@@ -513,14 +570,14 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
 
   // ===== 10. CONCLUSION
   sec(
-    H1('10   Conclusion'),
+    H1('10   Conclusion', { brk: false }),
     P(`This report has estimated the economic and fiscal contribution of ${op} to ${stateName} using a transparent input-output framework built on official federal data and gambling-specific economic coefficients. The operation is estimated to support ${m$(t.output.total)} in total output, ${m$(t.gdp.total)} in value added, ${j(t.employment.total)} full-time-equivalent jobs, and ${m$(t.wages.total)} in labor income annually, while generating approximately ${m$(totalTax)} in public revenue.`),
     P(`These findings reflect deliberately conservative methodological choices — in-state geographic scope, gross-to-net cautions, and the exclusion of catalytic effects — and should be read as central estimates of the operation's contained, ongoing economic footprint. They provide a sound, replicable basis for understanding the role of ${op} in the ${stateName} economy and for informing the decisions of operators, regulators, and other stakeholders.`),
   );
 
   // ===== APPENDICES
   sec(
-    appendixH1('Appendix A   Technical Notes on Input-Output Modeling'),
+    appendixH1('Appendix A   Technical Notes on Input-Output Modeling', { brk: true }),
     P([
       r(`The input-output system represents the economy as a set of `, {}),
       r('n', { italics: true }),
@@ -563,7 +620,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
   sec(
     appendixH1('Appendix D   Model Inputs and Parameters'),
     P(`The table below records the principal inputs and estimated parameters underlying this analysis, provided so that the results can be reviewed and, if required, reproduced.`),
-    caption('Exhibit D-1.  Summary of inputs and estimated multipliers'),
+    ex('Summary of inputs and estimated multipliers'),
     dataTable(['Parameter', 'Value'], [
       dataRow(['Jurisdiction', stateName]),
       dataRow(['Operation type', typeLabel]),

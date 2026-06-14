@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, Lock, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown, SlidersHorizontal } from 'lucide-react';
+import { Building2, DollarSign, Users, TrendingUp, ChevronDown, Calculator, MapPin, Loader2, Presentation, FileText, Lock, Lightbulb, X, Send, Bug, Key, Shield, Calendar, Trash2, Copy, Check, FileDown, SlidersHorizontal } from 'lucide-react';
 import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
@@ -318,6 +318,7 @@ export default function App() {
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isGeneratingPPTX, setIsGeneratingPPTX] = useState(false);
+  const [isGeneratingDocx, setIsGeneratingDocx] = useState(false);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
   const [featureSubmitted, setFeatureSubmitted] = useState(false);
 
@@ -760,6 +761,58 @@ More information about Dr. Philander is available at kahlil.co.`,
     }
   };
 
+  // Build the inputs payload shared by every report exporter (PPTX, Word).
+  const buildReportInputs = () => ({
+    state,
+    casinoName,
+    useGamblingSpecific: true,
+    revenues,
+    knownData,
+    propertyType,
+    propertyTypeLabel: PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || null,
+    inputMode,
+    gamingTaxResult,
+    stateTaxConfig,
+    payrollTaxResult,
+    householdTaxResult,
+  });
+
+  // Handle Word (.docx) report generation — same license gating as PPTX.
+  const handleDownloadWord = async () => {
+    if (userTier !== 'pro') {
+      setShowPremiumModal(true);
+      return;
+    }
+
+    const { licenseKey } = getLicenseData();
+    const propertyCheck = canDownloadForProperty(casinoName, licenseKey, licensedProperties);
+    if (!propertyCheck.allowed) {
+      if (propertyCheck.reason === 'wrong_property') {
+        setWrongPropertyInfo({ licensedFor: propertyCheck.licensedFor, attempting: propertyCheck.attempting });
+        setShowWrongPropertyModal(true);
+        return;
+      }
+      setShowPremiumModal(true);
+      return;
+    }
+    if (propertyCheck.isNewLicense && casinoName && casinoName.trim()) {
+      setShowConfirmPropertyModal(true);
+      return;
+    }
+
+    if (!results) return;
+    setIsGeneratingDocx(true);
+    try {
+      const { downloadDocxReport } = await import('./utils/docxReportGenerator');
+      await downloadDocxReport(results, buildReportInputs(), authorInfo);
+    } catch (error) {
+      console.error('Failed to generate Word report:', error);
+      alert(`Failed to generate Word report: ${error.message}`);
+    } finally {
+      setIsGeneratingDocx(false);
+    }
+  };
+
   // Handle confirmed property license (user confirmed tying license to property)
   const handleConfirmPropertyAndDownload = async () => {
     setShowConfirmPropertyModal(false);
@@ -1149,6 +1202,10 @@ More information about Dr. Philander is available at kahlil.co.`,
           onOpenProjects={() => setProjectsOpen(true)}
           onExportCSV={handleExportCSV}
           onPrint={printReport}
+          onExportWord={() => (userTier === 'pro' ? handleDownloadWord() : setShowPremiumModal(true))}
+          onExportPPTX={() => (userTier === 'pro' ? handleDownloadPPTX() : setShowPremiumModal(true))}
+          generatingWord={isGeneratingDocx}
+          generatingPPTX={isGeneratingPPTX}
           compareActive={compareActive}
           onToggleCompare={toggleCompare}
           canCompare={!!results}
@@ -1326,10 +1383,26 @@ More information about Dr. Philander is available at kahlil.co.`,
             {/* Report Download Button */}
             {results && (
               userTier === 'pro' ? (
-                <DownloadPPTXButton
-                  onClick={handleDownloadPPTX}
-                  isGenerating={isGeneratingPPTX}
-                />
+                <div className="space-y-2">
+                  <DownloadPPTXButton
+                    onClick={handleDownloadPPTX}
+                    isGenerating={isGeneratingPPTX}
+                  />
+                  <button
+                    onClick={handleDownloadWord}
+                    disabled={isGeneratingDocx}
+                    className="btn btn-secondary w-full py-3 px-4 text-sm"
+                  >
+                    {isGeneratingDocx ? (
+                      <><Loader2 size={16} className="animate-spin" /> Building Word report…</>
+                    ) : (
+                      <><FileText size={16} /> Download Word Report (.docx)</>
+                    )}
+                  </button>
+                  <p className="text-[11px] text-text-faint text-center px-2">
+                    The Word report is a full, editable consultant document — open it in Word and “Save as PDF” for a polished PDF.
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   <button

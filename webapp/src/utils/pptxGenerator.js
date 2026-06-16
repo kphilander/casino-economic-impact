@@ -310,7 +310,7 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
     fontSize: 9, fontFace: 'Helvetica', bold: true, color: COLORS.accent, charSpacing: 2
   });
 
-  slide1.addText(authorInfo.name || 'Dr. Kahlil Philander', {
+  slide1.addText(authorInfo.name || 'Dr. Kahlil Simeon-Rose', {
     x: 0.5, y: SLIDE_HEIGHT - 0.25, w: 3.5, h: 0.18,
     fontSize: 9, fontFace: 'Helvetica', color: COLORS.white
   });
@@ -878,7 +878,7 @@ This analysis uses property-type-specific coefficients for "${propertyTypeLabel}
   });
 
   // Name (full width)
-  slide6.addText(authorInfo.name || 'Dr. Kahlil Philander', {
+  slide6.addText(authorInfo.name || 'Dr. Kahlil Simeon-Rose', {
     x: MARGIN, y: CONTENT_TOP + 0.05, w: 9.2, h: 0.38,
     fontSize: FONT.title + 2, fontFace: 'Helvetica', bold: true, color: COLORS.navy
   });
@@ -900,7 +900,7 @@ This analysis uses property-type-specific coefficients for "${propertyTypeLabel}
   });
 
   // Full narrative bio - takes up most of the slide (smaller font for long bio)
-  slide6.addText(authorInfo.bio || 'Dr. Kahlil Philander is an economist and academic specializing in the analysis of large-scale economic development initiatives, regulatory policy, and consumer behavior in the gaming industry.', {
+  slide6.addText(authorInfo.bio || 'Dr. Kahlil Simeon-Rose is an economist and academic specializing in the analysis of large-scale economic development initiatives, regulatory policy, and consumer behavior in the gaming industry.', {
     x: MARGIN, y: 1.62, w: 9.2, h: 3.3,
     fontSize: FONT.body, fontFace: 'Helvetica', color: COLORS.darkGray, valign: 'top'
   });
@@ -1320,7 +1320,7 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
   });
 
   // Author name
-  backCover.addText(authorInfo.name || 'Dr. Kahlil Philander', {
+  backCover.addText(authorInfo.name || 'Dr. Kahlil Simeon-Rose', {
     x: SLIDE_WIDTH - 5.5, y: 3.65, w: 5, h: 0.25,
     fontSize: 11, fontFace: 'Helvetica', color: COLORS.white, align: 'right'
   });

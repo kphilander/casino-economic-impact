@@ -9,11 +9,8 @@ export default defineConfig({
     port: 3000
   },
   build: {
-    // Use terser for minification. esbuild's minifier can reorder declarations
-    // in a way that trips a temporal-dead-zone error ("Cannot access X before
-    // initialization") in the bundled pptxgenjs/docx report generators; terser
-    // preserves TDZ-safe ordering.
-    minify: 'terser',
+    // Use esbuild for minification (Vite's default, very fast)
+    minify: 'esbuild',
     // Configure code splitting
     rollupOptions: {
       output: {

@@ -14,7 +14,7 @@ import {
   addLicensedProperty,
   clearLicenseData
 } from './utils/licenseValidator';
-import { BRAND, PRODUCT_NAME_VERSIONED, PRODUCT_TITLE, PURCHASING_ENABLED, getSuggestedCitation } from './brand';
+import { BRAND, PRODUCT_NAME_VERSIONED, PRODUCT_TITLE, PURCHASING_ENABLED, FREE_LAUNCH, getSuggestedCitation } from './brand';
 import WatermarkOverlay from './components/WatermarkOverlay';
 import PremiumModal from './components/PremiumModal';
 import WrongPropertyModal from './components/WrongPropertyModal';
@@ -323,7 +323,10 @@ export default function App() {
   const [featureSubmitted, setFeatureSubmitted] = useState(false);
 
   // License/Tier state
-  const [userTier, setUserTier] = useState('free'); // 'free' | 'pro'
+  // FREE_LAUNCH (brand.js) unlocks the full tool for everyone — no watermark,
+  // no download gating. The licensing machinery below stays intact but dormant,
+  // so the paid model can be restored by flipping FREE_LAUNCH back to false.
+  const [userTier, setUserTier] = useState(FREE_LAUNCH ? 'pro' : 'free'); // 'free' | 'pro'
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [licensedProperties, setLicensedProperties] = useState([]);
@@ -379,7 +382,7 @@ export default function App() {
         // Re-verify the checksum server-side in the background; downgrade only
         // on an explicit rejection (not on network errors, e.g. local dev)
         validateLicenseRemote(licenseKey).then(remote => {
-          if (!remote.valid && !remote.networkError) {
+          if (!FREE_LAUNCH && !remote.valid && !remote.networkError) {
             clearLicenseData();
             setUserTier('free');
             setLicensedProperties([]);
@@ -622,18 +625,18 @@ export default function App() {
 
   // Author info for reports
   const authorInfo = {
-    name: 'Dr. Kahlil Philander',
+    name: 'Dr. Kahlil Simeon-Rose',
     title: 'Principal Consultant',
     institution: 'GP Consulting',
-    bio: `Dr. Kahlil Philander is an economist and academic specializing in the analysis of policy and consumer behavior in the gaming industry. With nearly 20 years of applied research experience in economic impact measurement across academia, industry, and government, Dr. Philander offers a unique blend of technical expertise and policy insight, particularly in contexts involving tourism, entertainment, and community impact.
+    bio: `Dr. Kahlil Simeon-Rose is an economist and academic specializing in the analysis of policy and consumer behavior in the gaming industry. With nearly 20 years of applied research experience in economic impact measurement across academia, industry, and government, Dr. Simeon-Rose offers a unique blend of technical expertise and policy insight, particularly in contexts involving tourism, entertainment, and community impact.
 
-He currently serves as a tenured Associate Professor at Washington State University's Carson College of Business. His research spans topics such as regional economic forecasting, taxation policy, and the socioeconomic outcomes of the gaming industry. Dr. Philander's work has been funded by both government agencies and private-sector clients, and he has led numerous economic impact assessments and market studies for North American and international jurisdictions.
+He currently serves as a tenured Associate Professor at Washington State University's Carson College of Business. His research spans topics such as regional economic forecasting, taxation policy, and the socioeconomic outcomes of the gaming industry. Dr. Simeon-Rose's work has been funded by both government agencies and private-sector clients, and he has led numerous economic impact assessments and market studies for North American and international jurisdictions.
 
-Dr. Philander's academic background includes a Ph.D. in Hospitality Administration from the University of Nevada, Las Vegas, with a dissertation centered on the economic impact of tax policy. He also holds an M.A. in Economics from the University of Toronto and a B.Com. in Finance and Economics with honors from the University of British Columbia.
+Dr. Simeon-Rose's academic background includes a Ph.D. in Hospitality Administration from the University of Nevada, Las Vegas, with a dissertation centered on the economic impact of tax policy. He also holds an M.A. in Economics from the University of Toronto and a B.Com. in Finance and Economics with honors from the University of British Columbia.
 
-Dr. Philander's research portfolio includes 40 peer-reviewed publications in top-tier journals such as Tourism Management, Journal of Policy Modeling, and Journal of Gambling Studies, alongside dozens of industry reports. His commentary has been featured in outlets like CNBC, Financial Times, and Wired magazine.
+Dr. Simeon-Rose's research portfolio includes 40 peer-reviewed publications in top-tier journals such as Tourism Management, Journal of Policy Modeling, and Journal of Gambling Studies, alongside dozens of industry reports. His commentary has been featured in outlets like CNBC, Financial Times, and Wired magazine.
 
-More information about Dr. Philander is available at kahlil.co.`,
+More information about Dr. Simeon-Rose is available at kahlil.co.`,
     email: 'info@gamblingpolicy.com',
     phone: '',
     customContact: 'For customized economic impact analysis, please contact GP Consulting at info@gamblingpolicy.com'
@@ -694,35 +697,39 @@ More information about Dr. Philander is available at kahlil.co.`,
 
   // Handle PPTX generation (lazy loaded)
   const handleDownloadPPTX = async () => {
-    // Check tier before allowing download
-    if (userTier !== 'pro') {
-      setShowPremiumModal(true);
-      return;
-    }
-
-    // Check property-tied license
-    const { licenseKey } = getLicenseData();
-    const propertyCheck = canDownloadForProperty(casinoName, licenseKey, licensedProperties);
-
-    if (!propertyCheck.allowed) {
-      if (propertyCheck.reason === 'wrong_property') {
-        // Show wrong property modal
-        setWrongPropertyInfo({
-          licensedFor: propertyCheck.licensedFor,
-          attempting: propertyCheck.attempting
-        });
-        setShowWrongPropertyModal(true);
+    // License/property gating — bypassed during the free public launch
+    // (FREE_LAUNCH in brand.js), kept intact for a future paid relaunch.
+    if (!FREE_LAUNCH) {
+      // Check tier before allowing download
+      if (userTier !== 'pro') {
+        setShowPremiumModal(true);
         return;
       }
-      // Other issues (invalid key, etc.)
-      setShowPremiumModal(true);
-      return;
-    }
 
-    // If this is a new license (no properties yet), confirm before tying to property
-    if (propertyCheck.isNewLicense && casinoName && casinoName.trim()) {
-      setShowConfirmPropertyModal(true);
-      return;
+      // Check property-tied license
+      const { licenseKey } = getLicenseData();
+      const propertyCheck = canDownloadForProperty(casinoName, licenseKey, licensedProperties);
+
+      if (!propertyCheck.allowed) {
+        if (propertyCheck.reason === 'wrong_property') {
+          // Show wrong property modal
+          setWrongPropertyInfo({
+            licensedFor: propertyCheck.licensedFor,
+            attempting: propertyCheck.attempting
+          });
+          setShowWrongPropertyModal(true);
+          return;
+        }
+        // Other issues (invalid key, etc.)
+        setShowPremiumModal(true);
+        return;
+      }
+
+      // If this is a new license (no properties yet), confirm before tying to property
+      if (propertyCheck.isNewLicense && casinoName && casinoName.trim()) {
+        setShowConfirmPropertyModal(true);
+        return;
+      }
     }
 
     if (!results) return;
@@ -779,25 +786,27 @@ More information about Dr. Philander is available at kahlil.co.`,
 
   // Handle Word (.docx) report generation — same license gating as PPTX.
   const handleDownloadWord = async () => {
-    if (userTier !== 'pro') {
-      setShowPremiumModal(true);
-      return;
-    }
-
-    const { licenseKey } = getLicenseData();
-    const propertyCheck = canDownloadForProperty(casinoName, licenseKey, licensedProperties);
-    if (!propertyCheck.allowed) {
-      if (propertyCheck.reason === 'wrong_property') {
-        setWrongPropertyInfo({ licensedFor: propertyCheck.licensedFor, attempting: propertyCheck.attempting });
-        setShowWrongPropertyModal(true);
+    if (!FREE_LAUNCH) {
+      if (userTier !== 'pro') {
+        setShowPremiumModal(true);
         return;
       }
-      setShowPremiumModal(true);
-      return;
-    }
-    if (propertyCheck.isNewLicense && casinoName && casinoName.trim()) {
-      setShowConfirmPropertyModal(true);
-      return;
+
+      const { licenseKey } = getLicenseData();
+      const propertyCheck = canDownloadForProperty(casinoName, licenseKey, licensedProperties);
+      if (!propertyCheck.allowed) {
+        if (propertyCheck.reason === 'wrong_property') {
+          setWrongPropertyInfo({ licensedFor: propertyCheck.licensedFor, attempting: propertyCheck.attempting });
+          setShowWrongPropertyModal(true);
+          return;
+        }
+        setShowPremiumModal(true);
+        return;
+      }
+      if (propertyCheck.isNewLicense && casinoName && casinoName.trim()) {
+        setShowConfirmPropertyModal(true);
+        return;
+      }
     }
 
     if (!results) return;
@@ -1434,7 +1443,7 @@ More information about Dr. Philander is available at kahlil.co.`,
             )}
 
             {/* License Info Panel (Pro users) */}
-            {userTier === 'pro' && (() => {
+            {userTier === 'pro' && getLicenseData().licenseKey && (() => {
               const { licenseKey: savedKey, licensedProperties: savedProps, expiresAt } = getLicenseData();
               return (
                 <div className="bg-white rounded-xl shadow-lg p-5">

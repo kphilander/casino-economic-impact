@@ -240,7 +240,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     ['Jurisdiction', stateName],
     ['Operation type', typeLabel],
     ['Revenue analyzed', m$(totalRevenue)],
-    ['Prepared by', `${authorInfo.name || 'Dr. Kahlil Philander'}, ${authorInfo.institution || BRAND.publisher}`],
+    ['Prepared by', `${authorInfo.name || 'Dr. Kahlil Simeon-Rose'}, ${authorInfo.institution || BRAND.publisher}`],
     ['Date', longDate],
   ];
   for (const [k, v] of meta) {
@@ -611,7 +611,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
   );
   sec(
     appendixH1('Appendix C   About the Author and GP Consulting'),
-    new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: authorInfo.name || 'Dr. Kahlil Philander', font: SERIF, bold: true, size: 25, color: C.navy })] }),
+    new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: authorInfo.name || 'Dr. Kahlil Simeon-Rose', font: SERIF, bold: true, size: 25, color: C.navy })] }),
     new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: `${authorInfo.title || 'Principal Consultant'} · ${authorInfo.institution || BRAND.publisher}`, font: SANS, color: C.brass, bold: true, size: 19 })] }),
     ...(authorInfo.bio || '').split('\n').map((s) => s.trim()).filter(Boolean).map((para) => P(para)),
     spacer(80),

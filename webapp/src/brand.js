@@ -43,9 +43,18 @@ export const PRODUCT_TITLE = `${PRODUCT_NAME_VERSIONED} — ${BRAND.productFullN
 export const PURCHASING_ENABLED = false;
 
 /**
+ * Free public launch. When true, every visitor gets full ("Pro") access —
+ * no evaluation watermark and no download gating — while all licensing,
+ * checkout, and watermark code stays in place but dormant. Flip back to
+ * false (and set PURCHASING_ENABLED = true) to re-enable the paid license
+ * model for a future relaunch.
+ */
+export const FREE_LAUNCH = true;
+
+/**
  * Suggested citation for reports and the site footer.
  * APA-style software citation.
  */
 export function getSuggestedCitation() {
-  return `Philander, K. (${BRAND.citationYear}). ${BRAND.productName}: ${BRAND.productFullName} (Version ${BRAND.modelVersion}) [Computer software]. ${BRAND.publisher}. ${BRAND.url}`;
+  return `Simeon-Rose, K. (${BRAND.citationYear}). ${BRAND.productName}: ${BRAND.productFullName} (Version ${BRAND.modelVersion}) [Computer software]. ${BRAND.publisher}. ${BRAND.url}`;
 }

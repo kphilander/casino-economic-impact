@@ -23,8 +23,39 @@
  * Back Cover: GP Consulting Contact
  */
 
-import pptxgen from 'pptxgenjs';
 import { formatNumber, formatCurrency, formatJobs } from './calculations';
+
+// pptxgenjs is loaded at runtime as its self-contained standalone build
+// (public/vendor/pptxgen.min.js, which exposes the global `PptxGenJS` and
+// bundles its own JSZip) instead of being imported and re-bundled by Vite.
+// Rollup mis-orders pptxgenjs's internal circular modules when it re-bundles the
+// npm package, producing a temporal-dead-zone crash ("Cannot access X before
+// initialization") on `new PptxGenJS()`. Loading the prebuilt standalone via a
+// script tag sidesteps the bundler entirely.
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load script: ' + src));
+    document.head.appendChild(script);
+  });
+}
+
+let _pptxgenPromise = null;
+function loadPptxgen() {
+  if (typeof window !== 'undefined' && window.PptxGenJS) return Promise.resolve(window.PptxGenJS);
+  if (_pptxgenPromise) return _pptxgenPromise;
+  const base = import.meta.env.BASE_URL;
+  _pptxgenPromise = (async () => {
+    // pptxgen.min.js reads the global JSZip at load time, so JSZip must come first.
+    if (!window.JSZip) await loadScript(`${base}vendor/jszip.min.js`);
+    if (!window.PptxGenJS) await loadScript(`${base}vendor/pptxgen.min.js`);
+    if (!window.PptxGenJS) throw new Error('PptxGenJS global missing after loading the standalone script');
+    return window.PptxGenJS;
+  })();
+  return _pptxgenPromise;
+}
 import { BRAND, PRODUCT_NAME_VERSIONED, getSuggestedCitation } from '../brand';
 
 /**
@@ -95,7 +126,8 @@ const FONT = {
  * Generate a professional PPTX report
  */
 export async function generatePPTX(results, inputs, authorInfo = {}) {
-  const pptx = new pptxgen();
+  const PptxGenJS = await loadPptxgen();
+  const pptx = new PptxGenJS();
 
   // Set presentation properties
   pptx.author = authorInfo.name || BRAND.publisher;
@@ -830,6 +862,9 @@ For technical details, see the appendix.`;
   // Why property-specific analysis? - Updated to reflect new methodology
   // Position below the shorter of the two columns (moved down 1" per user request)
   const bottomSectionY = 3.65;
+  // Declared before first use below (was previously declared further down, which
+  // caused a temporal-dead-zone error once the pptxgenjs crash above was fixed).
+  const isOnlineType = ['ONLINE_CASINO', 'ONLINE_SPORTSBOOK'].includes(inputs.propertyType);
 
   slide5.addText(isOnlineType ? 'Methodology: Online Gambling Multipliers' : 'Why Property-Specific Analysis?', {
     x: MARGIN, y: bottomSectionY, w: 9, h: 0.3,
@@ -839,7 +874,6 @@ For technical details, see the appendix.`;
   // Build property-type-specific explanation
   const propertyTypeLabel = inputs.propertyTypeLabel || 'gaming establishment';
   const propertyTypeCode = inputs.propertyType || '7132';
-  const isOnlineType = ['ONLINE_CASINO', 'ONLINE_SPORTSBOOK'].includes(inputs.propertyType);
 
   const gamblingExplanation = isOnlineType
     ? `Economic impact models are essential for understanding how online gambling operations affect state economies. This analysis uses multipliers derived from NAICS 7132 (Gambling Industries) with online-specific adjustment factors estimated from public company financial data (DraftKings, Rush Street Interactive, Flutter/FanDuel 2024 SEC filings).

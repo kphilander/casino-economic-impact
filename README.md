@@ -167,7 +167,13 @@ For analysis years newer than the CPI table, the calculator uses the latest comp
 
 ### Gambling-Specific Adjustments
 
-The IO tables only contain the blended sector **713** (Amusement, Gambling, and Recreation), which includes golf courses, fitness centers, bowling alleys, and other activities with very different economics than gambling. The model applies adjustment factors derived from **BEA Detail IO Tables** (USEEIOv2.0.1-411) to isolate gambling-specific coefficients:
+The calibration deliberately separates **geography** from **industry composition**:
+
+- EPA StateIO supplies each state's regional production structure, import leakages, and Leontief relationships.
+- National BEA detail data, built through `useeior`, supplies evidence about how gambling differs from its broader parent sector.
+- The national gaming ratios adapt the StateIO results; they do not replace the state model with a generic hospitality multiplier. This retains state-specific supplier geography while avoiding the assumption that a casino has the input composition of an average hotel, restaurant, or recreation business.
+
+The IO tables only contain the blended sector **713** (Amusement, Gambling, and Recreation), which includes golf courses, fitness centers, bowling alleys, and other activities with very different economics than gambling. The deployed generic-gambling series applies these legacy adjustment factors:
 
 | Coefficient | Blended 713 | Gambling (713200) | Ratio |
 |------------|-------------|-------------------|-------|
@@ -175,7 +181,18 @@ The IO tables only contain the blended sector **713** (Amusement, Gambling, and 
 | Employee-compensation coefficient | 0.406 | 0.255 | 0.63 |
 | TOPI coefficient | 0.058 | 0.035 | 0.61 |
 
-These ratios are applied to state-level blended multipliers to produce gambling-specific estimates. Indirect and induced effects reflect supply-chain and household spending across *other* sectors, so no gambling adjustment is needed for those components.
+The current generator applies the ratios to the direct coefficients and to the incremental Type I/Type II output, value-added, employee-compensation, and TOPI effects while retaining the underlying StateIO state variation. Supplier and induced jobs-per-GDP coefficients continue to come from the industries in which those effects occur.
+
+The recovered property-type pipeline used a separately reproducible USEEIO calculation. `13_extract_national_naics_ratios.R` builds `USEEIOv2.0.1-411`, calculates output-weighted parent-sector benchmarks, and produces these ratios:
+
+| Property mapping | Parent | VA ratio | Compensation ratio | Jobs ratio | Type I output ratio |
+|------------------|--------|---------:|-------------------:|-----------:|--------------------:|
+| Casino hotel (`721120`) | 721 | 1.000 | 1.000 | 1.000 | 1.000 |
+| Stand-alone casino (`713210`) | 713 | 1.008 | 0.863 | 0.540 | 0.985 |
+| Slot parlor / bingo hall (`713290`) | 713 | 1.008 | 0.863 | 0.540 | 0.985 |
+| Bar/restaurant gaming (`722410`) | 722 | 1.063 | 1.102 | 0.920 | 0.947 |
+
+The legacy generic-gambling ratios (`0.89` for VA and `0.63` for compensation) therefore do not equal the recovered property-type ratios (`1.008` and `0.863`) even though both refer to gambling detail data. The repository preserves both lineages and treats reconciliation as a pending methodology decision; importing the recovered sources does not change deployed coefficients. See [Data Provenance](docs/data-provenance.md).
 
 ## Data Sources
 
@@ -211,6 +228,7 @@ These ratios are applied to state-level blended multipliers to produce gambling-
 |-----------|-------|
 | **Source** | BEA Detail IO Tables via `useeior` package (USEEIOv2.0.1-411) |
 | **Purpose** | Isolate gambling (NAICS 713200) from blended sector 713 |
+| **Versioned evidence** | `bea_detail_coefficients.csv`, `blended_parent_coefficients.csv`, `national_naics_ratios.csv` |
 
 ## IO Sector Mapping
 
@@ -268,6 +286,7 @@ Scripts are numbered to indicate execution order:
 | `10_casino_impact_model.R` | Main impact calculation engine — takes revenue, sector, and state as input, returns full impact table with multiplier decomposition and tax estimates |
 | `11_property_impact_calculator.R` | Property-specific analysis and reporting script |
 | `12_gambling_specific_data.R` | Extract gambling-only (NAICS 7132 + 72112) employment from QCEW, apply BEA adjustment factors to create gambling-specific multipliers |
+| `13_extract_national_naics_ratios.R` | Rebuild the national BEA detail coefficients and property-type adjustment ratios with `useeior` |
 | `state_gaming_tax_rates.R` | Compile state-by-state gaming tax rates from state gaming commissions and AGA reports |
 | `generate_complete_multipliers.R` | Generate the complete multiplier CSV/JSON datasets |
 | `generate_multipliers_json.R` | Convert multiplier CSVs to JSON format for the web application |
@@ -282,6 +301,9 @@ Scripts are numbered to indicate execution order:
 | `employment_multipliers_2023.csv` | 200 | 50 states × 4 sectors — full multiplier dataset with employment coefficients |
 | `gambling_multipliers_2023.csv` | 50 | Gambling-specific multipliers (one per state), adjusted from blended 713 |
 | `state_multipliers_with_tax.csv` | 200 | Multipliers enriched with tax coefficients |
+| `bea_detail_coefficients.csv` | 6 | Versioned USEEIO detail-sector coefficients used by the recovered property-type calibration |
+| `blended_parent_coefficients.csv` | 3 | Output-weighted 713, 721, and 722 parent benchmarks |
+| `national_naics_ratios.csv` | 4 | Property-to-parent adjustment ratios reproduced from the two preceding files |
 
 Each row contains: state identifiers, QCEW employment and wage data, direct coefficients (VA, wage, tax, employment), Type I and Type II multipliers (output, VA, wage, tax), and employment coefficients (direct, indirect, induced).
 
@@ -406,11 +428,18 @@ source("07_process_qcew_employment_2023.R")   # Process target casino sectors
 source("08_state_multipliers_2023.R")         # Calculate state IO multipliers (this downloads StateIO data)
 source("09_employment_multipliers_2023.R")    # Merge multipliers with employment data
 source("12_gambling_specific_data.R")         # Create gambling-specific multipliers
+source("13_extract_national_naics_ratios.R")  # Rebuild detailed national ratio evidence
 source("generate_complete_multipliers.R")     # Generate complete output datasets
 source("generate_multipliers_json.R")         # Convert to JSON for webapp
 ```
 
 Note: Script `08_state_multipliers_2023.R` downloads ~2GB of StateIO data on first run via the `stateior` package.
+
+The versioned national-ratio outputs can be checked offline without downloading or rebuilding USEEIO:
+
+```bash
+Rscript tests/test_useeior_provenance.R
+```
 
 ## Dependencies
 
@@ -421,7 +450,7 @@ install.packages("tidyverse")
 
 # For regenerating multipliers from scratch:
 install.packages("stateior")  # EPA State IO data access
-# stateior may also require: useeior
+install.packages("useeior")   # BEA/USEEIO detailed national calibration
 ```
 
 ### Web Application
@@ -451,7 +480,7 @@ Key npm packages: `react`, `recharts`, `pptxgenjs`, `@stripe/stripe-js`, `tailwi
 
 7. **Property Types:** Stand-alone casino (713210) and slot parlor/bingo hall (713290) currently share the same sector 713 model coefficients. Their QCEW descriptive fields differ, but the deployed impact coefficients do not. The interface discloses this rather than implying unsupported differentiation.
 
-8. **Reproducibility:** Generated multiplier files are versioned in the repository, but the property-type source-generation pipeline is not yet complete. Scripts must not rely on developer-specific absolute paths; remaining provenance gaps are tracked as methodology work rather than filled with invented coefficients.
+8. **Reproducibility:** The national property-type ratio evidence and its `useeior` generator are now versioned and independently checked offline. The final property-dataset assembler remains only partially versioned, and the generic-gambling and property-type ratio definitions require reconciliation. Scripts must not rely on developer-specific absolute paths; remaining gaps are tracked rather than filled with invented coefficients.
 
 ## License
 

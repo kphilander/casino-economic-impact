@@ -368,9 +368,15 @@ def build():
     # --- 6. Gambling-specific adjustments ---
     el.append(Paragraph("6. Gambling-Specific Adjustments", S["h1"]))
     el.append(Paragraph(
+        "The calibration separates geography from industry composition. EPA StateIO supplies each "
+        "state's supplier relationships, import leakages, and Leontief structure. National BEA detail "
+        "data supplies ratios describing how gambling differs from its broader parent sector. The "
+        "ratios adapt the state model rather than replacing it with a generic local hospitality "
+        "multiplier.", S["body"]))
+    el.append(Paragraph(
         "Published IO tables contain only the blended sector 713 (Amusement, Gambling, and "
-        "Recreation). The model applies adjustment factors derived from the BEA Detail IO tables "
-        "(USEEIOv2.0.1-411) to isolate gambling-specific (NAICS 713200) coefficients:", S["body"]))
+        "Recreation). The deployed generic-gambling series applies these legacy adjustment factors "
+        "derived from BEA Detail IO tables (USEEIOv2.0.1-411):", S["body"]))
     el.append(table([
         ["Coefficient", "Blended 713", "Gambling (713200)", "Ratio"],
         ["Value added", "0.651", "0.577", "0.89"],
@@ -379,9 +385,25 @@ def build():
     ], [1.6 * inch, 1.4 * inch, 1.7 * inch, 1.0 * inch]))
     el.append(Spacer(1, 10))
     el.append(Paragraph(
-        "These ratios are applied to state-level blended multipliers to produce gambling-specific "
-        "direct coefficients. Indirect and induced effects reflect supply-chain and household "
-        "spending across other sectors, so no gambling adjustment is applied to those components.", S["body"]))
+        "The current generator applies these ratios to direct coefficients and to incremental Type I/"
+        "Type II output, value-added, employee-compensation, and TOPI effects while retaining StateIO "
+        "state variation. Supplier and induced jobs-per-GDP coefficients remain tied to the industries "
+        "where those effects occur.", S["body"]))
+    el.append(Paragraph(
+        "A recovered property-type calculation, now versioned in the repository, independently builds "
+        "output-weighted USEEIO parent benchmarks:", S["body"]))
+    el.append(table([
+        ["Property mapping", "Parent", "VA", "Comp.", "Jobs", "Type I output"],
+        ["Casino hotel (721120)", "721", "1.000", "1.000", "1.000", "1.000"],
+        ["Stand-alone casino (713210)", "713", "1.008", "0.863", "0.540", "0.985"],
+        ["Slot parlor / bingo (713290)", "713", "1.008", "0.863", "0.540", "0.985"],
+        ["Bar/restaurant gaming (722410)", "722", "1.063", "1.102", "0.920", "0.947"],
+    ], [2.1 * inch, 0.65 * inch, 0.7 * inch, 0.7 * inch, 0.7 * inch, 1.05 * inch]))
+    el.append(Spacer(1, 8))
+    el.append(Paragraph(
+        "The legacy generic-gambling ratios (0.89 VA; 0.63 compensation) are not equivalent to the "
+        "recovered property ratios (1.008; 0.863). Both lineages are disclosed, and deployed "
+        "coefficients remain unchanged pending reconciliation of their parent definitions.", S["caption"]))
 
     # --- 7. Taxes ---
     el.append(Paragraph("7. Tax Revenue Estimation", S["h1"]))
@@ -424,7 +446,7 @@ def build():
         ["BLS Quarterly Census of Employment\nand Wages (QCEW)", "2023 annual\naverages",
          "Filled-job counts used in employment coefficients"],
         ["BEA Detail IO tables via useeior\n(USEEIOv2.0.1-411)", "2017",
-         "Gambling-specific adjustment factors"],
+         "National gaming/property-to-parent ratios;\nsource tables versioned in repository"],
         ["State gaming commissions,\nAGA State of the States", "Current",
          "Gaming tax schedules"],
         ["BLS CPI-U annual averages", "Current", "Inflation adjustment"],
@@ -463,8 +485,8 @@ def build():
     el.append(Spacer(1, 8))
     el.append(Paragraph(
         "The current deployed records for NAICS 713210 and 713290 have identical modeled multiplier "
-        "coefficients. Their labels and reference QCEW fields differ, but the property-type pipeline "
-        "does not yet establish distinct economic relationships for these two categories.", S["caption"]))
+        "coefficients because both map to BEA proxy 713200/US and StateIO parent 713. A distinct "
+        "estimate would require a distinct defensible production mapping, not merely a different label.", S["caption"]))
 
     # --- 10. Limitations ---
     el.append(Paragraph("10. Limitations and Appropriate Use", S["h1"]))
@@ -479,9 +501,9 @@ def build():
         "deployed employment satellite divides 2023 QCEW jobs by 2019 StateIO value added. This "
         "mixed-vintage labor-intensity coefficient should be interpreted cautiously until rebuilt "
         "with numerator and denominator on a consistent year and price basis.",
-        "Some generation steps depend on external source datasets that are not distributed with the "
-        "repository. The deployed coefficients are usable, but the full data build is not yet "
-        "independently reproducible from repository files alone.",
+        "The national property-ratio calculation is reproducible from versioned source tables. The "
+        "final property-dataset assembler remains only partially versioned, and the generic-gambling "
+        "and property-type ratio definitions still require reconciliation.",
         "Online-gambling adjustments are approximations based on a small public-company evidence "
         "base and retain land-based gambling supply-chain relationships.",
         "The model is appropriate for policy analysis, planning, and comparative assessment. It is "

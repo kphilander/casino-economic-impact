@@ -86,7 +86,9 @@ The deployed employment coefficient is nevertheless a hybrid: its numerator is a
 
 ### 2.5 Gambling-Specific Adjustments
 
-The IO tables contain only the blended sector 713 (Amusement, Gambling, and Recreation). GEMS applies adjustment factors derived from BEA Detail IO Tables (USEEIOv2.0.1-411) to isolate gambling-specific (NAICS 713200) coefficients:
+GEMS separates regional structure from gaming-industry composition. EPA StateIO supplies state-specific supplier relationships, import leakages, and Leontief multipliers. National BEA detail data supplies ratios describing how gambling differs from its broader parent sector. Applying those ratios to the StateIO results preserves geographic variation without treating a casino as an average local hotel, restaurant, or recreation establishment.
+
+The IO tables contain only the blended sector 713 (Amusement, Gambling, and Recreation). The deployed generic-gambling series applies these legacy adjustment factors:
 
 | Coefficient | Blended 713 | Gambling (713200) | Ratio |
 |------------|-------------|-------------------|-------|
@@ -94,7 +96,18 @@ The IO tables contain only the blended sector 713 (Amusement, Gambling, and Recr
 | Employee-compensation coefficient | 0.406 | 0.255 | 0.63 |
 | TOPI coefficient | 0.058 | 0.035 | 0.61 |
 
-Indirect and induced effects reflect spending across other sectors, so no gambling adjustment is applied to those components.
+The current generator applies these ratios to direct coefficients and to incremental Type I/Type II output, value-added, employee-compensation, and TOPI effects. Supplier and induced employment intensities remain tied to the industries where those effects occur.
+
+A recovered and now-versioned property-type generator uses `useeior::buildModel("USEEIOv2.0.1-411")` to calculate output-weighted parent benchmarks. It reproduces the following property-to-parent ratios:
+
+| Property mapping | Parent | VA | Compensation | Jobs | Type I output |
+|------------------|--------|---:|-------------:|-----:|--------------:|
+| Casino hotel (`721120`) | 721 | 1.000 | 1.000 | 1.000 | 1.000 |
+| Stand-alone casino (`713210`) | 713 | 1.008 | 0.863 | 0.540 | 0.985 |
+| Slot parlor / bingo hall (`713290`) | 713 | 1.008 | 0.863 | 0.540 | 0.985 |
+| Bar/restaurant gaming (`722410`) | 722 | 1.063 | 1.102 | 0.920 | 0.947 |
+
+The generic-gambling and property-type ratio sets are not numerically equivalent. The source files and an offline recalculation test are now versioned, but the model retains its deployed coefficients pending a substantive reconciliation of the two calibration definitions.
 
 ## 3. Tax Estimates
 
@@ -112,7 +125,7 @@ StateIO `V001` is employee compensation: wages and salaries plus employer contri
 |--------|---------|-----|
 | EPA State Input-Output (StateIO) models, via the [`stateior`](https://github.com/USEPA/stateior) R package | 2019 | State multipliers (pre-pandemic year chosen to avoid distorted 2020 relationships) |
 | BLS Quarterly Census of Employment and Wages (QCEW) | 2023 annual averages | Filled-job inputs for employment coefficients and diagnostic earnings fields |
-| BEA Detail IO Tables via `useeior` (USEEIOv2.0.1-411) | 2017 | Gambling-specific adjustment factors |
+| BEA Detail IO Tables via `useeior` (USEEIOv2.0.1-411) | 2017 | National gambling/property-to-parent adjustment factors; versioned outputs in `bea_detail_coefficients.csv`, `blended_parent_coefficients.csv`, and `national_naics_ratios.csv` |
 | State gaming commissions, AGA State of the States | Current | Gaming tax schedules |
 | BLS CPI-U annual averages | Current | Inflation adjustment |
 
@@ -125,14 +138,14 @@ StateIO `V001` is employee compensation: wages and salaries plus employer contri
 | 721 | 721 | Lodging |
 | 722 | 722 | Food & Beverage |
 
-Property types: Casino Hotel (721120), Stand-alone Casino (713210), Slot Parlor (713290), Bar/Restaurant Gaming (722410), plus online casino and sports betting variants. In the deployed dataset, stand-alone casinos and slot parlors share the same impact coefficients because both map to sector 713; their descriptive QCEW fields differ, but the model does not claim a distinct production structure.
+Property types: Casino Hotel (721120), Stand-alone Casino (713210), Slot Parlor (713290), Bar/Restaurant Gaming (722410), plus online casino and sports betting variants. In the deployed dataset, stand-alone casinos and slot parlors share the same impact coefficients because both map to the same national BEA proxy (`713200/US`) and parent StateIO sector (713). A distinct estimate would require a distinct defensible production mapping, not merely a different label.
 
 ## 6. Limitations and Appropriate Use
 
 - Results are **estimates** based on average inter-industry relationships; they should be interpreted as indicative rather than definitive.
 - The deployed multiplier data cover 50 states and 200 state-sector rows, not the District of Columbia.
 - The 2023-jobs/2019-value-added employment coefficient is a mixed-vintage approximation that should be rebuilt on a consistent numerator and denominator.
-- The property-type source-generation pipeline is not fully reproducible from repository inputs; generated data are versioned, and missing provenance should not be replaced with assumed coefficients.
+- The national property-type ratio calculation is reproducible from versioned source tables and `13_extract_national_naics_ratios.R`. The final property-dataset assembly remains only partially versioned, and the generic-gambling and property-type ratio definitions still require reconciliation.
 - Online multipliers are approximations. Direct online labor intensity may be adjusted from operator data, but supplier and induced job intensities should reflect the industries where those effects occur rather than inherit the direct operator ratio.
 - State-level analysis captures only impacts within the state boundary; spending that leaks to other states is excluded.
 - The model is appropriate for policy analysis, planning, and comparative assessment. It is **not** appropriate for precise forecasting, investment decisions without professional advice, or legal proceedings.

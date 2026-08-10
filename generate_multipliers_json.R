@@ -1,143 +1,122 @@
 # ============================================================================
-# Generate multipliers.json with tax (TOPI) columns for the web app
-#
-# Reads the updated CSV files and outputs a complete multipliers.json
-# that includes Direct_Tax_Coef, Type_I_Tax, Type_II_Tax in all sections.
+# EXPORT THE VERSIONED MULTIPLIER DATA TO THE WEB APPLICATION
 # ============================================================================
 
 library(tidyverse)
 library(jsonlite)
+employment <- read.csv("employment_multipliers_2023.csv", stringsAsFactors = FALSE)
+gambling <- read.csv("gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
+properties <- read.csv("property_type_multipliers_2023.csv", stringsAsFactors = FALSE)
+online <- read.csv("online_gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
 
-# Read the versioned JSON to preserve metadata and propertyTypes. An alternate
-# file can be supplied with GEMS_EXISTING_MULTIPLIERS_JSON.
-existing_json_path <- Sys.getenv(
-  "GEMS_EXISTING_MULTIPLIERS_JSON",
-  unset = "webapp/src/data/multipliers.json"
-)
-if (!file.exists(existing_json_path)) stop("Missing existing multiplier JSON: ", existing_json_path)
-existing_json <- fromJSON(existing_json_path, simplifyDataFrame = TRUE)
+stopifnot(nrow(employment) == 200, nrow(gambling) == 50,
+          nrow(properties) == 200, nrow(online) == 50)
 
-message("Existing JSON sections: ", paste(names(existing_json), collapse = ", "))
+land_codes <- c("721120", "713210", "713290", "722410")
+property_types <- setNames(lapply(land_codes, function(code) {
+  properties %>% filter(Property_Type == code)
+}), land_codes)
 
-# Read updated CSVs with tax columns
-emp_mult <- read.csv("employment_multipliers_2023.csv", stringsAsFactors = FALSE)
-gambling_mult <- read.csv("gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
+# Online casino and sportsbook share the same online production-function
+# estimate; the codes distinguish reporting/tax treatment in the interface.
+property_types$ONLINE_CASINO <- online %>%
+  mutate(Property_Type = "ONLINE_CASINO", Property_Label = "Online Casino / iGaming")
+property_types$ONLINE_SPORTSBOOK <- online %>%
+  mutate(Property_Type = "ONLINE_SPORTSBOOK", Property_Label = "Online Sportsbook")
 
-message("Employment mult columns: ", paste(names(emp_mult), collapse = ", "))
-message("Gambling mult columns: ", paste(names(gambling_mult), collapse = ", "))
-
-# Verify tax columns exist
-stopifnot("Direct_Tax_Coef" %in% names(emp_mult))
-stopifnot("Direct_Tax_Coef" %in% names(gambling_mult))
-
-# Update the multipliers section (sectors 711AS, 713, 721, 722)
-# Keep all existing columns and add tax columns
-existing_mult_df <- as.data.frame(existing_json$multipliers)
-message("\nExisting multiplier columns: ", paste(names(existing_mult_df), collapse = ", "))
-
-# Merge tax columns into existing multipliers
-tax_cols <- emp_mult %>%
-  select(State, Sector, Direct_Tax_Coef, Type_I_Tax, Type_II_Tax)
-
-updated_mult <- existing_mult_df %>%
-  left_join(tax_cols, by = c("State", "Sector"))
-
-missing <- sum(is.na(updated_mult$Direct_Tax_Coef))
-message("Multipliers missing tax data: ", missing, " / ", nrow(updated_mult))
-
-# Update gambling section
-existing_gambling_df <- as.data.frame(existing_json$gambling)
-message("\nExisting gambling columns: ", paste(names(existing_gambling_df), collapse = ", "))
-
-gambling_tax_cols <- gambling_mult %>%
-  select(State, Direct_Tax_Coef, Type_I_Tax, Type_II_Tax)
-
-updated_gambling <- existing_gambling_df %>%
-  left_join(gambling_tax_cols, by = "State")
-
-missing_g <- sum(is.na(updated_gambling$Direct_Tax_Coef))
-message("Gambling missing tax data: ", missing_g, " / ", nrow(updated_gambling))
-
-# Update propertyTypes section - add tax columns there too
-# PropertyTypes uses the same underlying sector multipliers
-if ("propertyTypes" %in% names(existing_json)) {
-  message("\nProperty types sections: ", paste(names(existing_json$propertyTypes), collapse = ", "))
-
-  updated_property_types <- existing_json$propertyTypes
-
-  for (pt_name in names(updated_property_types)) {
-    pt_df <- as.data.frame(updated_property_types[[pt_name]])
-    message("  ", pt_name, ": ", nrow(pt_df), " rows, columns: ", paste(names(pt_df), collapse = ", "))
-
-    # Property types map to specific sectors:
-    # 721120 (Casino Hotel) -> 721
-    # 713210 (Stand-alone Casino) -> 713
-    # 713290 (Slot Parlor) -> 713
-    # 722410 (Bar/Restaurant Gaming) -> 722
-    pt_sector_map <- c("721120" = "721", "713210" = "713", "713290" = "713", "722410" = "722")
-    mapped_sector <- pt_sector_map[pt_name]
-
-    if (!is.na(mapped_sector)) {
-      sector_tax <- emp_mult %>%
-        filter(Sector == mapped_sector) %>%
-        select(State, Direct_Tax_Coef, Type_I_Tax, Type_II_Tax)
-
-      # Property types have their own adjusted coefficients, but TOPI follows the sector
-      # For now, use the sector-level TOPI (can be refined later with property-type adjustment)
-      pt_df <- pt_df %>%
-        left_join(sector_tax, by = "State")
-
-      updated_property_types[[pt_name]] <- pt_df
-      message("    -> Added tax columns from sector ", mapped_sector)
-    }
-  }
-} else {
-  updated_property_types <- NULL
-}
-
-# Build the output JSON
-output_json <- list(
-  metadata = existing_json$metadata,
-  multipliers = updated_mult,
-  gambling = updated_gambling
+property_metadata <- list(
+  "721120" = list(
+    code = "721120", label = "Resort with Hotel & Casino",
+    shortLabel = "Casino Hotel",
+    description = paste(
+      "Integrated casino-hotel reporting label.",
+      "Gaming uses the canonical gambling coefficients; use department mode",
+      "to model lodging and food revenue separately."
+    ),
+    parentSector = "713", parentSectorName = "Canonical gambling model"
+  ),
+  "713210" = list(
+    code = "713210", label = "Stand-alone Casino", shortLabel = "Casino",
+    description = paste(
+      "Traditional casino reporting label.",
+      "Gaming uses the canonical gambling coefficients."
+    ),
+    parentSector = "713", parentSectorName = "Canonical gambling model"
+  ),
+  "713290" = list(
+    code = "713290", label = "Slot Parlors / Bingo Halls",
+    shortLabel = "Slot Parlor",
+    description = paste(
+      "Limited-gaming venue reporting label.",
+      "Gaming uses the canonical gambling coefficients."
+    ),
+    parentSector = "713", parentSectorName = "Canonical gambling model"
+  ),
+  "722410" = list(
+    code = "722410", label = "Bars/Restaurants with Slots",
+    shortLabel = "Bar Gaming",
+    description = paste(
+      "Ancillary-gaming reporting label.",
+      "Gaming uses the canonical gambling coefficients; use department mode",
+      "to model food and beverage revenue separately."
+    ),
+    parentSector = "713", parentSectorName = "Canonical gambling model"
+  ),
+  "ONLINE_CASINO" = list(
+    code = "ONLINE_CASINO", label = "Online Casino / iGaming",
+    shortLabel = "iGaming",
+    description = "Online casino operations (slots, table games, poker)",
+    parentSector = "7132",
+    parentSectorName = "Gambling Industries (online-adjusted)"
+  ),
+  "ONLINE_SPORTSBOOK" = list(
+    code = "ONLINE_SPORTSBOOK", label = "Online Sportsbook",
+    shortLabel = "Sportsbook", description = "Online sports betting operations",
+    parentSector = "7132",
+    parentSectorName = "Gambling Industries (online-adjusted)"
+  )
 )
 
-# Update metadata
-output_json$metadata$notes <- c(
-  existing_json$metadata$notes,
-  "Tax columns (Direct_Tax_Coef, Type_I_Tax, Type_II_Tax) represent Taxes on Production & Imports (TOPI)",
-  "TOPI for gambling (7132) uses adjustment ratio of 0.6086 (direct) and 0.7144 (multiplier) from BEA Detail IO"
+export_date <- Sys.getenv(
+  "GEMS_EXPORT_DATE",
+  unset = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
 )
 
-if (!is.null(updated_property_types)) {
-  output_json$propertyTypes <- updated_property_types
-}
+output <- list(
+  metadata = list(
+    exportDate = export_date,
+    dataYear = 2023,
+    ioTableYear = 2019,
+    qcewYear = 2023,
+    employmentCoefficientYear = 2023,
+    stateCount = 50,
+    multiplierRowCount = 200,
+    description = paste(
+      "2019 StateIO interindustry structure with consistent-2023 employment",
+      "satellites and national USEEIO gambling calibration"
+    ),
+    propertyTypesIncluded = c(land_codes, "ONLINE_CASINO", "ONLINE_SPORTSBOOK"),
+    notes = list(
+      "Employment is QCEW filled jobs, not FTEs.",
+      "Employment coefficients use 2023 QCEW jobs and 2023 StateIO output/value added.",
+      "Owner-occupied housing and federal/state-local government-enterprise employment have no QCEW-compatible satellite; HS, GFE, and GSLE are explicit zeros rather than imputed averages.",
+      "Land-based gaming uses StateIO 713 localized geography adapted with reproducible USEEIO 713200/US ratios.",
+      "Land-based property type is descriptive; department mode uses 721, 722, and 711AS for separately entered lodging, food, and other revenue.",
+      "Wage fields are StateIO V001 employee compensation; cash wages are estimated separately for tax bases.",
+      "TOPI includes production taxes. Statutory gaming tax is a memo component and is not added to TOPI.",
+      "Online coefficients are scenario approximations; enter observed in-state jobs and cash wages when available."
+    )
+  ),
+  multipliers = employment,
+  gambling = gambling,
+  onlineGaming = online,
+  propertyTypes = property_types,
+  propertyTypeMetadata = property_metadata,
+  states = sort(unique(employment$State))
+)
 
-# Preserve propertyTypeMetadata and states from original
-if ("propertyTypeMetadata" %in% names(existing_json)) {
-  output_json$propertyTypeMetadata <- existing_json$propertyTypeMetadata
-}
-if ("states" %in% names(existing_json)) {
-  output_json$states <- existing_json$states
-}
-
-# Write JSON
-json_output <- toJSON(output_json, pretty = TRUE, auto_unbox = TRUE, digits = 6)
-
-output_path <- "multipliers_with_tax.json"
-writeLines(json_output, output_path)
-message("\nSaved: ", output_path, " (", file.size(output_path), " bytes)")
-
-# Verification
-message("\n=== Verification ===")
-nv_mult <- updated_mult %>% filter(State == "Nevada", Sector == "713")
-nv_gamb <- updated_gambling %>% filter(State == "Nevada")
-
-message("Nevada 713: Direct_Tax_Coef=", round(nv_mult$Direct_Tax_Coef, 4),
-        " Type_I_Tax=", round(nv_mult$Type_I_Tax, 4),
-        " Type_II_Tax=", round(nv_mult$Type_II_Tax, 4))
-message("Nevada 7132: Direct_Tax_Coef=", round(nv_gamb$Direct_Tax_Coef, 4),
-        " Type_I_Tax=", round(nv_gamb$Type_I_Tax, 4),
-        " Type_II_Tax=", round(nv_gamb$Type_II_Tax, 4))
-
-message("\n=== COMPLETE ===")
+json_output <- toJSON(output, pretty = TRUE, auto_unbox = TRUE, digits = 10,
+                      na = "null")
+writeLines(json_output, "webapp/src/data/multipliers.json")
+writeLines(json_output, "multipliers_with_tax.json")
+message("Exported webapp/src/data/multipliers.json and multipliers_with_tax.json")

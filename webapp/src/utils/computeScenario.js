@@ -10,7 +10,7 @@ import gamingTaxRatesData from '../data/gamingTaxRates.json';
 import employmentTaxRatesData from '../data/employmentTaxRates.json';
 import {
   calculateCombinedImpact, calculateGamingTax, calculatePayrollTax,
-  calculateHouseholdTax, isOnlinePropertyType,
+  calculateHouseholdTax, getTaxableGgr, isOnlinePropertyType,
 } from './calculations';
 import { buildTaxConfig } from './taxConfig';
 
@@ -42,9 +42,7 @@ export function computeScenario(analysis) {
   const hasGamingTax = isOnline
     ? (propertyType === 'ONLINE_CASINO' ? stateTaxConfig?.hasIGaming : stateTaxConfig?.hasSportsBetting)
     : stateTaxConfig?.hasCommercial;
-  const ggr = inputMode === 'total'
-    ? (isOnline ? (revenues.total || 0) : (revenues.gaming || 0))
-    : (revenues.gaming || 0);
+  const ggr = getTaxableGgr(inputMode, isOnline, revenues);
   const hasCustom = gamingTaxCustomRate != null && gamingTaxCustomRate !== '';
   if ((hasGamingTax || hasCustom) && ggr > 0) {
     const taxConfig = buildTaxConfig(stateTaxConfig, gamingTaxCustomRate, slotRevenuePct, propertyType);
@@ -76,8 +74,9 @@ export function computeScenario(analysis) {
   }
 
   // Statutory gaming tax is a memo item because gross-receipts, amusement, and
-  // license taxes are already within the TOPI concept. Do not add it again
-  // without first estimating and removing the embedded gaming-tax component.
+  // license taxes are already within the TOPI concept. StateIO does not
+  // identify the embedded gaming-tax amount by state, so do not add, subtract,
+  // or replace it in the non-duplicative total.
   const totalTax = (results?.totals.tax.total || 0)
     + (payrollTaxResult?.total || 0)
     + (householdTaxResult?.total || 0);

@@ -12,8 +12,10 @@
 #   - Direct coefficients (VA, wage per $ output)
 #
 # Data Source: EPA StateIO via stateior R package
-# Note: Using 2019 IO data to avoid pandemic-distorted economic relationships.
-#       2019 multipliers are combined with 2023 employment data.
+# Note: Using 2019 IO data to avoid pandemic-distorted interindustry
+#       relationships. The employment satellite uses 2023 QCEW jobs and 2023
+#       StateIO output/value added so its numerator and denominator share a
+#       consistent vintage.
 # Methodology: Industry Technology Assumption (ITA)
 # ============================================================================
 
@@ -25,7 +27,8 @@ library(tidyverse)
 # ============================================================================
 
 # Note: Using 2019 IO tables to avoid pandemic-distorted relationships in 2020
-my_year <- 2019
+io_year <- 2019
+employment_year <- 2023
 
 # Target casino-related sectors
 target_sectors <- c("711AS", "713", "721", "722")
@@ -62,13 +65,22 @@ state_abbrevs <- c(
 # LOAD STATE IO DATA
 # ============================================================================
 
-message("\n=== Loading Two-Region StateIO Data (", my_year, ") ===\n")
+message("\n=== Loading Two-Region StateIO Data (", io_year, ") ===\n")
 
-two_region_make <- loadStateIODataFile(paste0("TwoRegion_Summary_Make_", my_year))
-two_region_use <- loadStateIODataFile(paste0("TwoRegion_Summary_DomesticUse_", my_year))
-two_region_ind_output <- loadStateIODataFile(paste0("TwoRegion_Summary_IndustryOutput_", my_year))
-two_region_com_output <- loadStateIODataFile(paste0("TwoRegion_Summary_CommodityOutput_", my_year))
-two_region_va <- loadStateIODataFile(paste0("TwoRegion_Summary_ValueAdded_", my_year))
+two_region_make <- loadStateIODataFile(paste0("TwoRegion_Summary_Make_", io_year))
+two_region_use <- loadStateIODataFile(paste0("TwoRegion_Summary_DomesticUse_", io_year))
+two_region_ind_output <- loadStateIODataFile(paste0("TwoRegion_Summary_IndustryOutput_", io_year))
+two_region_com_output <- loadStateIODataFile(paste0("TwoRegion_Summary_CommodityOutput_", io_year))
+two_region_va <- loadStateIODataFile(paste0("TwoRegion_Summary_ValueAdded_", io_year))
+
+# State-summary tables supply the 2023 dollar denominators for the QCEW jobs
+# satellite. They do not replace the 2019 make/use matrices or Leontief inverse.
+employment_year_use <- loadStateIODataFile(
+  paste0("State_Summary_DomesticUse_", employment_year)
+)
+employment_year_output <- loadStateIODataFile(
+  paste0("State_Summary_IndustryOutput_", employment_year)
+)
 
 message("Data loaded successfully!\n")
 
@@ -78,14 +90,33 @@ message("Data loaded successfully!\n")
 
 message("=== Loading QCEW Employment Data ===\n")
 
-qcew_all_sectors_file <- "employment_all_sectors_2023.csv"
+qcew_all_sectors_file <- Sys.getenv(
+  "GEMS_QCEW_ALL_SECTORS_FILE",
+  unset = "employment_all_sectors_2023.csv"
+)
 if (file.exists(qcew_all_sectors_file)) {
   QCEW_ALL_SECTORS <- read.csv(qcew_all_sectors_file, stringsAsFactors = FALSE)
   message("Loaded employment data: ", nrow(QCEW_ALL_SECTORS), " state-sector records")
 } else {
-  warning("Employment data file not found: ", qcew_all_sectors_file,
-          "\nRun 08a_process_all_qcew_employment.R first.")
-  QCEW_ALL_SECTORS <- NULL
+  stop("Employment data file not found: ", qcew_all_sectors_file,
+       "\nRun 08a_process_all_qcew_employment.R first.")
+}
+
+required_employment_columns <- c("state_name", "io_sector", "employment")
+if (!all(required_employment_columns %in% names(QCEW_ALL_SECTORS))) {
+  stop("Employment input is missing required columns: ",
+       paste(setdiff(required_employment_columns, names(QCEW_ALL_SECTORS)),
+             collapse = ", "))
+}
+if (length(unique(QCEW_ALL_SECTORS$state_name)) != 50L ||
+    length(unique(QCEW_ALL_SECTORS$io_sector)) != 71L) {
+  stop("Expected a complete 50-state x 71-sector employment satellite")
+}
+unsupported_satellite_sectors <- c("HS", "GFE", "GSLE")
+if (any(QCEW_ALL_SECTORS$employment[
+  QCEW_ALL_SECTORS$io_sector %in% unsupported_satellite_sectors
+] != 0, na.rm = TRUE)) {
+  stop("HS, GFE, and GSLE must remain explicit zero-satellite sectors")
 }
 
 # ============================================================================
@@ -95,7 +126,9 @@ if (file.exists(qcew_all_sectors_file)) {
 calculate_state_multipliers <- function(state_name, state_abbrev,
                                         make_data, use_data,
                                         ind_output_data, com_output_data,
-                                        va_data, qcew_emp_data) {
+                                        va_data, qcew_emp_data,
+                                        employment_use_data,
+                                        employment_output_data) {
 
   state_suffix <- paste0("/US-", state_abbrev)
 
@@ -106,6 +139,8 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     state_ind_output <- ind_output_data[[state_name]]
     state_com_output <- com_output_data[[state_name]]
     state_va <- va_data[[state_name]]
+    state_employment_use <- employment_use_data[[state_name]]
+    state_employment_output <- employment_output_data[[state_name]]
 
     if (is.null(state_make) || is.null(state_use)) {
       stop("Data not found for state")
@@ -311,43 +346,62 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     state_emp_data <- qcew_emp_data %>%
       filter(state_name == !!state_name)
 
-    # Build employment coefficient vector for ALL sectors
-    # emp_coef = employment / VA (in millions)
-    emp_coef_all <- rep(0, n)
-    names(emp_coef_all) <- common_ind
+    # Build consistent-2023 employment satellite vectors for ALL sectors.
+    # Jobs/output is the dimensionally correct coefficient for multiplying the
+    # Leontief output requirements. Jobs/value added is retained separately for
+    # the frontend's direct-GDP calculation.
+    employment_output_coef <- rep(0, n)
+    employment_va_coef <- rep(0, n)
+    employment_output_m <- rep(NA_real_, n)
+    employment_va_m <- rep(NA_real_, n)
+    names(employment_output_coef) <- names(employment_va_coef) <- common_ind
+    names(employment_output_m) <- names(employment_va_m) <- common_ind
+
+    available_employment_sectors <- intersect(common_ind, colnames(state_employment_use))
+    employment_va_m[available_employment_sectors] <-
+      colSums(state_employment_use[c("V001", "V002", "V003"),
+                                   available_employment_sectors, drop = FALSE]) / 1e6
+
+    employment_output_vector <- setNames(
+      as.numeric(state_employment_output[[1]]),
+      rownames(state_employment_output)
+    )
+    available_output_sectors <- intersect(common_ind, names(employment_output_vector))
+    employment_output_m[available_output_sectors] <-
+      as.numeric(employment_output_vector[available_output_sectors]) / 1e6
 
     for (sector in common_ind) {
       sector_emp <- state_emp_data %>%
         filter(io_sector == sector)
 
       if (nrow(sector_emp) > 0 && !is.na(sector_emp$employment[1])) {
-        # VA for this sector (in dollars)
-        sector_va <- total_va[sector]
-        if (!is.na(sector_va) && sector_va > 0) {
-          # Employment coefficient: jobs per $1M VA
-          emp_coef_all[sector] <- sector_emp$employment[1] / (sector_va / 1e6)
+        sector_jobs <- sector_emp$employment[1]
+        if (!is.na(employment_output_m[sector]) && employment_output_m[sector] > 0) {
+          employment_output_coef[sector] <- sector_jobs / employment_output_m[sector]
+        }
+        if (!is.na(employment_va_m[sector]) && employment_va_m[sector] > 0) {
+          employment_va_coef[sector] <- sector_jobs / employment_va_m[sector]
         }
       }
     }
 
-    # Handle zeros/NAs - use average for sectors without data
-    avg_emp_coef <- mean(emp_coef_all[emp_coef_all > 0], na.rm = TRUE)
-    if (is.na(avg_emp_coef)) avg_emp_coef <- 10  # Default fallback
-    emp_coef_all[emp_coef_all == 0 | is.na(emp_coef_all)] <- avg_emp_coef
+    # QCEW private employment is unavailable for several synthetic/government
+    # StateIO sectors. Treat those unsupported satellite entries as zero rather
+    # than assigning an unrelated within-state average labor intensity.
+    employment_output_coef[is.na(employment_output_coef)] <- 0
+    employment_va_coef[is.na(employment_va_coef)] <- 0
 
-    # Type I Employment Multipliers: emp_coef × L
-    # This gives total employment per $1 of direct output
-    type1_emp_raw <- as.numeric(emp_coef_all %*% L)
+    # Total jobs supported per $1M of direct output.
+    type1_emp_raw <- as.numeric(employment_output_coef %*% L)
     names(type1_emp_raw) <- common_ind
 
     # Type II Employment Multipliers: emp_coef × L_type2
-    emp_coef_bar <- c(emp_coef_all, 0)
+    emp_coef_bar <- c(employment_output_coef, 0)
     type2_emp_raw <- as.numeric(emp_coef_bar %*% L_type2)[1:n]
     names(type2_emp_raw) <- common_ind
 
     # Convert to multiplier form: total / direct
-    # Direct employment per $1 output = emp_coef × va_coef
-    direct_emp_per_output <- emp_coef_all * va_coef
+    direct_emp_per_output <- employment_output_coef
     type1_emp <- type1_emp_raw / direct_emp_per_output
     type2_emp <- type2_emp_raw / direct_emp_per_output
 
@@ -374,6 +428,10 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
           Direct_Wage_Coef = round(wage_coef[sector], 6),
           Direct_Tax_Coef = round(tax_coef[sector], 6),
           Industry_Output_M = round(g[sector] / 1e6, 2),
+          Employment_Output_M = round(employment_output_m[sector], 2),
+          Employment_VA_M = round(employment_va_m[sector], 2),
+          Employment_Coefficient_Year = employment_year,
+          IO_Structure_Year = io_year,
 
           # Type I multipliers
           Type_I_Output = round(type1_output[sector], 4),
@@ -390,6 +448,9 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
           # Employment multipliers (true employment-weighted)
           Type_I_Emp = round(type1_emp[sector], 4),
           Type_II_Emp = round(type2_emp[sector], 4),
+          Direct_Jobs_Per_1M_Output = round(direct_emp_per_output[sector], 6),
+          Type_I_Jobs_Per_1M_Output = round(type1_emp_raw[sector], 6),
+          Type_II_Jobs_Per_1M_Output = round(type2_emp_raw[sector], 6),
 
           stringsAsFactors = FALSE
         ))
@@ -409,7 +470,8 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
 # ============================================================================
 
 message("=== Calculating Multipliers for All 50 States ===\n")
-message("Year: ", my_year)
+message("IO structure year: ", io_year)
+message("Employment coefficient year: ", employment_year)
 message("Target sectors: ", paste(target_sectors, collapse = ", "))
 message("")
 
@@ -425,7 +487,9 @@ for (i in seq_along(state_names)) {
     two_region_make, two_region_use,
     two_region_ind_output, two_region_com_output,
     two_region_va,
-    QCEW_ALL_SECTORS
+    QCEW_ALL_SECTORS,
+    employment_year_use,
+    employment_year_output
   )
 
   if (!is.null(state_results) && nrow(state_results) > 0) {

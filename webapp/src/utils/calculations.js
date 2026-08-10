@@ -10,11 +10,12 @@
  * Source: BLS Series CUUR0000SA0
  * https://data.bls.gov/timeseries/CUUR0000SA0
  *
- * The IO tables use 2019 as base year, so employment coefficients
- * are calibrated to 2019 dollars. We deflate current-year GDP to
- * 2019 dollars before applying employment coefficients.
+ * Employment coefficients use 2023 QCEW jobs divided by 2023 StateIO
+ * output/value added. We deflate current-year GDP to 2023 dollars before
+ * applying them. The 2019 StateIO year applies only to the interindustry
+ * structure and does not set the employment coefficient price year.
  */
-const CPI_BASE_YEAR = 2019;
+const CPI_BASE_YEAR = 2023;
 const CPI_ANNUAL_AVG = {
   2019: 255.657,
   2020: 258.811,
@@ -27,8 +28,7 @@ const CPI_ANNUAL_AVG = {
 const LATEST_CPI_YEAR = Math.max(...Object.keys(CPI_ANNUAL_AVG).map(Number));
 
 /**
- * Get deflator to convert current-year dollars to 2019 dollars
- * Deflator < 1 means current dollars buy less than 2019 dollars
+ * Get deflator to convert current-year dollars to 2023 dollars.
  */
 export function getDeflator(year) {
   const baseValue = CPI_ANNUAL_AVG[CPI_BASE_YEAR];
@@ -65,6 +65,7 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
     Direct_Wage_Coef: wageCoef,
     Direct_Tax_Coef: taxCoef,
     Emp_Coef: empCoef,
+    Direct_Jobs_Per_1M_Output: directJobsPerOutput,
     Indirect_Emp_Coef: indirectEmpCoef,
     Induced_Emp_Coef: inducedEmpCoef,
     Type_I_Output: type1Output,
@@ -134,28 +135,30 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
 
   // Employment impacts
   // Each effect type uses its own industry-weighted employment coefficient:
-  // - Direct: empCoef (jobs per $1M of direct GDP)
+  // - Direct: directJobsPerOutput (jobs per $1M of direct output); empCoef is
+  //   retained as the consistent-2023 jobs/value-added fallback/diagnostic
   // - Indirect: indirectEmpCoef (jobs per $1M of indirect GDP, weighted for supplier industries)
   // - Induced: inducedEmpCoef (jobs per $1M of induced GDP, weighted for household spending industries)
   //
-  // IMPORTANT: Employment coefficients are calibrated to 2019 dollars (from StateIO tables).
-  // We must deflate current-year GDP to 2019 dollars before applying coefficients.
-  // Without this, $100M in 2026 would be treated as equivalent to $100M in 2019,
-  // overstating employment by ~29% (cumulative inflation 2019-2026).
+  // Employment coefficients are calibrated to 2023 dollars. The model keeps
+  // 2019 interindustry relationships but does not mix 2023 jobs with 2019
+  // dollar denominators.
   let empDirect, empSource;
   if (knownEmployment && knownEmployment > 0) {
     empDirect = knownEmployment;
     empSource = 'user';
   } else {
-    // Deflate GDP to 2019 dollars before applying coefficient
-    empDirect = (gdpDirect * DEFLATOR) * empCoef;
+    // Deflate direct output to 2023 dollars before applying the coefficient.
+    empDirect = directJobsPerOutput != null
+      ? (revenue * DEFLATOR) * directJobsPerOutput
+      : (gdpDirect * DEFLATOR) * empCoef;
     empSource = 'calculated';
   }
 
   // Use industry-weighted employment coefficients for indirect/induced
   // These coefficients were computed in the R scripts using the Leontief inverse
   // and represent the weighted average labor intensity of supplier/household-spending industries
-  // Same deflation applies to convert current dollars to 2019 base
+  // The same conversion applies to supplier and household-spending GDP.
   const empIndirect = (gdpIndirect * DEFLATOR) * indirectEmpCoef;
   const empInduced = (gdpInduced * DEFLATOR) * inducedEmpCoef;
   const empTotal = empDirect + empIndirect + empInduced;
@@ -193,6 +196,16 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
  */
 export function isOnlinePropertyType(propertyType) {
   return ['ONLINE_CASINO', 'ONLINE_SPORTSBOOK'].includes(propertyType);
+}
+
+/**
+ * Return the revenue base that can safely be treated as GGR for statutory tax.
+ * A legacy land-based total-revenue input may include rooms, food, and other
+ * operating revenue, so it is never silently treated as GGR.
+ */
+export function getTaxableGgr(inputMode, isOnline, revenues = {}) {
+  if (inputMode === 'total') return isOnline ? (revenues.total || 0) : 0;
+  return revenues.gaming || 0;
 }
 
 /**
@@ -289,12 +302,14 @@ export function calculateCombinedImpact(
         stateData = gamblingData.find(d => d.State === state);
       }
     } else {
-      // Land-based: existing logic
-      if (propertyType && propertyTypesData) {
-        stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
-      }
-      if (!stateData && useGamblingSpecific && gamblingData) {
+      // Land-based property type is descriptive. Use the single canonical
+      // gambling production function for total-revenue estimates; department
+      // mode is available when lodging/food/other composition is known.
+      if (gamblingData) {
         stateData = gamblingData.find(d => d.State === state);
+      }
+      if (!stateData && propertyType && propertyTypesData) {
+        stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
       }
       if (!stateData) {
         stateData = multiplierData.find(d => d.State === state && d.Sector === '713');
@@ -368,15 +383,15 @@ export function calculateCombinedImpact(
             stateData = gamblingData.find(d => d.State === state);
           }
         } else {
-          // Land-based: existing logic
-          // In department mode, GGR uses gambling multipliers (not property type 721120 which equals lodging)
-          // For non-casino-hotel property types, use their specific multipliers
-          if (propertyType && propertyType !== '721120' && propertyTypesData) {
-            stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
-          }
-          // For casino hotels or as fallback, use legacy gambling (7132) multipliers
-          if (!stateData && useGamblingSpecific && gamblingData) {
+          // All land-based GGR uses the canonical gambling calibration. The
+          // property's hospitality revenue is modeled by the sector-specific
+          // department entries below, not by swapping the gaming production
+          // function for an accommodation or restaurant proxy.
+          if (gamblingData) {
             stateData = gamblingData.find(d => d.State === state);
+          }
+          if (!stateData && propertyType && propertyTypesData) {
+            stateData = getPropertyTypeData(propertyType, state, propertyTypesData);
           }
           if (!stateData) {
             stateData = multiplierData.find(d => d.State === state && d.Sector === sector);

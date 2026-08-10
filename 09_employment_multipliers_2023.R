@@ -5,7 +5,7 @@
 # Combines:
 #   - State multipliers from 08_state_multipliers_2023.R (includes true
 #     employment-weighted multipliers calculated using emp_coef × L)
-#   - Employment data from 07_process_qcew_employment_2023.R
+#   - Employment data from 08a_process_all_qcew_employment.R
 #
 # The employment multipliers (Type_I_Emp, Type_II_Emp) are calculated in
 # script 08 using the full employment coefficient vector across all 71 IO
@@ -15,9 +15,9 @@
 # This script merges employment data with multipliers and calculates
 # additional derived metrics like jobs per $1M of output/GDP.
 #
-# IMPORTANT: Employment coefficients use GDP (Value Added) as denominator,
-#            NOT Gross Output. This is the correct approach for regional
-#            economic impact analysis.
+# IMPORTANT: Direct jobs/GDP uses 2023 QCEW jobs divided by 2023 StateIO value
+#            added. Leontief propagation uses 2023 jobs/output. Both dollar
+#            denominators therefore match the 2023 employment numerator.
 # ============================================================================
 
 library(tidyverse)
@@ -30,7 +30,10 @@ my_year <- 2023
 
 # Input files (from previous scripts)
 multiplier_file <- paste0("state_multipliers_", my_year, ".csv")
-employment_file <- paste0("employment_by_state_", my_year, ".csv")
+employment_file <- Sys.getenv(
+  "GEMS_QCEW_ALL_SECTORS_FILE",
+  unset = paste0("employment_all_sectors_", my_year, ".csv")
+)
 
 # Output file
 output_file <- paste0("employment_multipliers_", my_year, ".csv")
@@ -52,9 +55,10 @@ message("Loaded multipliers: ", nrow(multipliers), " records from ", multiplier_
 # Load employment data
 if (!file.exists(employment_file)) {
   stop("Employment file not found: ", employment_file,
-       "\nRun 07_process_qcew_employment_2023.R first.")
+       "\nRun 08a_process_all_qcew_employment.R first.")
 }
 employment <- read.csv(employment_file, stringsAsFactors = FALSE)
+employment <- employment[employment$io_sector %in% c("711AS", "713", "721", "722"), ]
 message("Loaded employment: ", nrow(employment), " records from ", employment_file)
 
 # ============================================================================
@@ -91,13 +95,12 @@ message("\n=== Calculating Employment Coefficients ===\n")
 
 combined <- combined %>%
   mutate(
-    # Calculate VA from industry output and VA coefficient
-    # Industry_Output_M is in millions
-    # Direct_VA_Coef is VA per $ output
+    # Structural VA remains a 2019 StateIO result and is used for GDP impacts.
     VA_M = Industry_Output_M * Direct_VA_Coef,
 
-    # Employment coefficient: jobs per $1M GDP
-    Emp_Coef = if_else(VA_M > 0, employment / VA_M, NA_real_),
+    # Employment coefficient: 2023 jobs per $1M of 2023 value added.
+    Emp_Coef = if_else(Employment_VA_M > 0,
+                       employment / Employment_VA_M, NA_real_),
 
     # Wage per employee (from QCEW data)
     Avg_Wage = if_else(employment > 0, total_wages / employment, NA_real_)
@@ -121,16 +124,30 @@ combined <- combined %>%
     Type_I_Emp_Mult = Type_I_Emp,
     Type_II_Emp_Mult = Type_II_Emp,
 
-    # Jobs per $1M of final demand (direct sector output)
-    # Direct employment per $1M output = emp_coef × va_coef
-    Jobs_Per_1M_Output_Direct = Emp_Coef * Direct_VA_Coef,
-    Jobs_Per_1M_Output_TypeI = Jobs_Per_1M_Output_Direct * Type_I_Emp_Mult,
-    Jobs_Per_1M_Output_TypeII = Jobs_Per_1M_Output_Direct * Type_II_Emp_Mult,
+    # Effect-specific labor intensities used by the web application. These are
+    # derived from the employment-weighted totals, rather than unpublished
+    # coefficients imported from another working directory.
+    Indirect_Emp_Coef = if_else(
+      Type_I_VA > Direct_VA_Coef,
+      (Type_I_Jobs_Per_1M_Output - Direct_Jobs_Per_1M_Output) /
+        (Type_I_VA - Direct_VA_Coef),
+      0
+    ),
+    Induced_Emp_Coef = if_else(
+      Type_II_VA > Type_I_VA,
+      (Type_II_Jobs_Per_1M_Output - Type_I_Jobs_Per_1M_Output) /
+        (Type_II_VA - Type_I_VA),
+      0
+    ),
 
     # Jobs per $1M of GDP (direct value added)
     Jobs_Per_1M_GDP_Direct = Emp_Coef,
-    Jobs_Per_1M_GDP_TypeI = Emp_Coef * Type_I_Emp_Mult,
-    Jobs_Per_1M_GDP_TypeII = Emp_Coef * Type_II_Emp_Mult
+    Jobs_Per_1M_GDP_TypeI = if_else(
+      Type_I_VA > 0, Type_I_Jobs_Per_1M_Output / Type_I_VA, NA_real_
+    ),
+    Jobs_Per_1M_GDP_TypeII = if_else(
+      Type_II_VA > 0, Type_II_Jobs_Per_1M_Output / Type_II_VA, NA_real_
+    )
   )
 
 # ============================================================================
@@ -152,6 +169,10 @@ output_data <- combined %>%
     # Economic structure
     Industry_Output_M,
     VA_M,
+    Employment_Output_M,
+    Employment_VA_M,
+    Employment_Coefficient_Year,
+    IO_Structure_Year,
     Direct_VA_Coef,
     Direct_Wage_Coef,
 
@@ -176,13 +197,15 @@ output_data <- combined %>%
     # (Type_I_Emp_Mult and Type_II_Emp_Mult are true employment-weighted
     # multipliers from script 08, not derived from VA multipliers)
     Emp_Coef,
+    Indirect_Emp_Coef,
+    Induced_Emp_Coef,
     Type_I_Emp_Mult,
     Type_II_Emp_Mult,
 
     # Jobs per $1M (useful for impact calculations)
-    Jobs_Per_1M_Output_Direct,
-    Jobs_Per_1M_Output_TypeI,
-    Jobs_Per_1M_Output_TypeII,
+    Direct_Jobs_Per_1M_Output,
+    Type_I_Jobs_Per_1M_Output,
+    Type_II_Jobs_Per_1M_Output,
     Jobs_Per_1M_GDP_Direct,
     Jobs_Per_1M_GDP_TypeI,
     Jobs_Per_1M_GDP_TypeII

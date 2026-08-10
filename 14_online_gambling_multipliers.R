@@ -109,28 +109,37 @@ message("\n=== Creating Online Gambling-Adjusted Multipliers ===\n")
 
 online_multipliers <- gambling_mult %>%
   mutate(
+    Parent_Direct_VA_Coef = Direct_VA_Coef,
+    Parent_Direct_Wage_Coef = Direct_Wage_Coef,
+    Parent_Direct_Tax_Coef = Direct_Tax_Coef,
+    Parent_Type_I_Output = Type_I_Output,
+    Parent_Type_I_VA = Type_I_VA,
+    Parent_Type_I_Wage = Type_I_Wage,
+    Parent_Type_I_Tax = Type_I_Tax,
+    Parent_Direct_Jobs_Per_1M_Output = Direct_Jobs_Per_1M_Output,
+
     # Adjust direct coefficients
-    Direct_VA_Coef = Direct_VA_Coef * ONLINE_ADJUSTMENT_FACTORS$va_coef_ratio,
-    Direct_Wage_Coef = Direct_Wage_Coef * ONLINE_ADJUSTMENT_FACTORS$wage_coef_ratio,
-    Direct_Tax_Coef = Direct_Tax_Coef * ONLINE_ADJUSTMENT_FACTORS$topi_coef_ratio,
+    Direct_VA_Coef = Parent_Direct_VA_Coef * ONLINE_ADJUSTMENT_FACTORS$va_coef_ratio,
+    Direct_Wage_Coef = Parent_Direct_Wage_Coef * ONLINE_ADJUSTMENT_FACTORS$wage_coef_ratio,
+    Direct_Tax_Coef = Parent_Direct_Tax_Coef * ONLINE_ADJUSTMENT_FACTORS$topi_coef_ratio,
 
     # Adjust Type I multipliers (direct + indirect)
-    Type_I_Output = 1 + (Type_I_Output - 1) * ONLINE_ADJUSTMENT_FACTORS$output_mult_ratio,
-    Type_I_VA = Direct_VA_Coef + (Type_I_VA - gambling_mult$Direct_VA_Coef * ONLINE_ADJUSTMENT_FACTORS$va_coef_ratio) *
+    Type_I_Output = 1 + (Parent_Type_I_Output - 1) * ONLINE_ADJUSTMENT_FACTORS$output_mult_ratio,
+    Type_I_VA = Direct_VA_Coef + (Parent_Type_I_VA - Parent_Direct_VA_Coef) *
       ONLINE_ADJUSTMENT_FACTORS$va_mult_ratio,
-    Type_I_Wage = Direct_Wage_Coef + (Type_I_Wage - gambling_mult$Direct_Wage_Coef * ONLINE_ADJUSTMENT_FACTORS$wage_coef_ratio) *
+    Type_I_Wage = Direct_Wage_Coef + (Parent_Type_I_Wage - Parent_Direct_Wage_Coef) *
       ONLINE_ADJUSTMENT_FACTORS$wage_mult_ratio,
-    Type_I_Tax = Direct_Tax_Coef + (Type_I_Tax - gambling_mult$Direct_Tax_Coef * ONLINE_ADJUSTMENT_FACTORS$topi_coef_ratio) *
+    Type_I_Tax = Direct_Tax_Coef + (Parent_Type_I_Tax - Parent_Direct_Tax_Coef) *
       ONLINE_ADJUSTMENT_FACTORS$topi_mult_ratio,
 
     # Adjust Type II multipliers (direct + indirect + induced)
-    Type_II_Output = Type_I_Output + (Type_II_Output - gambling_mult$Type_I_Output) *
+    Type_II_Output = Type_I_Output + (Type_II_Output - Parent_Type_I_Output) *
       ONLINE_ADJUSTMENT_FACTORS$output_mult_ratio,
-    Type_II_VA = Type_I_VA + (Type_II_VA - gambling_mult$Type_I_VA) *
+    Type_II_VA = Type_I_VA + (Type_II_VA - Parent_Type_I_VA) *
       ONLINE_ADJUSTMENT_FACTORS$va_mult_ratio,
-    Type_II_Wage = Type_I_Wage + (Type_II_Wage - gambling_mult$Type_I_Wage) *
+    Type_II_Wage = Type_I_Wage + (Type_II_Wage - Parent_Type_I_Wage) *
       ONLINE_ADJUSTMENT_FACTORS$wage_mult_ratio,
-    Type_II_Tax = Type_I_Tax + (Type_II_Tax - gambling_mult$Type_I_Tax) *
+    Type_II_Tax = Type_I_Tax + (Type_II_Tax - Parent_Type_I_Tax) *
       ONLINE_ADJUSTMENT_FACTORS$topi_mult_ratio,
 
     # Adjust only the online operator's direct labor intensity. Indirect and
@@ -140,27 +149,32 @@ online_multipliers <- gambling_mult %>%
     # multipliers above.
     Emp_Coef = Emp_Coef * ONLINE_ADJUSTMENT_FACTORS$emp_coef_ratio,
 
+    VA_M = Industry_Output_M * Direct_VA_Coef,
+    Direct_Jobs_Per_1M_Output = Parent_Direct_Jobs_Per_1M_Output *
+      ONLINE_ADJUSTMENT_FACTORS$emp_coef_ratio *
+      ONLINE_ADJUSTMENT_FACTORS$va_coef_ratio,
+    Type_I_Jobs_Per_1M_Output = Direct_Jobs_Per_1M_Output +
+      (Type_I_VA - Direct_VA_Coef) * Indirect_Emp_Coef,
+    Type_II_Jobs_Per_1M_Output = Type_I_Jobs_Per_1M_Output +
+      (Type_II_VA - Type_I_VA) * Induced_Emp_Coef,
+    Type_I_Emp_Mult = Type_I_Jobs_Per_1M_Output / Direct_Jobs_Per_1M_Output,
+    Type_II_Emp_Mult = Type_II_Jobs_Per_1M_Output / Direct_Jobs_Per_1M_Output,
+    Jobs_Per_1M_GDP_Direct = Emp_Coef,
+    Jobs_Per_1M_GDP_TypeI = Type_I_Jobs_Per_1M_Output / Type_I_VA,
+    Jobs_Per_1M_GDP_TypeII = Type_II_Jobs_Per_1M_Output / Type_II_VA,
+
     # Update sector labels
     Sector = "ONLINE",
     Sector_Name = "Online Gambling (iGaming & Sports Betting)"
-  )
+  ) %>%
+  select(-starts_with("Parent_"))
 
 # ============================================================================
 # SELECT OUTPUT COLUMNS
 # ============================================================================
 
 output_online <- online_multipliers %>%
-  select(
-    State, Abbrev, Sector, Sector_Name,
-    Employment, Total_Wages_M, Avg_Wage,
-    Industry_Output_M, VA_M,
-    Direct_VA_Coef, Direct_Wage_Coef,
-    Type_I_Output, Type_II_Output,
-    Type_I_VA, Type_II_VA,
-    Type_I_Wage, Type_II_Wage,
-    Emp_Coef, Indirect_Emp_Coef, Induced_Emp_Coef,
-    Direct_Tax_Coef, Type_I_Tax, Type_II_Tax
-  )
+  select(State, Abbrev, Sector, Sector_Name, everything())
 
 # ============================================================================
 # SAVE

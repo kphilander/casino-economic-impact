@@ -4,7 +4,7 @@ import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
 import { ARCHETYPES, ARCHETYPE_LIST, calculateArchetypeEmployment } from './data/archetypes';
-import { calculateCombinedImpact, calculateGamingTax, calculatePayrollTax, calculateHouseholdTax, formatNumber, formatCurrency, formatJobs, isOnlinePropertyType } from './utils/calculations';
+import { calculateCombinedImpact, calculateGamingTax, calculatePayrollTax, calculateHouseholdTax, formatNumber, formatCurrency, formatJobs, getTaxableGgr, isOnlinePropertyType } from './utils/calculations';
 import {
   validateLicense,
   validateLicenseRemote,
@@ -237,10 +237,10 @@ function DownloadPPTXButton({ onClick, isGenerating }) {
 const PROPERTY_TYPE_OPTIONS = [
   { value: '', label: 'Select property type...', description: '', category: '' },
   // Land-Based
-  { value: '721120', label: 'Resort with Hotel & Casino', description: 'Integrated casino-hotel (e.g., Las Vegas Strip properties)', category: 'land' },
-  { value: '713210', label: 'Stand-alone Casino', description: 'Traditional casino without integrated hotel; uses sector 713 coefficients', category: 'land' },
-  { value: '713290', label: 'Slot Parlors / Bingo Halls', description: 'Uses the same sector 713 model coefficients as a stand-alone casino', category: 'land' },
-  { value: '722410', label: 'Bars/Restaurants with Slots', description: 'Establishments with gaming as ancillary activity', category: 'land' },
+  { value: '721120', label: 'Resort with Hotel & Casino', description: 'Reporting label; use department inputs to model lodging and food separately', category: 'land' },
+  { value: '713210', label: 'Stand-alone Casino', description: 'Uses the canonical land-based gambling coefficients', category: 'land' },
+  { value: '713290', label: 'Slot Parlors / Bingo Halls', description: 'Reporting label using the canonical land-based gambling coefficients', category: 'land' },
+  { value: '722410', label: 'Bars/Restaurants with Slots', description: 'Reporting label; use department inputs to model food revenue separately', category: 'land' },
   // Online
   { value: 'ONLINE_CASINO', label: 'Online Casino / iGaming', description: 'Online casino operations (slots, table games, poker)', category: 'online' },
   { value: 'ONLINE_SPORTSBOOK', label: 'Online Sportsbook', description: 'Online sports betting operations', category: 'online' }
@@ -544,7 +544,8 @@ export default function App() {
     }
   }, []);
 
-  // Calculate results using property-type-specific multipliers
+  // Calculate results using the canonical land-based gambling calibration or
+  // the separate online scenario coefficients.
   const isOnline = isOnlinePropertyType(propertyType);
   const results = useMemo(() => {
     return calculateCombinedImpact(
@@ -583,12 +584,9 @@ export default function App() {
       // Allow calculation if state has commercial gaming OR user provided a custom rate
       if (!hasCommercial && (gamingTaxCustomRate == null || gamingTaxCustomRate === '')) return null;
     }
-    // Aggregate land-based operating revenue is not interchangeable with GGR.
-    // In legacy total mode, calculate gaming tax only when a separate GGR value
-    // is available. Online operations have a single GGR revenue stream.
-    const ggr = inputMode === 'total'
-      ? (isOnline ? (revenues.total || 0) : (revenues.gaming || 0))
-      : (revenues.gaming || 0);
+    // A legacy land-based total-revenue value can include rooms, food, and
+    // other sales, so it is never silently treated as taxable GGR.
+    const ggr = getTaxableGgr(inputMode, isOnline, revenues);
     if (ggr <= 0) return null;
 
     // Build tax config for calculation (passes propertyType for online routing)
@@ -1269,7 +1267,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
         )}
 
         {/* Archetype Comparison Panel */}
-        {results && !isOnlinePropertyType(propertyType) && (
+        {results && !isOnlinePropertyType(propertyType) && inputMode === 'department' && (
           <div className="bg-accent-soft border border-accent-100 rounded-xl p-4 mb-6 animate-fade-in-up">
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-3">
@@ -1295,7 +1293,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
             </div>
 
             {showArchetypeComparison && (() => {
-              const gamingRev = inputMode === 'total' ? (revenues.total || 0) : (revenues.gaming || 0);
+              const gamingRev = revenues.gaming || 0;
               const archKey = selectedArchetypeKey;
               const arch = archKey ? ARCHETYPES[archKey] : null;
               const archetypeEmp = arch ? calculateArchetypeEmployment(gamingRev, archKey) : 0;
@@ -1910,7 +1908,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                     <p className="text-xs text-gray-500 mt-3">
                       TOPI includes gross-receipts, amusement, license, property, excise, and other production taxes.
                       The statutory {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'sports betting tax' : 'iGaming tax') : 'gaming tax'} estimate is therefore shown as a memo item and is not added again.
-                      The statutory memo and modeled TOPI are not reconciled state by state; replacing the embedded component would require a separate adjustment.
+                      StateIO does not identify the embedded gaming-tax amount by state, so the model does not subtract or replace it.
                       Payroll and household taxes use estimated cash wages rather than total employee compensation; the cash-wage share is based on BEA NIPA table 1.12.
                       {stateTaxConfig?.localTaxNotes && (
                         <span className="block mt-1 italic">Note: {stateTaxConfig.localTaxNotes}</span>

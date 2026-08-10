@@ -17,7 +17,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, HRFlowable, ListFlowable, ListItem, NextPageTemplate,
+    BaseDocTemplate, Frame, HRFlowable, KeepTogether, ListFlowable, ListItem, NextPageTemplate,
     PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle,
 )
 
@@ -90,7 +90,7 @@ def table(data, widths, header=True):
     for r, row in enumerate(data):
         st = S["cellHead"] if (header and r == 0) else S["cell"]
         wrapped.append([Paragraph(str(c).replace("\n", "<br/>"), st) for c in row])
-    t = Table(wrapped, colWidths=widths, hAlign="LEFT")
+    t = Table(wrapped, colWidths=widths, hAlign="LEFT", splitByRow=0)
     cmds = [
         ("GRID", (0, 0), (-1, -1), 0.5, BORDER),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -253,7 +253,7 @@ def build():
         "parks - businesses with fundamentally different cost structures and labor intensities.", S["body"]))
     el.append(Paragraph(
         f"{PRODUCT_NAME} addresses this gap. It combines state-specific Input-Output multipliers with "
-        "gambling-specific industry coefficients and property-type-specific revenue structures to "
+        "gambling-specific industry coefficients and department-specific revenue structures to "
         "produce defensible, state-level estimates of the economic footprint of casino and gaming "
         "operations. The model supports land-based property types (casino hotels, stand-alone "
         "casinos, slot parlors, and bar/restaurant gaming) as well as online casino and sports "
@@ -313,29 +313,35 @@ def build():
     # --- 4. Employment ---
     el.append(Paragraph("4. Employment Estimation", S["h1"]))
     el.append(Paragraph(
-        "Employment is estimated with employment-weighted coefficients rather than output-based "
-        "multipliers, because a dollar of indirect or induced GDP generates more or fewer jobs "
+        "Employment is estimated with a consistent-2023 employment satellite rather than a simple output "
+        "multiplier, because a dollar of indirect or induced GDP generates more or fewer jobs "
         "depending on whether it flows to labor-intensive sectors (restaurants) or capital-intensive "
         "sectors (utilities):", S["body"]))
-    el.append(Paragraph("Jobs = GDP_effect x Employment_Coefficient", S["formula"]))
+    el.append(Paragraph(
+        "Direct jobs = Direct output x Jobs_per_Output<br/>"
+        "Supplier or induced jobs = GDP_effect x Effect_Specific_Jobs_per_GDP",
+        S["formula"]))
     el.append(table([
         ["Coefficient", "Applies to", "Reflects"],
-        ["Emp_Coef", "Direct employment", "Labor intensity of the gaming industry itself"],
+        ["Direct_Jobs_Per_1M_Output", "Direct employment", "2023 jobs per $1M of 2023 output"],
+        ["Emp_Coef", "Direct diagnostic", "2023 jobs per $1M of 2023 value added"],
         ["Indirect_Emp_Coef", "Indirect employment",
          "Weighted average labor intensity of supplier industries"],
         ["Induced_Emp_Coef", "Induced employment",
          "Weighted average labor intensity of household-spending industries"],
-    ], [1.5 * inch, 1.7 * inch, 3.5 * inch]))
+    ], [2.1 * inch, 1.4 * inch, 3.2 * inch]))
     el.append(Spacer(1, 10))
-    el.append(Paragraph(
-        "Coefficients are expressed as jobs per $1M of value added (GDP), not gross output. Using "
-        "gross output as the denominator would double-count intermediate purchases and understate "
-        "the jobs-per-dollar ratio. Coefficients are computed from the Leontief inverse weighted by "
-        "sector-level employment-to-GDP ratios from QCEW data. QCEW annual average employment counts "
+    el.append(KeepTogether([Paragraph(
+        "QCEW jobs are divided by 2023 StateIO output and value added. Jobs/output is propagated through "
+        "the Leontief output-requirements matrix; supplier and induced jobs/GDP coefficients are derived "
+        "from the resulting job totals and corresponding GDP increments. QCEW annual average employment counts "
         "filled full-time and part-time jobs, including temporary and permanent positions; it does "
         "not use hours or convert positions to full-time equivalents. A person with multiple jobs may "
         "be counted more than once. User-provided jobs replace only direct employment. User-provided "
-        "cash wages replace the direct labor value and rebase the household-spending effects.", S["body"]))
+        "cash wages replace the direct labor value and rebase the household-spending effects. The satellite "
+        "is built from the official BLS annual singlefile with exact aggregate mappings. StateIO's synthetic "
+        "HS, GFE, and GSLE sectors have no QCEW-compatible measure and are explicit zeros rather than "
+        "average-sector imputations.", S["body"])]))
 
     # --- 5. Reporting basis & inflation ---
     el.append(Paragraph("5. Reporting Basis & Inflation Adjustment", S["h1"]))
@@ -347,19 +353,16 @@ def build():
         "is deflated.", S["body"]))
     el.append(Paragraph(
         "Employment is the one quantity that needs a base-year adjustment, because the employment "
-        "coefficients carry a dollar denomination: they are jobs per $1M of value added expressed in "
-        "<b>2019 dollars</b> (the IO table base year, and the denominator used when the coefficients "
-        "were estimated). Applying that coefficient to a current-dollar GDP figure would mismatch "
-        "the price bases. The model therefore restates GDP in 2019 dollars purely as an internal "
-        "step in the jobs calculation, then applies the coefficient:", S["body"]))
+        "coefficients carry a dollar denomination. They are calibrated with <b>2023</b> QCEW jobs and "
+        "2023 StateIO output/value added. The model therefore restates the relevant output or GDP "
+        "effect in 2023 dollars purely as an internal step in the jobs calculation:", S["body"]))
     el.append(Paragraph(
-        "Deflator = CPI_2019 / CPI_current_year<br/>"
-        "Jobs = (GDP_current x Deflator) x Employment_Coefficient", S["formula"]))
+        "Deflator = CPI_2023 / CPI_current_year<br/>"
+        "Jobs = (Output_or_GDP_current x Deflator) x Employment_Coefficient", S["formula"]))
     el.append(Paragraph(
         "This conversion affects the employment estimate only; it does not change any dollar figure "
-        "the model displays. Without it, current-dollar GDP would be matched against a coefficient "
-        "denominated in cheaper 2019 dollars, overstating jobs by the cumulative price growth since "
-        "2019.", S["body"]))
+        "the model displays. The 2019 StateIO year remains the production-structure vintage, not the "
+        "employment coefficient price year.", S["body"]))
     el.append(Paragraph(
         "The CPI table uses official BLS calendar-year annual averages. When the analysis year is "
         "newer than the latest complete annual average, GEMS uses the latest complete year (currently "
@@ -375,35 +378,29 @@ def build():
         "multiplier.", S["body"]))
     el.append(Paragraph(
         "Published IO tables contain only the blended sector 713 (Amusement, Gambling, and "
-        "Recreation). The deployed generic-gambling series applies these legacy adjustment factors "
-        "derived from BEA Detail IO tables (USEEIOv2.0.1-411):", S["body"]))
+        "Recreation). The single canonical generator builds USEEIOv2.0.1-411 and compares detailed "
+        "gambling (713200/US) with an output-weighted 713 parent:", S["body"]))
     el.append(table([
-        ["Coefficient", "Blended 713", "Gambling (713200)", "Ratio"],
-        ["Value added", "0.651", "0.577", "0.89"],
-        ["Employee compensation", "0.406", "0.255", "0.63"],
-        ["TOPI", "0.058", "0.035", "0.61"],
-    ], [1.6 * inch, 1.4 * inch, 1.7 * inch, 1.0 * inch]))
+        ["Component", "Gambling-to-parent ratio"],
+        ["Direct value added", "1.008"],
+        ["Direct employee compensation", "0.863"],
+        ["Direct TOPI", "0.609"],
+        ["Direct jobs per output", "0.540"],
+        ["Supplier output increment", "0.967"],
+        ["Supplier value-added increment", "0.993"],
+        ["Supplier compensation increment", "1.047"],
+        ["Supplier TOPI increment", "0.940"],
+    ], [3.8 * inch, 2.2 * inch]))
     el.append(Spacer(1, 10))
     el.append(Paragraph(
-        "The current generator applies these ratios to direct coefficients and to incremental Type I/"
-        "Type II output, value-added, employee-compensation, and TOPI effects while retaining StateIO "
-        "state variation. Supplier and induced jobs-per-GDP coefficients remain tied to the industries "
-        "where those effects occur.", S["body"]))
+        "The generator applies direct ratios and supplier-increment ratios separately while retaining "
+        "StateIO state variation. Because USEEIO is an open Type I model, the same documented supplier "
+        "ratios scale StateIO induced increments. Supplier and induced jobs/GDP coefficients remain tied "
+        "to the industries where those effects occur.", S["body"]))
     el.append(Paragraph(
-        "A recovered property-type calculation, now versioned in the repository, independently builds "
-        "output-weighted USEEIO parent benchmarks:", S["body"]))
-    el.append(table([
-        ["Property mapping", "Parent", "VA", "Comp.", "Jobs", "Type I output"],
-        ["Casino hotel (721120)", "721", "1.000", "1.000", "1.000", "1.000"],
-        ["Stand-alone casino (713210)", "713", "1.008", "0.863", "0.540", "0.985"],
-        ["Slot parlor / bingo (713290)", "713", "1.008", "0.863", "0.540", "0.985"],
-        ["Bar/restaurant gaming (722410)", "722", "1.063", "1.102", "0.920", "0.947"],
-    ], [2.1 * inch, 0.65 * inch, 0.7 * inch, 0.7 * inch, 0.7 * inch, 1.05 * inch]))
-    el.append(Spacer(1, 8))
-    el.append(Paragraph(
-        "The legacy generic-gambling ratios (0.89 VA; 0.63 compensation) are not equivalent to the "
-        "recovered property ratios (1.008; 0.863). Both lineages are disclosed, and deployed "
-        "coefficients remain unchanged pending reconciliation of their parent definitions.", S["caption"]))
+        "The former competing legacy calibration has been removed. All land-based property labels use "
+        "this canonical gambling series; department inputs introduce lodging, food, and other composition.",
+        S["caption"]))
 
     # --- 7. Taxes ---
     el.append(Paragraph("7. Tax Revenue Estimation", S["h1"]))
@@ -420,9 +417,13 @@ def build():
         "reports and the AGA State of the States. Gross-receipts, amusement, and license taxes are "
         "already within the TOPI accounting concept. GEMS therefore reports statutory gaming tax as "
         "a memo component of direct TOPI and does not add it again to the non-duplicative tax total. "
-        "The statutory memo and modeled TOPI are not numerically reconciled state by state; replacing "
-        "the embedded portion would require a separate adjustment. "
+        "GEMS does not subtract an estimated embedded amount because StateIO does not identify the "
+        "state-specific gaming-tax portion of sector 713 TOPI. "
         "Supported structures:", S["body"]))
+    el.append(Paragraph(
+        "A legacy land-based total-revenue input is not silently treated as GGR for this memo estimate. "
+        "An explicit gaming-revenue input is required; online total revenue remains GGR by construction.",
+        S["body"]))
     el.append(bullets([
         "<b>Flat rate</b> - a single percentage (e.g., Nevada at 6.75%)",
         "<b>Graduated tiers</b> - increasing rates at revenue thresholds (e.g., Colorado, Iowa)",
@@ -441,8 +442,8 @@ def build():
     el.append(Paragraph("8. Data Sources", S["h1"]))
     el.append(table([
         ["Source", "Vintage", "Use"],
-        ["EPA State Input-Output (StateIO) models,\nvia the stateior R package", "2019",
-         "State multipliers (pre-pandemic year avoids\ndistorted 2020 relationships)"],
+        ["EPA State Input-Output (StateIO) models,\nvia the stateior R package", "2019 / 2023",
+         "2019 production structure; 2023 output/VA\ndenominators for employment"],
         ["BLS Quarterly Census of Employment\nand Wages (QCEW)", "2023 annual\naverages",
          "Filled-job counts used in employment coefficients"],
         ["BEA Detail IO tables via useeior\n(USEEIOv2.0.1-411)", "2017",
@@ -471,9 +472,10 @@ def build():
     ], [1.3 * inch, 1.3 * inch, 4.1 * inch]))
     el.append(Spacer(1, 10))
     el.append(Paragraph(
-        "When total revenue is entered instead, the model applies property-type-specific "
-        "multipliers. Each property type carries its own multiplier set reflecting its economic "
-        "structure:", S["body"]))
+        "All land-based property labels use the canonical gambling production function. When total "
+        "revenue is entered, the complete amount uses that function and is an approximation if "
+        "non-gaming revenue is material. Department mode separately assigns lodging, food, and other "
+        "revenue to their corresponding sectors:", S["body"]))
     el.append(table([
         ["NAICS", "Property type", "Typical operations"],
         ["721120", "Casino Hotel", "Full-service resort with gaming, lodging, F&B"],
@@ -484,9 +486,8 @@ def build():
     ], [0.9 * inch, 2.1 * inch, 3.7 * inch]))
     el.append(Spacer(1, 8))
     el.append(Paragraph(
-        "The current deployed records for NAICS 713210 and 713290 have identical modeled multiplier "
-        "coefficients because both map to BEA proxy 713200/US and StateIO parent 713. A distinct "
-        "estimate would require a distinct defensible production mapping, not merely a different label.", S["caption"]))
+        "The four land-based NAICS codes are reporting labels, not claims of four separately estimated "
+        "production functions.", S["caption"]))
 
     # --- 10. Limitations ---
     el.append(Paragraph("10. Limitations and Appropriate Use", S["h1"]))
@@ -497,13 +498,10 @@ def build():
         "'leaks' to other states is excluded. This yields conservative estimates of local benefits.",
         "IO models assume fixed production technology and no supply constraints; very large "
         "projects may alter local economic structure in ways the model does not capture.",
-        "The model deliberately retains the 2019 pre-pandemic interindustry structure, but the "
-        "deployed employment satellite divides 2023 QCEW jobs by 2019 StateIO value added. This "
-        "mixed-vintage labor-intensity coefficient should be interpreted cautiously until rebuilt "
-        "with numerator and denominator on a consistent year and price basis.",
-        "The national property-ratio calculation is reproducible from versioned source tables. The "
-        "final property-dataset assembler remains only partially versioned, and the generic-gambling "
-        "and property-type ratio definitions still require reconciliation.",
+        "The model deliberately retains the 2019 pre-pandemic interindustry structure while using a "
+        "consistent-2023 employment satellite. This is a structural hybrid, not a mixed labor numerator/denominator.",
+        "National gambling ratios, employment coefficients, the property assembler, deployed JSON, "
+        "and offline integrity tests are versioned. The external QCEW input is the official BLS annual singlefile.",
         "Online-gambling adjustments are approximations based on a small public-company evidence "
         "base and retain land-based gambling supply-chain relationships.",
         "The model is appropriate for policy analysis, planning, and comparative assessment. It is "

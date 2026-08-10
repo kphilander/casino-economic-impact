@@ -57,7 +57,7 @@ All available information and technology sectors at the BEA Summary IO level wer
 
 Since NAICS classifies online gambling under 7132 regardless, and the BEA Detail IO tables provide gambling-specific coefficients (used in `12_gambling_specific_data.R` to adjust the blended 713 sector), the most defensible approach is to start with the existing 7132 gambling-adjusted multipliers and apply a second layer of adjustment factors derived from public company financial data.
 
-This preserves the gambling supply-chain structure as an approximation while correcting the **direct coefficients** (employee compensation, employment, VA) that differ most between online and land-based operations. The direct online employment ratio is applied only to `Emp_Coef`; supplier and household-spending employment intensities remain those of the industries where the indirect and induced GDP occurs.
+This preserves the gambling supply-chain structure as an approximation while correcting the **direct coefficients** (employee compensation, employment, VA) that differ most between online and land-based operations. The direct online employment ratio is applied to `Emp_Coef` and the direct jobs/output coefficient; supplier and household-spending employment intensities remain those of the industries where the indirect and induced GDP occurs.
 
 ### Adjustment Factors
 

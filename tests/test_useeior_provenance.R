@@ -67,6 +67,11 @@ expected_parents <- data.frame(
     detail$wage_direct[detail$bea_code == "721000/US"],
     weighted_parent(c("722110/US", "722A00/US"), "wage_direct")
   ),
+  topi_blended = c(
+    weighted_parent(c("713100/US", "713200/US", "713900/US"), "topi_direct"),
+    detail$topi_direct[detail$bea_code == "721000/US"],
+    weighted_parent(c("722110/US", "722A00/US"), "topi_direct")
+  ),
   emp_blended_perM = c(
     weighted_parent(c("713100/US", "713200/US", "713900/US"), "emp_direct_perM"),
     detail$emp_direct_perM[detail$bea_code == "721000/US"],
@@ -76,11 +81,26 @@ expected_parents <- data.frame(
     weighted_parent(c("713100/US", "713200/US", "713900/US"), "type_i_output"),
     detail$type_i_output[detail$bea_code == "721000/US"],
     weighted_parent(c("722110/US", "722A00/US"), "type_i_output")
+  ),
+  type_i_va_blended = c(
+    weighted_parent(c("713100/US", "713200/US", "713900/US"), "type_i_va"),
+    detail$type_i_va[detail$bea_code == "721000/US"],
+    weighted_parent(c("722110/US", "722A00/US"), "type_i_va")
+  ),
+  type_i_wage_blended = c(
+    weighted_parent(c("713100/US", "713200/US", "713900/US"), "type_i_wage"),
+    detail$type_i_wage[detail$bea_code == "721000/US"],
+    weighted_parent(c("722110/US", "722A00/US"), "type_i_wage")
+  ),
+  type_i_topi_blended = c(
+    weighted_parent(c("713100/US", "713200/US", "713900/US"), "type_i_topi"),
+    detail$type_i_topi[detail$bea_code == "721000/US"],
+    weighted_parent(c("722110/US", "722A00/US"), "type_i_topi")
   )
 )
 
 parents <- parents[match(expected_parents$parent_sector, parents$parent_sector), ]
-for (field in c("va_blended", "wage_blended", "emp_blended_perM", "type_i_blended")) {
+for (field in setdiff(names(expected_parents), "parent_sector")) {
   assert_close(parents[[field]], expected_parents[[field]], paste("parent", field))
 }
 
@@ -93,7 +113,12 @@ mapping <- data.frame(
 ratios <- ratios[match(mapping$property_type, ratios$property_type), ]
 stopifnot(
   identical(ratios$bea_proxy, mapping$bea_proxy),
-  identical(ratios$parent_io_sector, mapping$parent_io_sector)
+  identical(ratios$parent_io_sector, mapping$parent_io_sector),
+  identical(
+    ratios$calibration_role,
+    c("comparison_only", "canonical_gambling",
+      "canonical_gambling", "comparison_only")
+  )
 )
 
 proxy <- detail[match(mapping$bea_proxy, detail$bea_code), ]
@@ -101,17 +126,49 @@ parent <- parents[match(mapping$parent_io_sector, parents$parent_sector), ]
 
 assert_close(ratios$va_ratio, proxy$va_direct / parent$va_blended, "VA ratios")
 assert_close(ratios$wage_ratio, proxy$wage_direct / parent$wage_blended, "compensation ratios")
+assert_close(ratios$topi_ratio, proxy$topi_direct / parent$topi_blended, "TOPI ratios")
 assert_close(ratios$emp_ratio, proxy$emp_direct_perM / parent$emp_blended_perM, "jobs ratios")
+assert_close(
+  ratios$emp_va_ratio,
+  (proxy$emp_direct_perM / proxy$va_direct) /
+    (parent$emp_blended_perM / parent$va_blended),
+  "jobs/value-added ratios"
+)
 assert_close(
   ratios$type_i_output_ratio,
   proxy$type_i_output / parent$type_i_blended,
   "Type I output ratios"
+)
+assert_close(
+  ratios$output_indirect_ratio,
+  (proxy$type_i_output - 1) / (parent$type_i_blended - 1),
+  "indirect output ratios"
+)
+assert_close(
+  ratios$va_indirect_ratio,
+  (proxy$type_i_va - proxy$va_direct) /
+    (parent$type_i_va_blended - parent$va_blended),
+  "indirect VA ratios"
+)
+assert_close(
+  ratios$wage_indirect_ratio,
+  (proxy$type_i_wage - proxy$wage_direct) /
+    (parent$type_i_wage_blended - parent$wage_blended),
+  "indirect compensation ratios"
+)
+assert_close(
+  ratios$topi_indirect_ratio,
+  (proxy$type_i_topi - proxy$topi_direct) /
+    (parent$type_i_topi_blended - parent$topi_blended),
+  "indirect TOPI ratios"
 )
 
 # The two labels share a BEA proxy by construction. A future distinct estimate
 # must change the source mapping rather than silently editing one deployed row.
 casino_ratio <- ratios[ratios$property_type == 713210L, ]
 slot_ratio <- ratios[ratios$property_type == 713290L, ]
-stopifnot(identical(as.list(casino_ratio[1, 3:8]), as.list(slot_ratio[1, 3:8])))
+ratio_fields <- setdiff(names(ratios), c("property_type", "property_label"))
+stopifnot(identical(as.list(casino_ratio[1, ratio_fields]),
+                    as.list(slot_ratio[1, ratio_fields])))
 
 message("USEEIO provenance checks passed for 6 detail sectors and 4 property mappings.")

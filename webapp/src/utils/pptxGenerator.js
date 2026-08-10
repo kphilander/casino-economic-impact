@@ -775,7 +775,7 @@ This includes not just casino employees, but workers throughout the supply chain
   });
 
   const taxTerms = [
-    { term: 'Gaming Tax', def: `Memo estimate of state-mandated GGR tax. It is not added to TOPI because gaming-related gross-receipts and license taxes fall within the TOPI concept. The memo and modeled TOPI are not numerically reconciled.` },
+    { term: 'Gaming Tax', def: `Memo estimate of state-mandated GGR tax. It is not added to TOPI because gaming-related gross-receipts and license taxes fall within the TOPI concept. StateIO does not identify the embedded amount by state, so the model does not subtract or replace it.` },
     { term: 'TOPI', def: 'Taxes on Production and Imports — gross-receipts, amusement, license, property, excise, and other production taxes from the IO model.' },
     { term: 'Payroll Taxes', def: 'Employer-side payroll taxes using DOL rates applied to estimated cash wages, after removing benefits from employee compensation.' },
     { term: 'Household Taxes', def: 'Federal, state, and local income taxes plus motor vehicle licenses and personal property taxes, estimated using BEA personal current tax ratios by state.' }
@@ -859,19 +859,19 @@ For technical details, see the appendix.`;
     dsY += 0.55;
   });
 
-  // Why property-specific analysis? - Updated to reflect new methodology
+  // Why the selected operation classification matters for reporting
   // Position below the shorter of the two columns (moved down 1" per user request)
   const bottomSectionY = 3.65;
   // Declared before first use below (was previously declared further down, which
   // caused a temporal-dead-zone error once the pptxgenjs crash above was fixed).
   const isOnlineType = ['ONLINE_CASINO', 'ONLINE_SPORTSBOOK'].includes(inputs.propertyType);
 
-  slide5.addText(isOnlineType ? 'Methodology: Online Gambling Multipliers' : 'Why Property-Specific Analysis?', {
+  slide5.addText(isOnlineType ? 'Methodology: Online Gambling Multipliers' : 'Methodology: Gambling Calibration', {
     x: MARGIN, y: bottomSectionY, w: 9, h: 0.3,
     fontSize: FONT.section + 2, fontFace: 'Helvetica', bold: true, color: COLORS.primary
   });
 
-  // Build property-type-specific explanation
+  // Build production-function explanation
   const propertyTypeLabel = inputs.propertyTypeLabel || 'gaming establishment';
   const propertyTypeCode = inputs.propertyType || '7132';
 
@@ -881,7 +881,7 @@ For technical details, see the appendix.`;
 Important: employment, wage, and supply chain effects apply to the state where the operator's workforce is physically located — not necessarily where bettors are. If the operator is headquartered in a different state, most economic impact (except gaming tax revenue) accrues there. Online operators have fundamentally different economics than land-based casinos: ~1.0 employee per $1M revenue (vs. ~5.0 land-based), higher-paid tech workforces, and geographically diffuse supply chains. For the most accurate direct effects, users should enter actual in-state employment and wage data as "known data" overrides.`
     : `Economic impact models are essential for understanding how gambling operations affect local and state economies. However, the accuracy of these models depends critically on using industry-specific data rather than generic averages.
 
-This analysis uses property-type-specific coefficients for "${propertyTypeLabel}" (NAICS ${propertyTypeCode}). Different gaming establishments—casino hotels, standalone casinos, slot parlors, and bars with gaming—have distinct economic profiles in terms of employment intensity, wage rates, and supply chain linkages. Using the appropriate multipliers for your property type ensures more accurate impact estimates.`;
+The selected property label is "${propertyTypeLabel}" (NAICS ${propertyTypeCode}), but land-based labels do not substitute hotel or restaurant multipliers for gaming. All land-based gaming uses one reproducible national gambling calibration applied to ${inputs.state || 'the selected state'}'s StateIO supplier geography. When department revenue is available, lodging, food, and other activity is modeled separately with its corresponding sector; aggregate total-revenue mode uses the gambling production function as an approximation.`;
 
   slide5.addText(gamblingExplanation, {
     x: MARGIN, y: bottomSectionY + 0.35, w: 9.2, h: 0.9,

@@ -8,6 +8,7 @@ import {
   calculatePayrollTax,
   calculateSingleImpact,
   getDeflator,
+  getTaxableGgr,
 } from './calculations.js';
 
 const stateData = {
@@ -17,6 +18,7 @@ const stateData = {
   Direct_Wage_Coef: 0.2,
   Direct_Tax_Coef: 0.05,
   Emp_Coef: 10,
+  Direct_Jobs_Per_1M_Output: 5,
   Indirect_Emp_Coef: 8,
   Induced_Emp_Coef: 6,
   Type_I_Output: 1.4,
@@ -51,6 +53,10 @@ test('modeled results retain Type II totals and expose a separate cash-wage base
   closeTo(result.wages.indirect, 10);
   closeTo(result.wages.induced, 8);
   closeTo(result.wages.total, 38);
+  closeTo(
+    result.employment.direct,
+    100 * getDeflator(new Date().getFullYear()) * stateData.Direct_Jobs_Per_1M_Output,
+  );
   assert.equal(result.wages.source, 'calculated');
   closeTo(result.cashWages.total, 38 * WAGE_SHARE_OF_COMPENSATION);
   assert.equal(result.adjustments.inducedScale, 1);
@@ -69,6 +75,10 @@ test('known cash wages replace direct compensation and rebase induced effects on
   closeTo(result.output.induced, 30 * scale);
   closeTo(result.gdp.indirect, 15);
   closeTo(result.gdp.induced, 15 * scale);
+  closeTo(
+    result.employment.induced,
+    (15 * scale * getDeflator(new Date().getFullYear())) * stateData.Induced_Emp_Coef,
+  );
   closeTo(result.tax.induced, 2 * scale);
   closeTo(result.cashWages.direct, knownCashWages);
   closeTo(result.adjustments.inducedScale, scale);
@@ -121,8 +131,35 @@ test('payroll tax uses cash wages and the number of filled jobs', () => {
 });
 
 test('inflation adjustment uses BLS calendar-year averages and latest-complete fallback', () => {
-  closeTo(getDeflator(2025), 255.657 / 321.943);
-  closeTo(getDeflator(2026), 255.657 / 321.943);
+  closeTo(getDeflator(2023), 1);
+  closeTo(getDeflator(2025), 304.702 / 321.943);
+  closeTo(getDeflator(2026), 304.702 / 321.943);
+});
+
+test('land-based property labels do not substitute hospitality coefficients for gaming', () => {
+  const lodgingProxy = { ...stateData, Direct_VA_Coef: 0.9, Sector: '721' };
+  const propertyTypes = {
+    '721120': [{ ...lodgingProxy, State: 'Nevada' }],
+    '722410': [{ ...lodgingProxy, State: 'Nevada' }],
+  };
+
+  const casinoHotel = calculateCombinedImpact(
+    { total: 100 }, [stateData], [stateData], 'Nevada', true, null,
+    null, '721120', propertyTypes, 'total',
+  );
+  const barGaming = calculateCombinedImpact(
+    { total: 100 }, [stateData], [stateData], 'Nevada', true, null,
+    null, '722410', propertyTypes, 'total',
+  );
+
+  closeTo(casinoHotel.totals.gdp.direct, 50);
+  closeTo(barGaming.totals.gdp.direct, 50);
+});
+
+test('legacy total operating revenue is not silently taxed as land-based GGR', () => {
+  assert.equal(getTaxableGgr('total', false, { total: 100, gaming: 100 }), 0);
+  assert.equal(getTaxableGgr('total', true, { total: 100 }), 100);
+  assert.equal(getTaxableGgr('department', false, { gaming: 60, total: 100 }), 60);
 });
 
 test('federal payroll parameters use the 2026 Social Security wage base', () => {
@@ -133,4 +170,19 @@ test('federal payroll parameters use the 2026 Social Security wage base', () => 
   assert.equal(rates.federal.fica_ss_wage_cap, 184_500);
   assert.equal(rates.federal.fica_ss_rate, 0.062);
   assert.equal(rates.federal.fica_medicare_rate, 0.0145);
+});
+
+test('deployed multiplier metadata is complete and idempotent', () => {
+  const bundle = JSON.parse(fs.readFileSync(
+    new URL('../data/multipliers.json', import.meta.url),
+    'utf8',
+  ));
+  assert.equal(bundle.metadata.stateCount, 50);
+  assert.equal(bundle.metadata.multiplierRowCount, 200);
+  assert.equal(bundle.states.length, 50);
+
+  for (const code of ['721120', '713210', '713290', '722410']) {
+    const description = bundle.propertyTypeMetadata[code].description;
+    assert.equal((description.match(/canonical gambling coefficients/g) || []).length, 1);
+  }
 });

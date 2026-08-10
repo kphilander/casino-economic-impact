@@ -60,7 +60,7 @@ Users can input revenue by department (Gaming, Food & Beverage, Lodging, Other) 
 3. **Direct effects** are calculated using coefficients (e.g., VA coefficient converts revenue to GDP contribution)
 4. **Indirect effects** are computed via the Leontief inverse, capturing supply-chain purchasing
 5. **Induced effects** capture household spending by employees throughout the economy
-6. **Employment** is estimated using industry-weighted employment coefficients, deflated to 2019 base dollars
+6. **Employment** is estimated with a 2023 QCEW/StateIO employment satellite; current inputs are restated in 2023 dollars for this calculation only
 7. **Tax estimates** report IO-derived production taxes and state-specific gaming tax schedules without adding gaming tax to TOPI a second time
 
 ## Methodology
@@ -110,23 +110,25 @@ The same decomposition applies to GDP, employee compensation, and TOPI using the
 
 ### Employment Multipliers
 
-Employment is calculated differently from the other metrics. Rather than using simple output-based multipliers, the model uses **true employment-weighted coefficients**:
+Employment is calculated differently from the other metrics. Rather than using simple output-based multipliers, the model uses a consistent-2023 employment satellite:
 
 ```
-Jobs = GDP_effect × Employment_Coefficient
+Direct jobs = Direct output × Jobs_per_Output
+Supplier or induced jobs = GDP_effect × Effect_Specific_Jobs_per_GDP
 ```
 
 Three separate coefficients capture the different labor intensities across each effect type:
 
 | Coefficient | Applies To | What It Reflects |
 |------------|-----------|-----------------|
-| `Emp_Coef` | Direct employment | Labor intensity of the casino/gaming industry itself |
+| `Direct_Jobs_Per_1M_Output` | Direct employment | 2023 jobs per $1M of 2023 industry output |
+| `Emp_Coef` | Direct diagnostic | 2023 jobs per $1M of 2023 value added |
 | `Indirect_Emp_Coef` | Indirect employment | Weighted average labor intensity of supplier industries |
 | `Induced_Emp_Coef` | Induced employment | Weighted average labor intensity of household-spending industries |
 
-These coefficients are expressed as **jobs per $1M of GDP (Value Added)**, not per $1M of gross output. Using Value Added as the denominator avoids overstating the economic base.
+Direct propagation through the Leontief inverse uses jobs per output, which is dimensionally consistent with an output-requirements matrix. The frontend uses the resulting jobs/output coefficient for direct employment and effect-specific jobs/GDP coefficients for supplier and induced GDP. QCEW counts filled jobs, including full-time, part-time, temporary, and permanent positions; it does not report FTEs and can count a multiple-job holder more than once. See the [BLS QCEW definition](https://www.bls.gov/cew/questions-and-answers.htm#Q18).
 
-The coefficients are computed in the R scripts using the Leontief inverse weighted by sector-level employment-to-GDP ratios from QCEW data. QCEW counts filled jobs, including full-time, part-time, temporary, and permanent positions; it does not report FTEs and can count a multiple-job holder more than once. See the [BLS QCEW definition](https://www.bls.gov/cew/questions-and-answers.htm#Q18).
+The QCEW satellite is regenerated from BLS's official [2023 annual singlefile](https://data.bls.gov/cew/data/files/2023/csv/2023_annual_singlefile.zip). The mapping uses exact aggregate codes and explicitly bridges the 2022 NAICS changes affecting retail and information. Owner-occupied housing (`HS`) and the federal/state-local government-enterprise sectors (`GFE`, `GSLE`) have no QCEW-compatible satellite and are assigned zero rather than an unrelated imputed labor intensity. Government general/defense sectors use disclosed public-administration ownership proxies; QCEW excludes uniformed military personnel.
 
 ### Tax Estimates
 
@@ -145,7 +147,7 @@ State-specific tax on Gross Gaming Revenue (GGR). The calculator supports multip
 - **Split by game type** — different rates for slots vs. table games (e.g., Pennsylvania)
 - **Split-tiered** — separate graduated schedules for slots and tables (e.g., Illinois)
 
-Tax rates are sourced from state gaming commission reports and the AGA State of the States. Because gaming-related gross-receipts, amusement, and license taxes fall within BEA's TOPI concept, the statutory gaming-tax estimate is shown as a **memo item** and is not added to modeled TOPI. The state statutory memo and IO-modeled TOPI are not numerically reconciled; replacing the embedded component would require a separate state-specific adjustment. See the [BEA TOPI definition](https://www.bea.gov/help/faq/93) and [GDP-by-state methodology](https://www.bea.gov/sites/default/files/methodologies/0417_GDP_by_State_Methodology.pdf).
+Tax rates are sourced from state gaming commission reports and the AGA State of the States. Because gaming-related gross-receipts, amusement, and license taxes fall within BEA's TOPI concept, the statutory gaming-tax estimate is shown as a **memo item** and is not added to modeled TOPI. GEMS does not subtract an estimated embedded amount: StateIO does not identify the state-specific gaming-tax portion of sector 713 TOPI, so such a replacement would add unsupported precision. See the [BEA TOPI definition](https://www.bea.gov/help/faq/93) and [GDP-by-state methodology](https://www.bea.gov/sites/default/files/methodologies/0417_GDP_by_State_Methodology.pdf).
 
 **3. Payroll & Household Taxes**
 
@@ -156,14 +158,14 @@ The IO `V001` coefficient is employee compensation, not cash wages. GEMS estimat
 
 ### Inflation Adjustment
 
-Employment coefficients are calibrated to **2019 dollars** (the base year of the IO tables). When a user enters revenue in current-year dollars, the model deflates GDP values to 2019 dollars using the CPI-U annual average before applying employment coefficients:
+Employment coefficients are calibrated to **2023 dollars**: QCEW jobs are divided by 2023 StateIO industry output and value added. When a user enters current-year revenue, the model restates the relevant output/GDP values in 2023 dollars using the CPI-U annual average before applying employment coefficients:
 
 ```
-Deflator = CPI_2019 / CPI_current_year
-Jobs = (GDP_in_current_dollars × Deflator) × Employment_Coefficient
+Deflator = CPI_2023 / CPI_current_year
+Jobs = (Output_or_GDP_in_current_dollars × Deflator) × Employment_Coefficient
 ```
 
-For analysis years newer than the CPI table, the calculator uses the latest complete annual average (currently 2025). Without this adjustment, a current-dollar input would be treated as equivalent to the same nominal amount in 2019, overstating employment by roughly the cumulative price growth since 2019 (about 26% using the 2025 annual average).
+For analysis years newer than the CPI table, the calculator uses the latest complete annual average (currently 2025). The 2019 StateIO year is retained for the production relationships; it no longer supplies a mismatched denominator for 2023 employment.
 
 ### Gambling-Specific Adjustments
 
@@ -173,26 +175,20 @@ The calibration deliberately separates **geography** from **industry composition
 - National BEA detail data, built through `useeior`, supplies evidence about how gambling differs from its broader parent sector.
 - The national gaming ratios adapt the StateIO results; they do not replace the state model with a generic hospitality multiplier. This retains state-specific supplier geography while avoiding the assumption that a casino has the input composition of an average hotel, restaurant, or recreation business.
 
-The IO tables only contain the blended sector **713** (Amusement, Gambling, and Recreation), which includes golf courses, fitness centers, bowling alleys, and other activities with very different economics than gambling. The deployed generic-gambling series applies these legacy adjustment factors:
+The IO tables contain only the blended sector **713** (Amusement, Gambling, and Recreation). `13_extract_national_naics_ratios.R` builds `USEEIOv2.0.1-411`, compares detailed gambling (`713200/US`) with an output-weighted 713 parent, and supplies the single canonical calibration:
 
-| Coefficient | Blended 713 | Gambling (713200) | Ratio |
-|------------|-------------|-------------------|-------|
-| VA coefficient | 0.651 | 0.577 | 0.89 |
-| Employee-compensation coefficient | 0.406 | 0.255 | 0.63 |
-| TOPI coefficient | 0.058 | 0.035 | 0.61 |
+| Component | Gambling-to-parent ratio |
+|-----------|-------------------------:|
+| Direct value added | 1.008 |
+| Direct employee compensation | 0.863 |
+| Direct TOPI | 0.609 |
+| Direct jobs per output | 0.540 |
+| Supplier output increment | 0.967 |
+| Supplier value-added increment | 0.993 |
+| Supplier compensation increment | 1.047 |
+| Supplier TOPI increment | 0.940 |
 
-The current generator applies the ratios to the direct coefficients and to the incremental Type I/Type II output, value-added, employee-compensation, and TOPI effects while retaining the underlying StateIO state variation. Supplier and induced jobs-per-GDP coefficients continue to come from the industries in which those effects occur.
-
-The recovered property-type pipeline used a separately reproducible USEEIO calculation. `13_extract_national_naics_ratios.R` builds `USEEIOv2.0.1-411`, calculates output-weighted parent-sector benchmarks, and produces these ratios:
-
-| Property mapping | Parent | VA ratio | Compensation ratio | Jobs ratio | Type I output ratio |
-|------------------|--------|---------:|-------------------:|-----------:|--------------------:|
-| Casino hotel (`721120`) | 721 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Stand-alone casino (`713210`) | 713 | 1.008 | 0.863 | 0.540 | 0.985 |
-| Slot parlor / bingo hall (`713290`) | 713 | 1.008 | 0.863 | 0.540 | 0.985 |
-| Bar/restaurant gaming (`722410`) | 722 | 1.063 | 1.102 | 0.920 | 0.947 |
-
-The legacy generic-gambling ratios (`0.89` for VA and `0.63` for compensation) therefore do not equal the recovered property-type ratios (`1.008` and `0.863`) even though both refer to gambling detail data. The repository preserves both lineages and treats reconciliation as a pending methodology decision; importing the recovered sources does not change deployed coefficients. See [Data Provenance](docs/data-provenance.md).
+`generate_complete_multipliers.R` applies these ratios to StateIO 713. The same supplier-side ratios are applied to the induced increments because USEEIO is an open Type I model; supplier and induced jobs/GDP coefficients remain those of the industries where the effects occur. The old competing `0.89`/`0.63` calibration has been removed. See [Data Provenance](docs/data-provenance.md).
 
 ## Data Sources
 
@@ -239,7 +235,9 @@ The legacy generic-gambling ratios (`0.89` for VA and `0.63` for compensation) t
 | 721 | 721 | Accommodation | Lodging |
 | 722 | 722 | Food Services & Drinking Places | Food & Beverage |
 
-When the user selects **department-level input**, each revenue stream is matched to its corresponding IO sector. When using **total revenue input**, the model applies property-type-specific multipliers.
+When the user selects **department-level input**, gaming uses the canonical gambling calibration and lodging, food, and other revenue use sectors 721, 722, and 711AS. In **total revenue input**, the complete amount is modeled with the canonical gambling production function. Total mode is therefore an approximation; department mode is preferred when the non-gaming revenue mix is known.
+
+For legacy land-based total-revenue analyses, GEMS does not calculate statutory gaming tax because total operating revenue is not necessarily GGR. A gaming-tax memo requires department mode with an explicit gaming-revenue input. Online total revenue is GGR by construction and remains eligible for the online tax schedule.
 
 ## Property Types
 
@@ -252,7 +250,7 @@ The calculator supports four casino property types, each mapped to a specific NA
 | 713290 | Slot Parlor | Slot machines / VLTs only |
 | 722410 | Bar/Restaurant Gaming | Gaming as secondary to food/beverage service |
 
-Property types map to model sectors. Stand-alone casino (713210) and slot parlor/bingo hall (713290) currently share the same sector 713 impact coefficients; their descriptive QCEW fields differ, but the deployed model does not estimate a distinct production structure for them.
+The four land-based property types are descriptive reporting classifications. They all use the same state-localized, nationally calibrated gambling production function; a casino-hotel is not modeled as an average hotel, and bar gaming is not modeled as an average restaurant. Property-specific economic composition is represented only when the user supplies department revenue separately.
 
 ## Output Metrics
 
@@ -279,18 +277,20 @@ Scripts are numbered to indicate execution order:
 
 | Script | Purpose |
 |--------|---------|
-| `07_process_qcew_employment_2023.R` | Parse BLS QCEW files, filter for target NAICS sectors (711, 712, 713, 721, 722), aggregate to state level |
-| `08_state_multipliers_2023.R` | Load EPA StateIO Make/Use tables, construct direct requirements matrix (A = D × B), compute Leontief inverse, extract Type I and Type II multipliers for all 50 states |
-| `08a_process_all_qcew_employment.R` | Process QCEW for all 71 IO sectors to build employment coefficients for indirect/induced effect weighting |
+| `07_process_qcew_employment_2023.R` | Optional compatibility extractor for the four target sectors from the complete QCEW satellite |
+| `08_state_multipliers_2023.R` | Build 2019 StateIO Leontief relationships and apply 2023 StateIO/QCEW jobs-per-output satellites for all 50 states |
+| `08a_process_all_qcew_employment.R` | Download/read the official BLS annual singlefile and build the complete 50-state × 71-sector employment satellite |
 | `09_employment_multipliers_2023.R` | Merge IO multipliers with QCEW employment data, calculate employment-weighted coefficients (direct, indirect, induced) |
 | `10_casino_impact_model.R` | Main impact calculation engine — takes revenue, sector, and state as input, returns full impact table with multiplier decomposition and tax estimates |
 | `11_property_impact_calculator.R` | Property-specific analysis and reporting script |
-| `12_gambling_specific_data.R` | Extract gambling-only (NAICS 7132 + 72112) employment from QCEW, apply BEA adjustment factors to create gambling-specific multipliers |
-| `13_extract_national_naics_ratios.R` | Rebuild the national BEA detail coefficients and property-type adjustment ratios with `useeior` |
+| `12_gambling_specific_data.R` | Backward-compatible entry point for the canonical gambling generator |
+| `13_extract_national_naics_ratios.R` | Rebuild national BEA detail direct and supplier-increment ratios with `useeior` |
+| `13b_property_type_multipliers.R` | Assemble four descriptive land-based property labels from the canonical gambling dataset |
+| `14_online_gambling_multipliers.R` | Apply documented online scenario adjustments without scaling supplier/induced job intensity by the operator's direct jobs ratio |
 | `state_gaming_tax_rates.R` | Compile state-by-state gaming tax rates from state gaming commissions and AGA reports |
-| `generate_complete_multipliers.R` | Generate the complete multiplier CSV/JSON datasets |
+| `generate_complete_multipliers.R` | Apply the single national gambling calibration to each state's StateIO 713 results |
 | `generate_multipliers_json.R` | Convert multiplier CSVs to JSON format for the web application |
-| `generate_tax_multipliers.R` | Generate tax-specific multiplier datasets |
+| `generate_tax_multipliers.R` | Export tax columns from the canonical state multiplier build (compatibility) |
 
 ### Data Files
 
@@ -300,10 +300,11 @@ Scripts are numbered to indicate execution order:
 |------|------|-------------|
 | `employment_multipliers_2023.csv` | 200 | 50 states × 4 sectors — full multiplier dataset with employment coefficients |
 | `gambling_multipliers_2023.csv` | 50 | Gambling-specific multipliers (one per state), adjusted from blended 713 |
-| `state_multipliers_with_tax.csv` | 200 | Multipliers enriched with tax coefficients |
+| `property_type_multipliers_2023.csv` | 200 | Four descriptive land-based property labels × 50 states, all using the canonical gambling coefficients |
+| `state_multipliers_with_tax.csv` | 200 | Backward-compatible tax-only export from the canonical state multiplier build |
 | `bea_detail_coefficients.csv` | 6 | Versioned USEEIO detail-sector coefficients used by the recovered property-type calibration |
 | `blended_parent_coefficients.csv` | 3 | Output-weighted 713, 721, and 722 parent benchmarks |
-| `national_naics_ratios.csv` | 4 | Property-to-parent adjustment ratios reproduced from the two preceding files |
+| `national_naics_ratios.csv` | 4 | Canonical 713200-to-713 gaming ratios plus explicitly marked hospitality comparison rows |
 
 Each row contains: state identifiers, QCEW employment and wage data, direct coefficients (VA, wage, tax, employment), Type I and Type II multipliers (output, VA, wage, tax), and employment coefficients (direct, indirect, induced).
 
@@ -418,18 +419,19 @@ Free-tier users can download a sample PPTX report generated from fixed demo data
 
 To regenerate all multiplier data from raw sources:
 
-1. **Download QCEW data** from BLS — the `2023.annual.by_industry` folder of annual averages
+1. **Supply the official QCEW ZIP** with `GEMS_QCEW_SINGLEFILE_ZIP`, or let script 08a download it from BLS
 2. **Install R dependencies** (see [Dependencies](#dependencies))
 3. **Run scripts in order:**
 
 ```r
-source("08a_process_all_qcew_employment.R")  # Process all 71 IO sectors from QCEW
-source("07_process_qcew_employment_2023.R")   # Process target casino sectors
+source("08a_process_all_qcew_employment.R")  # Process mapped private-industry QCEW sectors
 source("08_state_multipliers_2023.R")         # Calculate state IO multipliers (this downloads StateIO data)
 source("09_employment_multipliers_2023.R")    # Merge multipliers with employment data
-source("12_gambling_specific_data.R")         # Create gambling-specific multipliers
 source("13_extract_national_naics_ratios.R")  # Rebuild detailed national ratio evidence
-source("generate_complete_multipliers.R")     # Generate complete output datasets
+source("generate_complete_multipliers.R")     # Apply canonical gambling calibration
+source("14_online_gambling_multipliers.R")    # Generate online scenario data
+source("13b_property_type_multipliers.R")     # Assemble land-based reporting labels
+source("generate_tax_multipliers.R")          # Optional compatibility tax export
 source("generate_multipliers_json.R")         # Convert to JSON for webapp
 ```
 
@@ -439,6 +441,7 @@ The versioned national-ratio outputs can be checked offline without downloading 
 
 ```bash
 Rscript tests/test_useeior_provenance.R
+Rscript tests/test_multiplier_integrity.R
 ```
 
 ## Dependencies
@@ -446,7 +449,7 @@ Rscript tests/test_useeior_provenance.R
 ### R
 
 ```r
-install.packages("tidyverse")
+install.packages(c("tidyverse", "data.table"))
 
 # For regenerating multipliers from scratch:
 install.packages("stateior")  # EPA State IO data access
@@ -466,21 +469,21 @@ Key npm packages: `react`, `recharts`, `pptxgenjs`, `@stripe/stripe-js`, `tailwi
 
 ## Important Technical Notes
 
-1. **2019 IO Tables:** The model deliberately uses 2019 IO data rather than 2020 to avoid pandemic-distorted inter-industry relationships. The 2019 multipliers are combined with 2023 QCEW job counts. The current employment coefficient therefore mixes a 2023 numerator with a 2019 value-added denominator; the COVID rationale supports the 2019 interindustry structure but does not eliminate this vintage mismatch.
+1. **2019 IO Tables:** The model deliberately uses 2019 IO data rather than 2020 to avoid pandemic-distorted inter-industry relationships. Employment is a separate 2023 satellite: QCEW jobs are divided by 2023 StateIO output/value added before being applied to the retained 2019 Leontief structure.
 
 2. **Employment Coefficients vs. Output Multipliers:** Employment multipliers differ from output/GDP multipliers because they account for varying labor intensities. A dollar of indirect GDP generates more or fewer jobs depending on whether it flows to labor-intensive sectors (restaurants) or capital-intensive sectors (utilities).
 
-3. **Value Added as Denominator:** Employment coefficients use Value Added (GDP) rather than Gross Output as the denominator. Using Gross Output would double-count intermediate purchases and understate the jobs-per-dollar ratio.
+3. **Employment Dimensions:** Direct and Leontief-propagated jobs use jobs per output. Direct jobs per value added remains a diagnostic, while supplier and induced jobs/GDP coefficients are derived from their employment-weighted totals and GDP effects.
 
-4. **Gambling vs. Blended 713:** The blended IO sector 713 includes golf courses, fitness centers, and amusement parks alongside gambling. These have fundamentally different cost structures (e.g., employee-compensation coefficients of 0.41 blended vs. 0.26 for gambling). The gambling-specific adjustments are critical for accurate casino impact estimates.
+4. **Gambling vs. Blended 713:** The blended IO sector 713 includes golf courses, fitness centers, and amusement parks alongside gambling. The model uses a single reproducible USEEIO detailed-industry calibration rather than the former competing legacy ratios.
 
 5. **State Variation:** Multipliers vary significantly across states due to differences in economic structure, supply chain density, and trade patterns. States with more diversified, self-sufficient economies (e.g., California, Texas) tend to have higher multipliers because more supplier spending stays in-state.
 
 6. **Known Data Override:** User employment inputs are full- and part-time job counts. User wage inputs are cash wages; the model converts them to employee compensation for reporting. Known cash wages replace the direct cash-wage estimate and proportionally rebase the induced component using adjusted Type I compensation. Known jobs replace direct jobs but do not independently drive induced effects.
 
-7. **Property Types:** Stand-alone casino (713210) and slot parlor/bingo hall (713290) currently share the same sector 713 model coefficients. Their QCEW descriptive fields differ, but the deployed impact coefficients do not. The interface discloses this rather than implying unsupported differentiation.
+7. **Property Types:** All land-based property labels intentionally share the canonical gambling coefficients. Department inputs, not the label, introduce lodging, food, and entertainment composition.
 
-8. **Reproducibility:** The national property-type ratio evidence and its `useeior` generator are now versioned and independently checked offline. The final property-dataset assembler remains only partially versioned, and the generic-gambling and property-type ratio definitions require reconciliation. Scripts must not rely on developer-specific absolute paths; remaining gaps are tracked rather than filled with invented coefficients.
+8. **Reproducibility:** The national ratio evidence, complete employment coefficient derivation, canonical gambling generator, property assembler, JSON exporter, and offline integrity tests are versioned. The public QCEW ZIP can be supplied through `GEMS_QCEW_SINGLEFILE_ZIP`; generated input paths can be overridden with `GEMS_QCEW_ALL_SECTORS_FILE`. No developer-specific absolute path is required.
 
 ## License
 

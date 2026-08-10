@@ -8,7 +8,7 @@
 #
 # The blended 713 sector includes golf courses, fitness centers, etc.
 # which have very different economics than gambling:
-#   - Gambling wage coefficient: 0.255 (vs 0.406 blended)
+#   - Gambling employee-compensation coefficient: 0.255 (vs 0.406 blended)
 #   - Gambling VA coefficient: 0.577 (vs 0.651 blended)
 #
 # Data Sources:
@@ -85,11 +85,11 @@ ADJUSTMENT_FACTORS <- list(
 message("=== ADJUSTMENT FACTORS ===")
 message("These factors convert blended 713 multipliers to gambling-specific estimates:")
 message("  VA coefficient ratio:   ", ADJUSTMENT_FACTORS$va_coef_ratio)
-message("  Wage coefficient ratio: ", ADJUSTMENT_FACTORS$wage_coef_ratio)
+message("  Employee-compensation coefficient ratio: ", ADJUSTMENT_FACTORS$wage_coef_ratio)
 message("  TOPI coefficient ratio: ", ADJUSTMENT_FACTORS$topi_coef_ratio)
 message("  Output mult ratio:      ", ADJUSTMENT_FACTORS$output_mult_ratio)
 message("  VA mult ratio:          ", ADJUSTMENT_FACTORS$va_mult_ratio)
-message("  Wage mult ratio:        ", ADJUSTMENT_FACTORS$wage_mult_ratio)
+message("  Compensation mult ratio:", ADJUSTMENT_FACTORS$wage_mult_ratio)
 message("  TOPI mult ratio:        ", ADJUSTMENT_FACTORS$topi_mult_ratio)
 
 # ============================================================================
@@ -366,8 +366,8 @@ nevada_713 <- original_mult %>% filter(State == "Nevada", Sector == "713")
 nevada_7132 <- output_gambling %>% filter(State == "Nevada")
 
 comparison_df <- data.frame(
-  Metric = c("Direct VA Coef", "Direct Wage Coef", "Direct Tax Coef",
-             "Type II Output", "Type II VA", "Type II Wage", "Type II Tax"),
+  Metric = c("Direct VA Coef", "Direct Compensation Coef", "Direct Tax Coef",
+             "Type II Output", "Type II VA", "Type II Compensation", "Type II Tax"),
   Blended_713 = c(nevada_713$Direct_VA_Coef, nevada_713$Direct_Wage_Coef, nevada_713$Direct_Tax_Coef,
                   nevada_713$Type_II_Output, nevada_713$Type_II_VA, nevada_713$Type_II_Wage, nevada_713$Type_II_Tax),
   Gambling_7132 = c(nevada_7132$Direct_VA_Coef, nevada_7132$Direct_Wage_Coef, nevada_7132$Direct_Tax_Coef,
@@ -406,7 +406,7 @@ impact_7132 <- data.frame(
 impact_comparison <- bind_rows(impact_713, impact_7132)
 print(impact_comparison)
 
-message("\nUsing blended 713 OVERESTIMATES wage impacts by ~",
+message("\nUsing blended 713 OVERESTIMATES employee-compensation impacts by ~",
         round((impact_713$Total_Wages_M / impact_7132$Total_Wages_M - 1) * 100, 0), "%")
 message("Using blended 713 OVERESTIMATES TOPI impacts by ~",
         round((impact_713$Total_TOPI_M / impact_7132$Total_TOPI_M - 1) * 100, 0), "%")

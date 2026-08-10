@@ -2,7 +2,7 @@
 
 **The Casino Economic Impact Model**
 
-This repository contains GEMS (Gaming Economic Modeling System), the economic model and web application for computing state-level economic impacts of casino and gaming operations across all 50 US states and the District of Columbia.
+This repository contains GEMS (Gaming Economic Modeling System), the economic model and web application for computing state-level economic impacts of casino and gaming operations across all 50 US states. District of Columbia coefficients are not included in the deployed dataset.
 
 **Live Calculator:** https://gamblingpolicy.com/tools/economic-impact/
 
@@ -47,9 +47,9 @@ The calculator quantifies the total economic footprint of a casino or gaming pro
 |--------|-----------------|
 | **Output** | Total economic activity (gross output) generated |
 | **GDP** | Value added (contribution to Gross Domestic Product) |
-| **Employment** | Jobs supported (FTE positions) |
-| **Wages** | Employee compensation generated |
-| **Tax Revenue** | Government revenue from production taxes and gaming taxes |
+| **Employment** | Filled full- and part-time jobs supported (not FTEs) |
+| **Employee Compensation** | Cash wages plus employer-paid supplements generated |
+| **Tax Revenue** | TOPI, payroll, and household taxes; gaming tax is a memo component of TOPI |
 
 Users can input revenue by department (Gaming, Food & Beverage, Lodging, Other) or as a single total. The model applies the appropriate sector-specific multipliers for each revenue stream and aggregates the results.
 
@@ -61,7 +61,7 @@ Users can input revenue by department (Gaming, Food & Beverage, Lodging, Other) 
 4. **Indirect effects** are computed via the Leontief inverse, capturing supply-chain purchasing
 5. **Induced effects** capture household spending by employees throughout the economy
 6. **Employment** is estimated using industry-weighted employment coefficients, deflated to 2019 base dollars
-7. **Tax estimates** combine IO-derived production taxes with state-specific gaming tax schedules
+7. **Tax estimates** report IO-derived production taxes and state-specific gaming tax schedules without adding gaming tax to TOPI a second time
 
 ## Methodology
 
@@ -106,7 +106,7 @@ The A matrix is augmented with a household row (labor income coefficients) and h
 - Induced output = revenue × (Type II multiplier − Type I multiplier)
 - Total output = revenue × Type II multiplier
 
-The same decomposition applies to GDP, wages, and tax metrics using their respective multiplier pairs.
+The same decomposition applies to GDP, employee compensation, and TOPI using their respective multiplier pairs.
 
 ### Employment Multipliers
 
@@ -126,7 +126,7 @@ Three separate coefficients capture the different labor intensities across each 
 
 These coefficients are expressed as **jobs per $1M of GDP (Value Added)**, not per $1M of gross output. Using Value Added as the denominator avoids overstating the economic base.
 
-The coefficients are computed in the R scripts using the Leontief inverse weighted by sector-level employment-to-GDP ratios from QCEW data.
+The coefficients are computed in the R scripts using the Leontief inverse weighted by sector-level employment-to-GDP ratios from QCEW data. QCEW counts filled jobs, including full-time, part-time, temporary, and permanent positions; it does not report FTEs and can count a multiple-job holder more than once. See the [BLS QCEW definition](https://www.bls.gov/cew/questions-and-answers.htm#Q18).
 
 ### Tax Estimates
 
@@ -134,7 +134,7 @@ The model computes three categories of tax revenue:
 
 **1. Taxes on Production & Imports (TOPI)**
 
-Derived from the IO tables, TOPI flows through the Leontief inverse like wages. It captures sales taxes, property taxes, excise taxes, and other production-related taxes across all direct, indirect, and induced activity.
+Derived from the IO tables, TOPI flows through the Leontief inverse like employee compensation. It captures gross-receipts, amusement, license, property, excise, and other production-related taxes across all direct, indirect, and induced activity.
 
 **2. Gaming Tax**
 
@@ -145,12 +145,14 @@ State-specific tax on Gross Gaming Revenue (GGR). The calculator supports multip
 - **Split by game type** — different rates for slots vs. table games (e.g., Pennsylvania)
 - **Split-tiered** — separate graduated schedules for slots and tables (e.g., Illinois)
 
-Tax rates are sourced from state gaming commission reports and the AGA State of the States.
+Tax rates are sourced from state gaming commission reports and the AGA State of the States. Because gaming-related gross-receipts, amusement, and license taxes fall within BEA's TOPI concept, the statutory gaming-tax estimate is shown as a **memo item** and is not added to modeled TOPI. The state statutory memo and IO-modeled TOPI are not numerically reconciled; replacing the embedded component would require a separate state-specific adjustment. See the [BEA TOPI definition](https://www.bea.gov/help/faq/93) and [GDP-by-state methodology](https://www.bea.gov/sites/default/files/methodologies/0417_GDP_by_State_Methodology.pdf).
 
 **3. Payroll & Household Taxes**
 
-- **Payroll taxes** — employer-side FICA (Social Security + Medicare), FUTA, SUTA, and state-specific SDI/PFML contributions
-- **Household taxes** — estimated via BEA personal current tax ratios (federal + state + local income taxes)
+- **Payroll taxes** — employer-side FICA (Social Security + Medicare), FUTA, SUTA, and state-specific SDI/PFML contributions applied to estimated cash wages
+- **Household taxes** — estimated via BEA personal current tax ratios applied to estimated cash wages
+
+The IO `V001` coefficient is employee compensation, not cash wages. GEMS estimates a separate cash-wage base using the 2019 national ratio from BEA NIPA table 1.12 (wages and salaries ÷ employee compensation = 9,323.5 ÷ 11,447.7). This is an explicit approximation pending industry-by-state wage shares.
 
 ### Inflation Adjustment
 
@@ -161,7 +163,7 @@ Deflator = CPI_2019 / CPI_current_year
 Jobs = (GDP_in_current_dollars × Deflator) × Employment_Coefficient
 ```
 
-Without this adjustment, entering $100M in 2026 would be treated as equivalent to $100M in 2019, overstating employment by approximately 29% due to cumulative inflation.
+For analysis years newer than the CPI table, the calculator uses the latest complete annual average (currently 2025). Without this adjustment, a current-dollar input would be treated as equivalent to the same nominal amount in 2019, overstating employment by roughly the cumulative price growth since 2019 (about 26% using the 2025 annual average).
 
 ### Gambling-Specific Adjustments
 
@@ -170,7 +172,7 @@ The IO tables only contain the blended sector **713** (Amusement, Gambling, and 
 | Coefficient | Blended 713 | Gambling (713200) | Ratio |
 |------------|-------------|-------------------|-------|
 | VA coefficient | 0.651 | 0.577 | 0.89 |
-| Wage coefficient | 0.406 | 0.255 | 0.63 |
+| Employee-compensation coefficient | 0.406 | 0.255 | 0.63 |
 | TOPI coefficient | 0.058 | 0.035 | 0.61 |
 
 These ratios are applied to state-level blended multipliers to produce gambling-specific estimates. Indirect and induced effects reflect supply-chain and household spending across *other* sectors, so no gambling adjustment is needed for those components.
@@ -194,7 +196,7 @@ These ratios are applied to state-level blended multipliers to produce gambling-
 | **Source** | BLS Quarterly Census of Employment and Wages (QCEW) |
 | **URL** | https://www.bls.gov/cew/downloadable-data-files.htm |
 | **Year** | 2023 Annual Averages |
-| **Coverage** | All 50 states + DC, private employment only |
+| **Coverage** | All 50 states, private employment only |
 
 ### Gaming Tax Rates
 
@@ -232,7 +234,7 @@ The calculator supports four casino property types, each mapped to a specific NA
 | 713290 | Slot Parlor | Slot machines / VLTs only |
 | 722410 | Bar/Restaurant Gaming | Gaming as secondary to food/beverage service |
 
-Each property type has its own set of multipliers reflecting the different economic structures of these business models.
+Property types map to model sectors. Stand-alone casino (713210) and slot parlor/bingo hall (713290) currently share the same sector 713 impact coefficients; their descriptive QCEW fields differ, but the deployed model does not estimate a distinct production structure for them.
 
 ## Output Metrics
 
@@ -242,10 +244,10 @@ For each analysis, the calculator produces:
 |--------|------|-------------|
 | **Output** | $M | Total gross economic output (all rounds of spending) |
 | **GDP (Value Added)** | $M | Net contribution to GDP (output minus intermediate purchases) |
-| **Employment** | Jobs | Full-time equivalent positions supported |
-| **Wages** | $M | Total employee compensation |
+| **Employment** | Jobs | Filled full- and part-time jobs supported; no FTE conversion |
+| **Employee Compensation** | $M | Cash wages plus employer-paid supplements |
 | **TOPI** | $M | Taxes on production and imports (from IO tables) |
-| **Gaming Tax** | $M | State GGR tax (computed from state-specific tax schedules) |
+| **Gaming Tax** | $M | State GGR tax shown as a non-additive memo component of direct TOPI |
 | **Payroll Tax** | $M | Employer-side payroll taxes (FICA, FUTA, SUTA, SDI, PFML) |
 | **Household Tax** | $M | Personal income and property taxes on supported wages |
 
@@ -277,9 +279,9 @@ Scripts are numbered to indicate execution order:
 
 | File | Rows | Description |
 |------|------|-------------|
-| `employment_multipliers_2023.csv` | 201 | 50 states + DC × 4 sectors — full multiplier dataset with employment coefficients |
-| `gambling_multipliers_2023.csv` | 51 | Gambling-specific multipliers (one per state), adjusted from blended 713 |
-| `state_multipliers_with_tax.csv` | 201 | Multipliers enriched with tax coefficients |
+| `employment_multipliers_2023.csv` | 200 | 50 states × 4 sectors — full multiplier dataset with employment coefficients |
+| `gambling_multipliers_2023.csv` | 50 | Gambling-specific multipliers (one per state), adjusted from blended 713 |
+| `state_multipliers_with_tax.csv` | 200 | Multipliers enriched with tax coefficients |
 
 Each row contains: state identifiers, QCEW employment and wage data, direct coefficients (VA, wage, tax, employment), Type I and Type II multipliers (output, VA, wage, tax), and employment coefficients (direct, indirect, induced).
 
@@ -435,17 +437,21 @@ Key npm packages: `react`, `recharts`, `pptxgenjs`, `@stripe/stripe-js`, `tailwi
 
 ## Important Technical Notes
 
-1. **2019 IO Tables:** The model deliberately uses 2019 IO data rather than 2020 to avoid pandemic-distorted inter-industry relationships. The 2019 multipliers are combined with 2023 employment data.
+1. **2019 IO Tables:** The model deliberately uses 2019 IO data rather than 2020 to avoid pandemic-distorted inter-industry relationships. The 2019 multipliers are combined with 2023 QCEW job counts. The current employment coefficient therefore mixes a 2023 numerator with a 2019 value-added denominator; the COVID rationale supports the 2019 interindustry structure but does not eliminate this vintage mismatch.
 
 2. **Employment Coefficients vs. Output Multipliers:** Employment multipliers differ from output/GDP multipliers because they account for varying labor intensities. A dollar of indirect GDP generates more or fewer jobs depending on whether it flows to labor-intensive sectors (restaurants) or capital-intensive sectors (utilities).
 
 3. **Value Added as Denominator:** Employment coefficients use Value Added (GDP) rather than Gross Output as the denominator. Using Gross Output would double-count intermediate purchases and understate the jobs-per-dollar ratio.
 
-4. **Gambling vs. Blended 713:** The blended IO sector 713 includes golf courses, fitness centers, and amusement parks alongside gambling. These have fundamentally different cost structures (e.g., wage coefficients of 0.41 blended vs. 0.26 for gambling). The gambling-specific adjustments are critical for accurate casino impact estimates.
+4. **Gambling vs. Blended 713:** The blended IO sector 713 includes golf courses, fitness centers, and amusement parks alongside gambling. These have fundamentally different cost structures (e.g., employee-compensation coefficients of 0.41 blended vs. 0.26 for gambling). The gambling-specific adjustments are critical for accurate casino impact estimates.
 
 5. **State Variation:** Multipliers vary significantly across states due to differences in economic structure, supply chain density, and trade patterns. States with more diversified, self-sufficient economies (e.g., California, Texas) tend to have higher multipliers because more supplier spending stays in-state.
 
-6. **Known Data Override:** When users provide actual employment counts or wage totals, the model uses those values for the direct effect rather than estimating from coefficients. Indirect and induced effects are still computed from the multipliers.
+6. **Known Data Override:** User employment inputs are full- and part-time job counts. User wage inputs are cash wages; the model converts them to employee compensation for reporting. Known cash wages replace the direct cash-wage estimate and proportionally rebase the induced component using adjusted Type I compensation. Known jobs replace direct jobs but do not independently drive induced effects.
+
+7. **Property Types:** Stand-alone casino (713210) and slot parlor/bingo hall (713290) currently share the same sector 713 model coefficients. Their QCEW descriptive fields differ, but the deployed impact coefficients do not. The interface discloses this rather than implying unsupported differentiation.
+
+8. **Reproducibility:** Generated multiplier files are versioned in the repository, but the property-type source-generation pipeline is not yet complete. Scripts must not rely on developer-specific absolute paths; remaining provenance gaps are tracked as methodology work rather than filled with invented coefficients.
 
 ## License
 

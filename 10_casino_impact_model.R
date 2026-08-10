@@ -4,10 +4,10 @@
 #
 # Takes casino revenue (GGR) and computes:
 #   - Direct, Indirect, and Induced effects
-#   - Output, GDP (Value Added), Employment, Wages
+#   - Output, GDP (Value Added), Employment (jobs), Employee Compensation
 #   - Tax estimates:
 #     * Taxes on Production (TOPI from IO tables, direct/indirect/induced)
-#     * Gaming Tax (state-specific GGR tax rate, direct only)
+#     * Gaming Tax (state-specific GGR tax rate, reported as a TOPI memo item)
 #
 # Data Year: 2023 (employment), 2019 (IO tables)
 # Sources:
@@ -31,10 +31,10 @@ library(tidyverse)
 # slot/table rates, a blended effective rate is used.
 # Sources: State gaming commission reports, AGA State of the States
 #
-# Note: These are taxes on gross gaming revenue specifically, not the
-# general TOPI from IO tables. States without legal casino gaming
-# are included at 0 (they may still have IO multiplier effects from
-# other amusement/recreation activity in sector 713).
+# Note: These rates estimate a recognizable component of direct TOPI. Gaming
+# gross-receipts, amusement, and license taxes fall within the BEA TOPI
+# concept, so gaming tax must not be added to TOPI without first removing its
+# embedded portion. States without legal casino gaming are included at 0.
 # ============================================================================
 
 STATE_GAMING_TAX_RATES <- data.frame(
@@ -236,7 +236,7 @@ calculate_casino_impact <- function(
   type1_va <- state_data$Type_I_VA
   type2_va <- state_data$Type_II_VA
 
-  # Wage multipliers
+  # Employee-compensation multipliers (StateIO V001; legacy column names use "Wage")
   type1_wage <- state_data$Type_I_Wage
   type2_wage <- state_data$Type_II_Wage
 
@@ -303,13 +303,13 @@ calculate_casino_impact <- function(
   emp_total <- emp_direct + emp_indirect + emp_induced
 
   # ========================================
-  # Calculate Wage Impacts
+  # Calculate Employee Compensation Impacts
   # ========================================
 
-  # Direct wages = revenue × wage coefficient
+  # Direct employee compensation = revenue × V001 coefficient
   wage_direct <- casino_revenue * wage_coef
 
-  # Total wages using wage multipliers
+  # Total employee compensation using V001 multipliers
   wage_type1_total <- casino_revenue * type1_wage
   wage_type2_total <- casino_revenue * type2_wage
 
@@ -322,7 +322,7 @@ calculate_casino_impact <- function(
   # ========================================
 
   # --- 1. Taxes on Production & Imports (TOPI) from IO tables ---
-  # These flow through the Leontief inverse like wages.
+  # These flow through the Leontief inverse like employee compensation.
   # For sector 713 used as GGR input, the TOPI coefficients are for the
   # blended sector (includes golf, fitness, etc). The gambling-specific
   # TOPI is lower (ratio ~0.61 for direct, ~0.71 for Type I).
@@ -335,7 +335,7 @@ calculate_casino_impact <- function(
   topi_induced <- topi_type2_total - topi_type1_total
   topi_total <- topi_type2_total
 
-  # --- 2. Gaming Tax (state-specific rate on GGR, direct only) ---
+  # --- 2. Gaming Tax (state-specific rate on GGR, direct-only memo item) ---
   if (is.null(gaming_tax_rate)) {
     gaming_tax_rate <- STATE_GAMING_TAX_RATES$GGR_Tax_Rate[
       STATE_GAMING_TAX_RATES$State == state
@@ -344,8 +344,10 @@ calculate_casino_impact <- function(
   }
   gaming_tax <- casino_revenue * gaming_tax_rate
 
-  # --- Total tax across categories ---
-  total_tax_direct <- topi_direct + gaming_tax
+  # --- Non-duplicative total ---
+  # Gaming tax is already within the TOPI accounting concept. Report it as a
+  # memo item, but do not add it to TOPI a second time.
+  total_tax_direct <- topi_direct
   total_tax_indirect <- topi_indirect
   total_tax_induced <- topi_induced
   total_tax_total <- total_tax_direct + total_tax_indirect + total_tax_induced
@@ -355,7 +357,7 @@ calculate_casino_impact <- function(
   # ========================================
 
   summary_df <- data.frame(
-    Metric = c("Output ($M)", "GDP ($M)", "Employment (Jobs)", "Wages ($M)"),
+    Metric = c("Output ($M)", "GDP ($M)", "Employment (Jobs)", "Employee Compensation ($M)"),
 
     Direct = c(
       round(output_direct, 2),
@@ -397,29 +399,33 @@ calculate_casino_impact <- function(
 
   # Tax detail table
   tax_df <- data.frame(
-    Tax_Category = c("Gaming Tax", "Taxes on Production", "Total Tax Revenue"),
+    Tax_Category = c(
+      "Taxes on Production and Imports (TOPI)",
+      "Gaming Tax (memo; within TOPI concept)",
+      "Non-duplicative Tax Total"
+    ),
 
     Direct = c(
-      round(gaming_tax, 2),
       round(topi_direct, 2),
+      round(gaming_tax, 2),
       round(total_tax_direct, 2)
     ),
 
     Indirect = c(
-      round(0, 2),
       round(topi_indirect, 2),
+      round(0, 2),
       round(total_tax_indirect, 2)
     ),
 
     Induced = c(
-      round(0, 2),
       round(topi_induced, 2),
+      round(0, 2),
       round(total_tax_induced, 2)
     ),
 
     Total = c(
-      round(gaming_tax, 2),
       round(topi_total, 2),
+      round(gaming_tax, 2),
       round(total_tax_total, 2)
     ),
 
@@ -593,8 +599,8 @@ compare_states <- function(casino_revenue, sector, states) {
         Output_Total = impact$summary$Total[1],
         GDP_Total = impact$summary$Total[2],
         Employment_Total = impact$summary$Total[3],
-        Wages_Total = impact$summary$Total[4],
-        Tax_Total = impact$tax_summary$Total[5],
+        Employee_Compensation_Total = impact$summary$Total[4],
+        Tax_Total = impact$tax_summary$Total[3],
         Output_Mult = impact$summary$Multiplier[1],
         stringsAsFactors = FALSE
       )
@@ -628,7 +634,7 @@ if (interactive() && !is.null(MULTIPLIER_DATA)) {
 
   if (!is.null(impact$details)) {
     cat("Direct VA Coefficient:     ", round(impact$details$direct_va_coef, 4), " (VA per $1 output)\n")
-    cat("Direct Wage Coefficient:   ", round(impact$details$direct_wage_coef, 4), " (wages per $1 output)\n")
+    cat("Direct Compensation Coef:  ", round(impact$details$direct_wage_coef, 4), " (employee compensation per $1 output)\n")
     cat("Direct Tax Coefficient:    ", round(impact$details$direct_tax_coef, 4), " (TOPI per $1 output)\n")
     cat("Employment Coefficient:    ", round(impact$details$employment_coef, 2), " (jobs per $1M GDP)\n")
     cat("\n")

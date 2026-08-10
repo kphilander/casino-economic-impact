@@ -4,16 +4,18 @@
     "sources": {
       "suta": "US DOL ETA, Calendar Year 2024 Actual Average Employer Contribution Rates",
       "sdi_pfml": "State workforce agencies, EY, payroll provider compilations (2025)",
-      "household": "BEA SAINC50 (personal current taxes) / SAINC4 (wages and salaries), 2024"
+      "household": "BEA SAINC50 (personal current taxes) / SAINC4 (wages and salaries), 2024",
+      "wage_share": "BEA NIPA table 1.12, 2019: wages and salaries / employee compensation = 9,323.5 / 11,447.7",
+      "federal_payroll": "IRS Publication 15 (2026): 6.2% Social Security employer rate, $184,500 wage base; 1.45% Medicare employer rate; $7,000 FUTA wage base"
     },
     "methodology": {
-      "payroll_taxes": "FICA employer (Social Security 6.2% on first $176,100 + Medicare 1.45% uncapped) + FUTA (0.6% on first $7,000) + SUTA (state avg rate on state wage base) + SDI/PFML where applicable. Applied to wages by effect type, with per-employee caps converted using average wage / FTE count.",
+      "payroll_taxes": "FICA employer (Social Security 6.2% on first $184,500 + Medicare 1.45% uncapped) + FUTA (0.6% on first $7,000) + SUTA (state avg rate on state wage base) + SDI/PFML where applicable. Applied to estimated cash wages by effect type, with per-employee caps converted using average wage / job count.",
       "household_taxes": "BEA personal current taxes include federal/state/local income taxes, motor vehicle licenses, and personal property taxes. Ratio applied to wages by effect type. Does NOT include real estate property taxes or sales taxes (those are TOPI) or FICA (separate)."
     }
   },
   "federal": {
     "fica_ss_rate": 0.062,
-    "fica_ss_wage_cap": 176100,
+    "fica_ss_wage_cap": 184500,
     "fica_medicare_rate": 0.0145,
     "futa_rate": 0.006,
     "futa_wage_base": 7000

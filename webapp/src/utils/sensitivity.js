@@ -67,16 +67,18 @@ export function runProjection(analysis, { years = 5, cagr = 0.08 } = {}) {
     if (m) series.push({ year: startYear + y, yearIndex: y + 1, ggr: baseGGR(analysis) * factor, ...m });
   }
   const cumulative = series.reduce((acc, s) => {
-    acc.output += s.output; acc.gdp += s.gdp; acc.wages += s.wages; acc.totalTax += s.totalTax;
+    acc.output += s.output; acc.gdp += s.gdp; acc.wages += s.wages;
+    acc.gamingTax += s.gamingTax; acc.totalTax += s.totalTax;
     return acc;
-  }, { output: 0, gdp: 0, wages: 0, totalTax: 0 });
+  }, { output: 0, gdp: 0, wages: 0, gamingTax: 0, totalTax: 0 });
   return { series, cumulative };
 }
 
 export const METRIC_META = [
   { key: 'output', label: 'Output', unit: '$M' },
   { key: 'gdp', label: 'GDP', unit: '$M' },
-  { key: 'employment', label: 'Employment', unit: 'FTE' },
-  { key: 'wages', label: 'Wages', unit: '$M' },
-  { key: 'totalTax', label: 'Total Tax', unit: '$M' },
+  { key: 'employment', label: 'Employment', unit: 'jobs' },
+  { key: 'wages', label: 'Employee Compensation', unit: '$M' },
+  { key: 'gamingTax', label: 'Gaming Tax (memo)', unit: '$M' },
+  { key: 'totalTax', label: 'Non-duplicative Tax', unit: '$M' },
 ];

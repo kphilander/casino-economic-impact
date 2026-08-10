@@ -42,7 +42,9 @@ export function computeScenario(analysis) {
   const hasGamingTax = isOnline
     ? (propertyType === 'ONLINE_CASINO' ? stateTaxConfig?.hasIGaming : stateTaxConfig?.hasSportsBetting)
     : stateTaxConfig?.hasCommercial;
-  const ggr = inputMode === 'total' ? (revenues.total || 0) : (revenues.gaming || 0);
+  const ggr = inputMode === 'total'
+    ? (isOnline ? (revenues.total || 0) : (revenues.gaming || 0))
+    : (revenues.gaming || 0);
   const hasCustom = gamingTaxCustomRate != null && gamingTaxCustomRate !== '';
   if ((hasGamingTax || hasCustom) && ggr > 0) {
     const taxConfig = buildTaxConfig(stateTaxConfig, gamingTaxCustomRate, slotRevenuePct, propertyType);
@@ -50,13 +52,14 @@ export function computeScenario(analysis) {
     gamingTaxResult = { amount, effectiveRate: ggr > 0 ? amount / ggr : 0, ggr };
   }
 
-  // Payroll + household taxes (on wages/employment)
+  // Payroll + household taxes use estimated cash wages, not V001 employee
+  // compensation, which also contains benefits and employer contributions.
   const stateEmp = employmentTaxRatesData.states[state];
   const federal = employmentTaxRatesData.federal;
   let payrollTaxResult = null;
   let householdTaxResult = null;
   if (results && stateEmp) {
-    const w = results.totals.wages;
+    const w = results.totals.cashWages;
     const e = results.totals.employment;
     payrollTaxResult = {
       direct: calculatePayrollTax(w.direct, e.direct, stateEmp, federal),
@@ -72,8 +75,10 @@ export function computeScenario(analysis) {
     };
   }
 
-  const totalTax = (gamingTaxResult?.amount || 0)
-    + (results?.totals.tax.total || 0)
+  // Statutory gaming tax is a memo item because gross-receipts, amusement, and
+  // license taxes are already within the TOPI concept. Do not add it again
+  // without first estimating and removing the embedded gaming-tax component.
+  const totalTax = (results?.totals.tax.total || 0)
     + (payrollTaxResult?.total || 0)
     + (householdTaxResult?.total || 0);
 
@@ -89,6 +94,7 @@ export function headlineMetrics(bundle) {
     gdp: r.totals.gdp.total,
     employment: r.totals.employment.total,
     wages: r.totals.wages.total,
+    gamingTax: bundle.gamingTaxResult?.amount || 0,
     totalTax: bundle.totalTax,
   };
 }

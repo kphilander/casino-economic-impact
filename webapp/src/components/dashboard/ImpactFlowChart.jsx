@@ -11,7 +11,7 @@ const NODE_COLORS = {
   4: '#2c5282',          // Output
   5: EFFECT.indirect,    // GDP
   6: EFFECT.induced,     // Jobs
-  7: '#7e9cbb',          // Wages
+  7: '#7e9cbb',          // Employee compensation
 };
 
 const NODE_LABELS = {
@@ -21,8 +21,8 @@ const NODE_LABELS = {
   3: 'Induced',
   4: 'Output',
   5: 'GDP',
-  6: 'Employment',
-  7: 'Wages',
+  6: 'Jobs',
+  7: 'Compensation',
 };
 
 function SankeyNode({ x, y, width, height, index }) {
@@ -103,8 +103,8 @@ export default function ImpactFlowChart({ results }) {
     { name: 'Induced' },
     { name: 'Output' },
     { name: 'GDP' },
-    { name: 'Employment' },
-    { name: 'Wages' },
+    { name: 'Jobs' },
+    { name: 'Employee Compensation' },
   ];
 
   const empScale = d.wages.total > 0 ? d.output.direct * 0.15 / Math.max(d.wages.total, 1) : 1;

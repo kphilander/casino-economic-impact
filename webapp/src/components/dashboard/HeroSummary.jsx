@@ -15,8 +15,8 @@ export default function HeroSummary({ results, state, casinoName, propertyTypeLa
   const metrics = [
     { label: 'Total Output', value: formatCurrency(t.output.total), mult: results.multipliers.output },
     { label: 'Gross State Product', value: formatCurrency(t.gdp.total), mult: results.multipliers.gdp },
-    { label: 'Jobs Supported', value: formatJobs(t.employment.total), mult: results.multipliers.employment, unit: 'FTE' },
-    { label: 'Employee Wages', value: formatCurrency(t.wages.total), mult: results.multipliers.wages },
+    { label: 'Jobs Supported', value: formatJobs(t.employment.total), mult: results.multipliers.employment, unit: 'jobs' },
+    { label: 'Employee Compensation', value: formatCurrency(t.wages.total), mult: results.multipliers.wages },
   ];
 
   return (
@@ -35,7 +35,7 @@ export default function HeroSummary({ results, state, casinoName, propertyTypeLa
             output across {state} — contributing{' '}
             <span className="text-white font-medium">{formatCurrency(t.gdp.total)}</span> to gross state product
             and supporting <span className="text-white font-medium">{formatJobs(t.employment.total)}</span> jobs
-            and <span className="text-white font-medium">{formatCurrency(t.wages.total)}</span> in wages,
+            and <span className="text-white font-medium">{formatCurrency(t.wages.total)}</span> in employee compensation,
             counting direct, indirect, and induced effects.
           </p>
         </div>

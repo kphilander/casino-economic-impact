@@ -104,7 +104,7 @@ export default function SensitivityPanel({ analysis }) {
           <p className="text-xs text-text-faint">
             {driver === 'ggr'
               ? `Each point recomputes the full model at that revenue level (current GGR ≈ $${formatNumber(base, 1)}M).`
-              : 'Tax-rate sweep affects gaming tax and total tax; output, GDP, and employment are unaffected by the rate.'}
+              : 'Tax-rate sweep affects the Gaming Tax (memo) metric. It does not change the non-duplicative tax total because gaming tax is already within the TOPI concept.'}
           </p>
         </>
       ) : (
@@ -135,12 +135,13 @@ export default function SensitivityPanel({ analysis }) {
                 dot={{ r: 3.5, fill: ACCENT, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: `${years}-yr Output`, v: formatCurrency(proj.cumulative.output) },
               { label: `${years}-yr GDP`, v: formatCurrency(proj.cumulative.gdp) },
-              { label: `${years}-yr Wages`, v: formatCurrency(proj.cumulative.wages) },
-              { label: `${years}-yr Total Tax`, v: formatCurrency(proj.cumulative.totalTax) },
+              { label: `${years}-yr Compensation`, v: formatCurrency(proj.cumulative.wages) },
+              { label: `${years}-yr Gaming Tax (memo)`, v: formatCurrency(proj.cumulative.gamingTax) },
+              { label: `${years}-yr Non-duplicative Tax`, v: formatCurrency(proj.cumulative.totalTax) },
             ].map((c) => (
               <div key={c.label} className="surface-sunken px-3 py-2.5">
                 <p className="text-[10px] text-text-faint font-semibold uppercase tracking-[0.06em]">{c.label}</p>

@@ -133,10 +133,12 @@ online_multipliers <- gambling_mult %>%
     Type_II_Tax = Type_I_Tax + (Type_II_Tax - gambling_mult$Type_I_Tax) *
       ONLINE_ADJUSTMENT_FACTORS$topi_mult_ratio,
 
-    # Adjust employment coefficients
+    # Adjust only the online operator's direct labor intensity. Indirect and
+    # induced coefficients describe supplier and household-spending industries,
+    # so applying the operator's direct employment ratio to them has no economic
+    # basis. Their GDP amounts are already adjusted through the online Type I/II
+    # multipliers above.
     Emp_Coef = Emp_Coef * ONLINE_ADJUSTMENT_FACTORS$emp_coef_ratio,
-    Indirect_Emp_Coef = Indirect_Emp_Coef * ONLINE_ADJUSTMENT_FACTORS$emp_coef_ratio,
-    Induced_Emp_Coef = Induced_Emp_Coef * ONLINE_ADJUSTMENT_FACTORS$emp_coef_ratio,
 
     # Update sector labels
     Sector = "ONLINE",
@@ -198,8 +200,8 @@ ggr <- 100  # $100M
 
 cat(sprintf("%-30s %14s %14s\n", "", "Land-based", "Online"))
 cat(sprintf("%-30s %14s %14s\n", "---", "---", "---"))
-cat(sprintf("%-30s $%11.2fM $%11.2fM\n", "Direct Wages", ggr * nv_7132$Direct_Wage_Coef, ggr * nv_online$Direct_Wage_Coef))
-cat(sprintf("%-30s $%11.2fM $%11.2fM\n", "Total Wages (Type II)", ggr * nv_7132$Type_II_Wage, ggr * nv_online$Type_II_Wage))
+cat(sprintf("%-30s $%11.2fM $%11.2fM\n", "Direct Employee Compensation", ggr * nv_7132$Direct_Wage_Coef, ggr * nv_online$Direct_Wage_Coef))
+cat(sprintf("%-30s $%11.2fM $%11.2fM\n", "Total Compensation (Type II)", ggr * nv_7132$Type_II_Wage, ggr * nv_online$Type_II_Wage))
 cat(sprintf("%-30s $%11.2fM $%11.2fM\n", "Direct GDP", ggr * nv_7132$Direct_VA_Coef, ggr * nv_online$Direct_VA_Coef))
 cat(sprintf("%-30s $%11.2fM $%11.2fM\n", "Total GDP (Type II)", ggr * nv_7132$Type_II_VA, ggr * nv_online$Type_II_VA))
 

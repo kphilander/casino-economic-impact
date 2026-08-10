@@ -8,11 +8,14 @@
 library(tidyverse)
 library(jsonlite)
 
-# Read the existing JSON to preserve metadata and propertyTypes
-existing_json <- fromJSON(
-  "/Users/ksr/Library/CloudStorage/GoogleDrive-kphilander@gmail.com/My Drive/1 - Documents/Research/Econ Impact/Claude/casino_impact_study/webapp/src/data/multipliers.json",
-  simplifyDataFrame = TRUE
+# Read the versioned JSON to preserve metadata and propertyTypes. An alternate
+# file can be supplied with GEMS_EXISTING_MULTIPLIERS_JSON.
+existing_json_path <- Sys.getenv(
+  "GEMS_EXISTING_MULTIPLIERS_JSON",
+  unset = "webapp/src/data/multipliers.json"
 )
+if (!file.exists(existing_json_path)) stop("Missing existing multiplier JSON: ", existing_json_path)
+existing_json <- fromJSON(existing_json_path, simplifyDataFrame = TRUE)
 
 message("Existing JSON sections: ", paste(names(existing_json), collapse = ", "))
 

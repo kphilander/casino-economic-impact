@@ -9,17 +9,23 @@
 
 library(tidyverse)
 
+# Source multiplier files default to the versioned repository copies. Set
+# GEMS_SOURCE_DATA_DIR to use an alternate directory; no developer-specific
+# absolute paths are required.
+source_data_dir <- Sys.getenv("GEMS_SOURCE_DATA_DIR", unset = ".")
+
 # ============================================================================
 # STEP 1: Build complete employment_multipliers_2023.csv
 # ============================================================================
 
 message("=== Building Complete Employment Multipliers ===\n")
 
-# Original from Google Drive (has Indirect_Emp_Coef, Induced_Emp_Coef, etc.)
-original <- read.csv(
-  "/Users/ksr/Library/CloudStorage/GoogleDrive-kphilander@gmail.com/My Drive/1 - Documents/Research/Econ Impact/Claude/casino_impact_study/employment_multipliers_2023.csv",
-  stringsAsFactors = FALSE
-)
+# Base file has Indirect_Emp_Coef, Induced_Emp_Coef, etc. Existing tax columns
+# are dropped before the regenerated columns are joined.
+employment_source <- file.path(source_data_dir, "employment_multipliers_2023.csv")
+if (!file.exists(employment_source)) stop("Missing source file: ", employment_source)
+original <- read.csv(employment_source, stringsAsFactors = FALSE) %>%
+  select(-any_of(c("Direct_Tax_Coef", "Type_I_Tax", "Type_II_Tax")))
 message("Original columns: ", paste(names(original), collapse = ", "))
 message("Original rows: ", nrow(original))
 
@@ -66,11 +72,11 @@ ADJUSTMENT_FACTORS <- list(
   gambling_topi_coef = 0.035024
 )
 
-# Load existing gambling multipliers from Google Drive (has employment data)
-gambling_orig <- read.csv(
-  "/Users/ksr/Library/CloudStorage/GoogleDrive-kphilander@gmail.com/My Drive/1 - Documents/Research/Econ Impact/Claude/casino_impact_study/gambling_multipliers_2023.csv",
-  stringsAsFactors = FALSE
-)
+# Load the versioned gambling multipliers (or an alternate source directory).
+gambling_source <- file.path(source_data_dir, "gambling_multipliers_2023.csv")
+if (!file.exists(gambling_source)) stop("Missing source file: ", gambling_source)
+gambling_orig <- read.csv(gambling_source, stringsAsFactors = FALSE) %>%
+  select(-any_of(c("Direct_Tax_Coef", "Type_I_Tax", "Type_II_Tax")))
 message("Original gambling multiplier columns: ", paste(names(gambling_orig), collapse = ", "))
 message("Original gambling multiplier rows: ", nrow(gambling_orig))
 
@@ -144,8 +150,8 @@ cat(sprintf("%-30s %12s %12s\n", "", "Blended 713", "Gambling 7132"))
 cat(sprintf("%-30s %12s %12s\n", "---", "---", "---"))
 cat(sprintf("%-30s $%10.2fM $%10.2fM\n", "Direct TOPI", ggr * nv_713$Direct_Tax_Coef, ggr * nv_7132$Direct_Tax_Coef))
 cat(sprintf("%-30s $%10.2fM $%10.2fM\n", "Total TOPI (Type II)", ggr * nv_713$Type_II_Tax, ggr * nv_7132$Type_II_Tax))
-cat(sprintf("%-30s $%10.2fM $%10.2fM\n", "Direct Wages", ggr * nv_713$Direct_Wage_Coef, ggr * nv_7132$Direct_Wage_Coef))
-cat(sprintf("%-30s $%10.2fM $%10.2fM\n", "Total Wages (Type II)", ggr * nv_713$Type_II_Wage, ggr * nv_7132$Type_II_Wage))
+cat(sprintf("%-30s $%10.2fM $%10.2fM\n", "Direct Employee Compensation", ggr * nv_713$Direct_Wage_Coef, ggr * nv_7132$Direct_Wage_Coef))
+cat(sprintf("%-30s $%10.2fM $%10.2fM\n", "Total Compensation (Type II)", ggr * nv_713$Type_II_Wage, ggr * nv_7132$Type_II_Wage))
 cat(sprintf("%-30s $%10.2fM $%10.2fM\n", "Direct GDP", ggr * nv_713$Direct_VA_Coef, ggr * nv_7132$Direct_VA_Coef))
 cat(sprintf("%-30s $%10.2fM $%10.2fM\n", "Total GDP (Type II)", ggr * nv_713$Type_II_VA, ggr * nv_7132$Type_II_VA))
 

@@ -51,8 +51,8 @@ export default function ImpactCompositionChart({ results }) {
   const metrics = [
     { label: 'Output', key: 'output', multiplier: results.multipliers.output },
     { label: 'GDP', key: 'gdp', multiplier: results.multipliers.gdp },
-    { label: 'Wages', key: 'wages', multiplier: results.multipliers.wages },
-    { label: 'Tax Revenue', key: 'tax', multiplier: results.totals.tax.direct > 0 ? results.totals.tax.total / results.totals.tax.direct : null },
+    { label: 'Employee Compensation', key: 'wages', multiplier: results.multipliers.wages },
+    { label: 'TOPI', key: 'tax', multiplier: results.totals.tax.direct > 0 ? results.totals.tax.total / results.totals.tax.direct : null },
   ];
 
   return (

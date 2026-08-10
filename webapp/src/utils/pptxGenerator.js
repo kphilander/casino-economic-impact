@@ -380,7 +380,7 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
     fontSize: FONT.section + 2, fontFace: 'Helvetica', bold: true, color: COLORS.primary
   });
 
-  const plainSummary = `Based on ${formatCurrency(totalRevenue)} in gaming revenue, casino operations in ${inputs.state} support a total economic impact of ${formatCurrency(results.totals.output.total)} and ${formatJobs(results.totals.employment.total)} FTEs across the state economy.
+  const plainSummary = `Based on ${formatCurrency(totalRevenue)} in gaming revenue, casino operations in ${inputs.state} support a total economic impact of ${formatCurrency(results.totals.output.total)} and ${formatJobs(results.totals.employment.total)} full- and part-time jobs across the state economy.
 
 This includes not just casino employees, but workers throughout the supply chain and the broader community who benefit when those workers spend their paychecks locally.`;
 
@@ -409,9 +409,9 @@ This includes not just casino employees, but workers throughout the supply chain
 
   const metrics = [
     { value: formatCurrency(results.totals.output.total), label: 'Total Economic Output', isJobs: false },
-    { value: formatJobs(results.totals.employment.total), label: 'FTEs Supported', isJobs: true },
+    { value: formatJobs(results.totals.employment.total), label: 'Jobs Supported', isJobs: true },
     { value: formatCurrency(results.totals.gdp.total), label: 'GDP Contribution', isJobs: false },
-    { value: formatCurrency(results.totals.wages.total), label: 'Total Wages', isJobs: false }
+    { value: formatCurrency(results.totals.wages.total), label: 'Employee Compensation', isJobs: false }
   ];
 
   metrics.forEach((metric, i) => {
@@ -575,7 +575,7 @@ This includes not just casino employees, but workers throughout the supply chain
     x: colStartX + 0.2, y: 4.5, w: 3.2, h: 0.38,
     fontSize: 24, fontFace: 'Helvetica', bold: true, color: COLORS.orange
   });
-  slide3.addText(`${formatJobs(results.totals.employment.total)} total FTEs supported across ${inputs.state}`, {
+  slide3.addText(`${formatJobs(results.totals.employment.total)} total jobs supported across ${inputs.state}`, {
     x: colStartX + 3.5, y: 4.38, w: totalColumnsWidth - 3.7, h: 0.4,
     fontSize: FONT.section + 2, fontFace: 'Helvetica', color: COLORS.white, align: 'right'
   });
@@ -611,8 +611,8 @@ This includes not just casino employees, but workers throughout the supply chain
   const tableDataRows = [
     ['Output ($M)', formatNumber(results.totals.output.direct, 1), formatNumber(results.totals.output.indirect, 1), formatNumber(results.totals.output.induced, 1), formatNumber(results.totals.output.total, 1), formatNumber(results.multipliers.output, 2) + 'x'],
     ['GDP ($M)', formatNumber(results.totals.gdp.direct, 1), formatNumber(results.totals.gdp.indirect, 1), formatNumber(results.totals.gdp.induced, 1), formatNumber(results.totals.gdp.total, 1), formatNumber(results.multipliers.gdp, 2) + 'x'],
-    ['Employment (FTEs)', formatJobs(results.totals.employment.direct), formatJobs(results.totals.employment.indirect), formatJobs(results.totals.employment.induced), formatJobs(results.totals.employment.total), formatNumber(results.multipliers.employment, 2) + 'x'],
-    ['Wages ($M)', formatNumber(results.totals.wages.direct, 1), formatNumber(results.totals.wages.indirect, 1), formatNumber(results.totals.wages.induced, 1), formatNumber(results.totals.wages.total, 1), formatNumber(results.multipliers.wages, 2) + 'x']
+    ['Employment (jobs)', formatJobs(results.totals.employment.direct), formatJobs(results.totals.employment.indirect), formatJobs(results.totals.employment.induced), formatJobs(results.totals.employment.total), formatNumber(results.multipliers.employment, 2) + 'x'],
+    ['Employee Compensation ($M)', formatNumber(results.totals.wages.direct, 1), formatNumber(results.totals.wages.indirect, 1), formatNumber(results.totals.wages.induced, 1), formatNumber(results.totals.wages.total, 1), formatNumber(results.multipliers.wages, 2) + 'x']
   ];
 
   const tableData = [tableHeaderRow, ...tableDataRows];
@@ -647,8 +647,8 @@ This includes not just casino employees, but workers throughout the supply chain
   const terms = [
     { term: 'Output', def: 'Total value of goods and services produced' },
     { term: 'GDP', def: 'Value added (output minus intermediate inputs)' },
-    { term: 'Employment', def: 'Full-time equivalent jobs supported' },
-    { term: 'Wages', def: 'Total labor income including benefits' }
+    { term: 'Employment', def: 'Filled full- and part-time jobs supported; not FTEs' },
+    { term: 'Employee Compensation', def: 'Cash wages plus employer-paid benefits and social-insurance contributions' }
   ];
 
   let termY = 3.6;
@@ -699,7 +699,7 @@ This includes not just casino employees, but workers throughout the supply chain
   if (gamingTaxResult) {
     const effRate = formatNumber(gamingTaxResult.effectiveRate * 100, 1) + '% eff.';
     taxDataRows.push([
-      `Gaming Tax (GGR)\n${effRate}`,
+      `Gaming Tax (memo)\n${effRate}`,
       formatCurrency(gamingTaxResult.amount),
       '-',
       '-',
@@ -743,12 +743,12 @@ This includes not just casino employees, but workers throughout the supply chain
   }
 
   // Total row
-  const taxTotalDirect = (gamingTaxResult?.amount || 0) + results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0);
+  const taxTotalDirect = results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0);
   const taxTotalIndirect = results.totals.tax.indirect + (payrollTaxResult?.indirect || 0) + (householdTaxResult?.indirect || 0);
   const taxTotalInduced = results.totals.tax.induced + (payrollTaxResult?.induced || 0) + (householdTaxResult?.induced || 0);
   const taxTotalAll = taxTotalDirect + taxTotalIndirect + taxTotalInduced;
   taxDataRows.push([
-    { text: 'Total Tax Revenue', options: { bold: true } },
+    { text: 'Non-duplicative Tax Total', options: { bold: true } },
     { text: formatCurrency(taxTotalDirect), options: { bold: true } },
     { text: formatCurrency(taxTotalIndirect), options: { bold: true } },
     { text: formatCurrency(taxTotalInduced), options: { bold: true } },
@@ -775,9 +775,9 @@ This includes not just casino employees, but workers throughout the supply chain
   });
 
   const taxTerms = [
-    { term: 'Gaming Tax', def: `State-mandated tax on gross gaming revenue (GGR) at rates set by ${inputs.state} statute or compact.` },
-    { term: 'TOPI', def: 'Taxes on Production and Imports — sales taxes, property taxes, excise taxes, and business fees across the supply chain, from the IO model.' },
-    { term: 'Payroll Taxes', def: 'Employer-side payroll taxes (FICA, FUTA, SUTA, SDI/PFML where applicable) using DOL average employer contribution rates applied to wages by effect type.' },
+    { term: 'Gaming Tax', def: `Memo estimate of state-mandated GGR tax. It is not added to TOPI because gaming-related gross-receipts and license taxes fall within the TOPI concept. The memo and modeled TOPI are not numerically reconciled.` },
+    { term: 'TOPI', def: 'Taxes on Production and Imports — gross-receipts, amusement, license, property, excise, and other production taxes from the IO model.' },
+    { term: 'Payroll Taxes', def: 'Employer-side payroll taxes using DOL rates applied to estimated cash wages, after removing benefits from employee compensation.' },
     { term: 'Household Taxes', def: 'Federal, state, and local income taxes plus motor vehicle licenses and personal property taxes, estimated using BEA personal current tax ratios by state.' }
   ];
 
@@ -1048,8 +1048,8 @@ Example: If a casino creates 100 direct jobs, Type II analysis might show 180 to
 
   appendixA.addText(`• Output: Total value of goods/services produced
 • GDP: Value added (output minus inputs)
-• Employment: Full-time equivalent jobs
-• Wages: Total labor compensation`, {
+• Employment: Full- and part-time jobs (not FTEs)
+• Employee Compensation: Cash wages plus employer-paid supplements`, {
     x: MARGIN, y: 3.28, w: 4.5, h: 0.85,
     fontSize: FONT.caption, fontFace: 'Helvetica', color: COLORS.text
   });

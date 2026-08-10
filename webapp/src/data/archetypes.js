@@ -3,7 +3,7 @@
  * Each archetype defines empirical employment density and revenue mix benchmarks
  * for a specific property type/market position.
  *
- * empPerMillionGGR: Total property FTEs per $1M of gaming revenue (all departments)
+ * empPerMillionGGR: Total property jobs per $1M of gaming revenue (all departments)
  * nonGamingMult:    Total revenue / gaming revenue ratio
  * revMix:           Percentage breakdown of total revenue by department
  */
@@ -106,11 +106,11 @@ export const ARCHETYPE_LIST = Object.values(ARCHETYPES);
 
 /**
  * Calculate archetype-based employment estimate from gaming revenue.
- * Returns total property FTEs based on empirical Nevada Gaming Abstract ratios.
+ * Returns total property jobs based on empirical Nevada Gaming Abstract ratios.
  *
  * @param {number} gamingRevM - Gaming revenue in $M (current year dollars)
  * @param {string} archetypeKey - Archetype key from ARCHETYPES
- * @returns {number} Estimated total FTEs, or 0 if archetype not found
+ * @returns {number} Estimated total jobs, or 0 if archetype not found
  */
 export function calculateArchetypeEmployment(gamingRevM, archetypeKey) {
   const arch = ARCHETYPES[archetypeKey];

@@ -19,8 +19,8 @@ function toCSV(rows) {
 const METRICS = [
   { key: 'output', label: 'Output ($M)' },
   { key: 'gdp', label: 'GDP ($M)' },
-  { key: 'employment', label: 'Employment (FTEs)' },
-  { key: 'wages', label: 'Wages ($M)' },
+  { key: 'employment', label: 'Employment (jobs)' },
+  { key: 'wages', label: 'Employee Compensation ($M)' },
   { key: 'tax', label: 'Taxes on Production ($M)' },
 ];
 
@@ -54,7 +54,7 @@ export function buildResultsCSV(results, context = {}) {
   // Tax detail
   rows.push(['Tax Revenue', 'Direct', 'Indirect', 'Induced', 'Total']);
   if (gamingTaxResult) {
-    rows.push(['Gaming Tax (GGR)', round(gamingTaxResult.amount), '', '', round(gamingTaxResult.amount)]);
+    rows.push(['Gaming Tax (GGR, memo—not additive)', round(gamingTaxResult.amount), '', '', round(gamingTaxResult.amount)]);
   }
   const tx = results.totals.tax;
   if (tx.total > 0) rows.push(['Taxes on Production (TOPI)', round(tx.direct), round(tx.indirect), round(tx.induced), round(tx.total)]);
@@ -64,7 +64,7 @@ export function buildResultsCSV(results, context = {}) {
 
   // Revenue-stream breakdown
   if (results.byRevenue && results.byRevenue.length > 1) {
-    rows.push(['Impact by Revenue Stream', 'Revenue ($M)', 'Output ($M)', 'GDP ($M)', 'Jobs (FTE)', 'Wages ($M)', 'Tax ($M)']);
+    rows.push(['Impact by Revenue Stream', 'Revenue ($M)', 'Output ($M)', 'GDP ($M)', 'Jobs', 'Employee Compensation ($M)', 'TOPI ($M)']);
     for (const r of results.byRevenue) {
       rows.push([r.label, round(r.revenue), round(r.output.total), round(r.gdp.total), round(r.employment.total), round(r.wages.total), round(r.tax.total)]);
     }

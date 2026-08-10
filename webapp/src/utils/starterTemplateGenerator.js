@@ -326,7 +326,7 @@ export async function generateStarterTemplate() {
     ['Output ($M)', '{direct_output}', '{indirect_output}', '{induced_output}', '{total_output}', '{output_multiplier}'],
     ['GDP ($M)', '{direct_gdp}', '{indirect_gdp}', '{induced_gdp}', '{total_gdp}', '{gdp_multiplier}'],
     ['Employment', '{direct_jobs}', '{indirect_jobs}', '{induced_jobs}', '{total_jobs}', '{employment_multiplier}'],
-    ['Wages ($M)', '{direct_wages}', '{indirect_wages}', '{induced_wages}', '{total_wages}', '{wages_multiplier}']
+    ['Employee Compensation ($M)', '{direct_wages}', '{indirect_wages}', '{induced_wages}', '{total_wages}', '{wages_multiplier}']
   ];
 
   slide3.addTable(tableData, {

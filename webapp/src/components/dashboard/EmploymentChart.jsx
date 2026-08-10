@@ -17,7 +17,7 @@ export default function EmploymentChart({ results }) {
       {/* Big total */}
       <div className="text-center py-3">
         <p className="font-display text-4xl font-semibold text-ink tabular-nums">{formatJobs(total)}</p>
-        <p className="text-[10.5px] text-text-faint font-semibold uppercase tracking-[0.08em] mt-1.5">Total Full-Time Equivalent Jobs</p>
+        <p className="text-[10.5px] text-text-faint font-semibold uppercase tracking-[0.08em] mt-1.5">Total Full- and Part-Time Jobs</p>
       </div>
 
       {/* Stacked bar */}

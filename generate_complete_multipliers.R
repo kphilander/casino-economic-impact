@@ -115,6 +115,18 @@ gambling_multipliers <- employment_multipliers %>%
     Jobs_Per_1M_GDP_TypeI = Type_I_Jobs_Per_1M_Output / Type_I_VA,
     Jobs_Per_1M_GDP_TypeII = Type_II_Jobs_Per_1M_Output / Type_II_VA,
 
+    # Gambling has no separate BEA FTE series below NAICS 713, so direct
+    # gambling jobs use the official 713 FTE/job ratio. Supplier and induced
+    # FTE intensities remain those of the industries in which effects occur.
+    FTE_Coef = Emp_Coef * FTE_Per_Job,
+    Direct_FTE_Per_1M_Output = Direct_Jobs_Per_1M_Output * FTE_Per_Job,
+    Type_I_FTE_Per_1M_Output = Direct_FTE_Per_1M_Output +
+      (Type_I_VA - Direct_VA_Coef) * Indirect_FTE_Coef,
+    Type_II_FTE_Per_1M_Output = Type_I_FTE_Per_1M_Output +
+      (Type_II_VA - Type_I_VA) * Induced_FTE_Coef,
+    Type_I_FTE_Mult = Type_I_FTE_Per_1M_Output / Direct_FTE_Per_1M_Output,
+    Type_II_FTE_Mult = Type_II_FTE_Per_1M_Output / Direct_FTE_Per_1M_Output,
+
     Sector = "7132",
     Sector_Name = "Gambling Industries",
     Calibration_Source = "USEEIOv2.0.1-411 713200/US relative to output-weighted 713 parent"

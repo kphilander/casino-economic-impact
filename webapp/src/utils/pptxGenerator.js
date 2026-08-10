@@ -380,7 +380,7 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
     fontSize: FONT.section + 2, fontFace: 'Helvetica', bold: true, color: COLORS.primary
   });
 
-  const plainSummary = `Based on ${formatCurrency(totalRevenue)} in gaming revenue, casino operations in ${inputs.state} support a total economic impact of ${formatCurrency(results.totals.output.total)} and ${formatJobs(results.totals.employment.total)} full- and part-time jobs across the state economy.
+  const plainSummary = `Based on ${formatCurrency(totalRevenue)} in gaming revenue, casino operations in ${inputs.state} support a total economic impact of ${formatCurrency(results.totals.output.total)} and ${formatJobs(results.totals.employment.total)} full- and part-time jobs (${formatJobs(results.totals.fte.total)} estimated FTEs) across the state economy.
 
 This includes not just casino employees, but workers throughout the supply chain and the broader community who benefit when those workers spend their paychecks locally.`;
 
@@ -409,7 +409,7 @@ This includes not just casino employees, but workers throughout the supply chain
 
   const metrics = [
     { value: formatCurrency(results.totals.output.total), label: 'Total Economic Output', isJobs: false },
-    { value: formatJobs(results.totals.employment.total), label: 'Jobs Supported', isJobs: true },
+    { value: formatJobs(results.totals.employment.total), label: `Jobs · ${formatJobs(results.totals.fte.total)} est. FTEs`, isJobs: true },
     { value: formatCurrency(results.totals.gdp.total), label: 'GDP Contribution', isJobs: false },
     { value: formatCurrency(results.totals.wages.total), label: 'Employee Compensation', isJobs: false }
   ];
@@ -439,9 +439,9 @@ This includes not just casino employees, but workers throughout the supply chain
   });
 
   const impactTypes = [
-    { title: 'At the Casino', jobs: results.totals.employment.direct, desc: 'Direct employees and on-site spending' },
-    { title: 'Through Suppliers', jobs: results.totals.employment.indirect, desc: 'Vendors, distributors, service providers' },
-    { title: 'In the Community', jobs: results.totals.employment.induced, desc: 'Local businesses where workers shop' }
+    { title: 'At the Casino', jobs: results.totals.employment.direct, fte: results.totals.fte.direct, desc: 'Direct employees and on-site spending' },
+    { title: 'Through Suppliers', jobs: results.totals.employment.indirect, fte: results.totals.fte.indirect, desc: 'Vendors, distributors, service providers' },
+    { title: 'In the Community', jobs: results.totals.employment.induced, fte: results.totals.fte.induced, desc: 'Local businesses where workers shop' }
   ];
 
   impactTypes.forEach((impact, i) => {
@@ -452,7 +452,7 @@ This includes not just casino employees, but workers throughout the supply chain
     });
     // Jobs with spotlight icon (circle with number)
     slide2.addShape('ellipse', { x: x, y: 4.22, w: 0.28, h: 0.28, fill: { color: COLORS.accent } });
-    slide2.addText(`${formatJobs(impact.jobs)} jobs`, {
+    slide2.addText(`${formatJobs(impact.jobs)} jobs · ${formatJobs(impact.fte)} FTEs`, {
       x: x + 0.35, y: 4.2, w: 2.6, h: 0.3,
       fontSize: FONT.section + 2, fontFace: 'Helvetica', bold: true, color: COLORS.accent
     });
@@ -612,17 +612,18 @@ This includes not just casino employees, but workers throughout the supply chain
     ['Output ($M)', formatNumber(results.totals.output.direct, 1), formatNumber(results.totals.output.indirect, 1), formatNumber(results.totals.output.induced, 1), formatNumber(results.totals.output.total, 1), formatNumber(results.multipliers.output, 2) + 'x'],
     ['GDP ($M)', formatNumber(results.totals.gdp.direct, 1), formatNumber(results.totals.gdp.indirect, 1), formatNumber(results.totals.gdp.induced, 1), formatNumber(results.totals.gdp.total, 1), formatNumber(results.multipliers.gdp, 2) + 'x'],
     ['Employment (jobs)', formatJobs(results.totals.employment.direct), formatJobs(results.totals.employment.indirect), formatJobs(results.totals.employment.induced), formatJobs(results.totals.employment.total), formatNumber(results.multipliers.employment, 2) + 'x'],
+    ['Estimated FTEs', formatJobs(results.totals.fte.direct), formatJobs(results.totals.fte.indirect), formatJobs(results.totals.fte.induced), formatJobs(results.totals.fte.total), formatNumber(results.multipliers.fte, 2) + 'x'],
     ['Employee Compensation ($M)', formatNumber(results.totals.wages.direct, 1), formatNumber(results.totals.wages.indirect, 1), formatNumber(results.totals.wages.induced, 1), formatNumber(results.totals.wages.total, 1), formatNumber(results.multipliers.wages, 2) + 'x']
   ];
 
   const tableData = [tableHeaderRow, ...tableDataRows];
 
   slide4.addTable(tableData, {
-    x: MARGIN, y: 1.15, w: 9.2, h: 2.0,
+    x: MARGIN, y: 1.15, w: 9.2, h: 2.1,
     fontFace: 'Helvetica', fontSize: FONT.body + 1, color: COLORS.text,
     border: { pt: 0.5, color: 'CCCCCC' },
     colW: [1.7, 1.4, 1.4, 1.4, 1.4, 1.4],
-    rowH: 0.4,
+    rowH: 0.35,
     fill: { color: COLORS.white },
     align: 'center', valign: 'middle'
   });
@@ -647,7 +648,7 @@ This includes not just casino employees, but workers throughout the supply chain
   const terms = [
     { term: 'Output', def: 'Total value of goods and services produced' },
     { term: 'GDP', def: 'Value added (output minus intermediate inputs)' },
-    { term: 'Employment', def: 'Filled full- and part-time jobs supported; not FTEs' },
+    { term: 'Employment', def: 'Filled full- and part-time jobs; estimated FTEs are reported separately' },
     { term: 'Employee Compensation', def: 'Cash wages plus employer-paid benefits and social-insurance contributions' }
   ];
 
@@ -1048,7 +1049,8 @@ Example: If a casino creates 100 direct jobs, Type II analysis might show 180 to
 
   appendixA.addText(`• Output: Total value of goods/services produced
 • GDP: Value added (output minus inputs)
-• Employment: Full- and part-time jobs (not FTEs)
+• Employment: Full- and part-time jobs
+• Estimated FTEs: BEA industry-ratio estimate
 • Employee Compensation: Cash wages plus employer-paid supplements`, {
     x: MARGIN, y: 3.28, w: 4.5, h: 0.85,
     fontSize: FONT.caption, fontFace: 'Helvetica', color: COLORS.text

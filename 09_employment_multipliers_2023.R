@@ -140,6 +140,22 @@ combined <- combined %>%
       0
     ),
 
+    # Effect-specific estimated-FTE intensities from the separate BEA
+    # industry-ratio satellite calculated in script 08.
+    FTE_Coef = Emp_Coef * FTE_Per_Job,
+    Indirect_FTE_Coef = if_else(
+      Type_I_VA > Direct_VA_Coef,
+      (Type_I_FTE_Per_1M_Output - Direct_FTE_Per_1M_Output) /
+        (Type_I_VA - Direct_VA_Coef),
+      0
+    ),
+    Induced_FTE_Coef = if_else(
+      Type_II_VA > Type_I_VA,
+      (Type_II_FTE_Per_1M_Output - Type_I_FTE_Per_1M_Output) /
+        (Type_II_VA - Type_I_VA),
+      0
+    ),
+
     # Jobs per $1M of GDP (direct value added)
     Jobs_Per_1M_GDP_Direct = Emp_Coef,
     Jobs_Per_1M_GDP_TypeI = if_else(
@@ -172,6 +188,7 @@ output_data <- combined %>%
     Employment_Output_M,
     Employment_VA_M,
     Employment_Coefficient_Year,
+    FTE_Ratio_Year,
     IO_Structure_Year,
     Direct_VA_Coef,
     Direct_Wage_Coef,
@@ -208,7 +225,18 @@ output_data <- combined %>%
     Type_II_Jobs_Per_1M_Output,
     Jobs_Per_1M_GDP_Direct,
     Jobs_Per_1M_GDP_TypeI,
-    Jobs_Per_1M_GDP_TypeII
+    Jobs_Per_1M_GDP_TypeII,
+
+    # Estimated FTE coefficients and multipliers
+    FTE_Per_Job,
+    FTE_Coef,
+    Indirect_FTE_Coef,
+    Induced_FTE_Coef,
+    Direct_FTE_Per_1M_Output,
+    Type_I_FTE_Per_1M_Output,
+    Type_II_FTE_Per_1M_Output,
+    Type_I_FTE_Mult,
+    Type_II_FTE_Mult
   ) %>%
   mutate(
     # Convert wages to millions
@@ -300,6 +328,16 @@ emp_range <- output_data %>%
 
 message("  Employment coefficient range: ", round(emp_range$min, 1), " - ",
         round(emp_range$max, 1), " jobs per $1M GDP")
+
+if (!all(output_data$Direct_FTE_Per_1M_Output <=
+         output_data$Direct_Jobs_Per_1M_Output) ||
+    !all(output_data$Type_I_FTE_Per_1M_Output <=
+         output_data$Type_I_Jobs_Per_1M_Output) ||
+    !all(output_data$Type_II_FTE_Per_1M_Output <=
+         output_data$Type_II_Jobs_Per_1M_Output)) {
+  stop("Estimated FTE totals must not exceed filled-job totals")
+}
+message("✓ Estimated FTE coefficients are bounded by filled-job coefficients")
 
 # ============================================================================
 # SAMPLE OUTPUT - Nevada

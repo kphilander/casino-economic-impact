@@ -21,6 +21,10 @@ const stateData = {
   Direct_Jobs_Per_1M_Output: 5,
   Indirect_Emp_Coef: 8,
   Induced_Emp_Coef: 6,
+  FTE_Per_Job: 0.8,
+  Direct_FTE_Per_1M_Output: 4,
+  Indirect_FTE_Coef: 6.4,
+  Induced_FTE_Coef: 4.8,
   Type_I_Output: 1.4,
   Type_II_Output: 1.7,
   Type_I_VA: 0.65,
@@ -57,6 +61,13 @@ test('modeled results retain Type II totals and expose a separate cash-wage base
     result.employment.direct,
     100 * getDeflator(new Date().getFullYear()) * stateData.Direct_Jobs_Per_1M_Output,
   );
+  closeTo(
+    result.fte.direct,
+    100 * getDeflator(new Date().getFullYear()) * stateData.Direct_FTE_Per_1M_Output,
+  );
+  closeTo(result.fte.indirect, 15 * getDeflator(new Date().getFullYear()) * 6.4);
+  closeTo(result.fte.induced, 15 * getDeflator(new Date().getFullYear()) * 4.8);
+  assert.ok(result.fte.total < result.employment.total);
   assert.equal(result.wages.source, 'calculated');
   closeTo(result.cashWages.total, 38 * WAGE_SHARE_OF_COMPENSATION);
   assert.equal(result.adjustments.inducedScale, 1);
@@ -90,8 +101,12 @@ test('known employment replaces direct jobs without changing modeled ripple jobs
 
   assert.equal(observed.employment.direct, 75);
   assert.equal(observed.employment.source, 'user');
+  assert.equal(observed.fte.direct, 60);
+  assert.equal(observed.fte.source, 'estimated');
   closeTo(observed.employment.indirect, modeled.employment.indirect);
   closeTo(observed.employment.induced, modeled.employment.induced);
+  closeTo(observed.fte.indirect, modeled.fte.indirect);
+  closeTo(observed.fte.induced, modeled.fte.induced);
 });
 
 test('combined impact aggregates cash wages separately from employee compensation', () => {
@@ -105,6 +120,7 @@ test('combined impact aggregates cash wages separately from employee compensatio
   );
 
   assert.equal(result.totals.employment.direct, 75);
+  assert.equal(result.totals.fte.direct, 60);
   closeTo(result.totals.cashWages.direct, 10);
   assert.ok(result.totals.wages.direct > result.totals.cashWages.direct);
 });
@@ -179,10 +195,17 @@ test('deployed multiplier metadata is complete and idempotent', () => {
   ));
   assert.equal(bundle.metadata.stateCount, 50);
   assert.equal(bundle.metadata.multiplierRowCount, 200);
+  assert.equal(bundle.metadata.fteRatioYear, 2023);
   assert.equal(bundle.states.length, 50);
 
   for (const code of ['721120', '713210', '713290', '722410']) {
     const description = bundle.propertyTypeMetadata[code].description;
     assert.equal((description.match(/canonical gambling coefficients/g) || []).length, 1);
+  }
+
+  for (const row of bundle.multipliers) {
+    assert.ok(row.FTE_Per_Job > 0 && row.FTE_Per_Job <= 1);
+    assert.ok(row.Direct_FTE_Per_1M_Output <= row.Direct_Jobs_Per_1M_Output);
+    assert.ok(row.Type_II_FTE_Per_1M_Output <= row.Type_II_Jobs_Per_1M_Output);
   }
 });

@@ -89,15 +89,17 @@ output <- list(
     ioTableYear = 2019,
     qcewYear = 2023,
     employmentCoefficientYear = 2023,
+    fteRatioYear = 2023,
     stateCount = 50,
     multiplierRowCount = 200,
     description = paste(
-      "2019 StateIO interindustry structure with consistent-2023 employment",
-      "satellites and national USEEIO gambling calibration"
+      "2019 StateIO interindustry structure with consistent-2023 jobs and",
+      "estimated-FTE satellites and national USEEIO gambling calibration"
     ),
     propertyTypesIncluded = c(land_codes, "ONLINE_CASINO", "ONLINE_SPORTSBOOK"),
     notes = list(
       "Employment is QCEW filled jobs, not FTEs.",
+      "Estimated FTEs are reported separately using 2023 BEA national industry FTE/job ratios; supplier and induced effects use affected-industry ratios.",
       "Employment coefficients use 2023 QCEW jobs and 2023 StateIO output/value added.",
       "Owner-occupied housing and federal/state-local government-enterprise employment have no QCEW-compatible satellite; HS, GFE, and GSLE are explicit zeros rather than imputed averages.",
       "Land-based gaming uses StateIO 713 localized geography adapted with reproducible USEEIO 713200/US ratios.",

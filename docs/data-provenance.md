@@ -6,7 +6,8 @@ This note records how GEMS combines state-level economic geography with national
 
 1. **EPA StateIO (`stateior`)** supplies 2019 state make/use relationships, regional purchase patterns, leakages, and the Type I/Type II structure. The pre-pandemic structure is retained deliberately.
 2. **BLS QCEW plus 2023 StateIO** supply the employment satellite. QCEW annual-average filled jobs are divided by 2023 StateIO output and value added, so the labor numerator and dollar denominator have the same vintage.
-3. **National BEA detail IO (`useeior`)** supplies ratios describing detailed gambling (`713200/US`) relative to the output-weighted 713 parent.
+3. **BEA NIPA tables 6.4D and 6.5D** supply national industry FTE/job ratios for a separate estimated-FTE satellite.
+4. **National BEA detail IO (`useeior`)** supplies ratios describing detailed gambling (`713200/US`) relative to the output-weighted 713 parent.
 
 The national ratios adapt StateIO results while retaining state geography. The model does not substitute an average local hotel or restaurant production function for gaming.
 
@@ -18,9 +19,11 @@ The national ratios adapt StateIO results while retaining state geography. The m
 - jobs per 2023 value added is retained as the direct labor-intensity diagnostic;
 - supplier and induced jobs/GDP coefficients are derived from the employment-weighted job totals and the corresponding GDP increments.
 
-No hours or FTE conversion is used. Owner-occupied housing (`HS`) and the federal/state-local government-enterprise sectors (`GFE`, `GSLE`) have no QCEW-compatible satellite, so they are explicit zeros rather than unrelated within-state averages. `GFGD`, `GFGN`, and `GSLG` use disclosed QCEW public-administration ownership proxies; uniformed military personnel are outside QCEW coverage.
+QCEW itself supplies no hours or FTE conversion, so jobs remain the primary measure. `08b_generate_bea_fte_ratios.R` downloads the 2023 BEA employee-job and FTE series through FRED, validates the FTE/job ratios, and writes the versioned 71-sector `fte_ratios_2023.csv` crosswalk. Script 08 multiplies each industry's QCEW jobs coefficients by its own BEA ratio before propagating this second satellite through the Leontief matrices. The resulting direct, supplier, and induced FTEs are estimates, not establishment-reported hours.
 
-The public ZIP can be supplied with `GEMS_QCEW_SINGLEFILE_ZIP`; otherwise script 08a downloads it from BLS. The generated satellite path used by scripts 08 and 09 can be overridden with `GEMS_QCEW_ALL_SECTORS_FILE`. Script 07 is only a compatibility extractor and no longer ingests a second collection of developer-local source files.
+Owner-occupied housing (`HS`) and the federal/state-local government-enterprise sectors (`GFE`, `GSLE`) have no QCEW-compatible satellite, so they are explicit zeros rather than unrelated within-state averages. `GFGD`, `GFGN`, and `GSLG` use disclosed QCEW public-administration ownership proxies; uniformed military personnel are outside QCEW coverage.
+
+The public ZIP can be supplied with `GEMS_QCEW_SINGLEFILE_ZIP`; otherwise script 08a downloads it from BLS. The generated satellite paths can be overridden with `GEMS_QCEW_ALL_SECTORS_FILE` and `GEMS_FTE_RATIO_FILE`. Script 07 is only a compatibility extractor and no longer ingests a second collection of developer-local source files.
 
 ## USEEIO gambling calibration
 

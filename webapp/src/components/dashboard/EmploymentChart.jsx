@@ -10,6 +10,7 @@ const EFFECTS = [
 
 export default function EmploymentChart({ results }) {
   const emp = results.totals.employment;
+  const fte = results.totals.fte;
   const total = emp.total;
 
   return (
@@ -18,6 +19,7 @@ export default function EmploymentChart({ results }) {
       <div className="text-center py-3">
         <p className="font-display text-4xl font-semibold text-ink tabular-nums">{formatJobs(total)}</p>
         <p className="text-[10.5px] text-text-faint font-semibold uppercase tracking-[0.08em] mt-1.5">Total Full- and Part-Time Jobs</p>
+        <p className="text-xs text-text-secondary mt-2">{formatJobs(fte.total)} estimated FTEs</p>
       </div>
 
       {/* Stacked bar */}

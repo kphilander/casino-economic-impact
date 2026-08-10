@@ -101,6 +101,17 @@ message("\n=== Loading Gambling (7132) Multipliers ===\n")
 gambling_mult <- read.csv("gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
 message("Loaded ", nrow(gambling_mult), " state records")
 
+fte_ratio_file <- Sys.getenv(
+  "GEMS_FTE_RATIO_FILE",
+  unset = "fte_ratios_2023.csv"
+)
+if (!file.exists(fte_ratio_file)) stop("Missing input: ", fte_ratio_file)
+fte_ratios <- read.csv(fte_ratio_file, stringsAsFactors = FALSE)
+online_fte_per_job <- fte_ratios$fte_per_job[fte_ratios$io_sector == "5415"]
+if (length(online_fte_per_job) != 1L || !is.finite(online_fte_per_job)) {
+  stop("Expected one BEA FTE/job ratio for computer systems design (5415)")
+}
+
 # ============================================================================
 # CREATE ONLINE GAMBLING-ADJUSTED MULTIPLIERS
 # ============================================================================
@@ -162,6 +173,19 @@ online_multipliers <- gambling_mult %>%
     Jobs_Per_1M_GDP_Direct = Emp_Coef,
     Jobs_Per_1M_GDP_TypeI = Type_I_Jobs_Per_1M_Output / Type_I_VA,
     Jobs_Per_1M_GDP_TypeII = Type_II_Jobs_Per_1M_Output / Type_II_VA,
+
+    # Use the BEA computer-systems ratio for the tech-heavy direct online
+    # workforce. Supplier and household-spending FTE coefficients remain tied
+    # to their own affected industries.
+    FTE_Per_Job = online_fte_per_job,
+    FTE_Coef = Emp_Coef * FTE_Per_Job,
+    Direct_FTE_Per_1M_Output = Direct_Jobs_Per_1M_Output * FTE_Per_Job,
+    Type_I_FTE_Per_1M_Output = Direct_FTE_Per_1M_Output +
+      (Type_I_VA - Direct_VA_Coef) * Indirect_FTE_Coef,
+    Type_II_FTE_Per_1M_Output = Type_I_FTE_Per_1M_Output +
+      (Type_II_VA - Type_I_VA) * Induced_FTE_Coef,
+    Type_I_FTE_Mult = Type_I_FTE_Per_1M_Output / Direct_FTE_Per_1M_Output,
+    Type_II_FTE_Mult = Type_II_FTE_Per_1M_Output / Direct_FTE_Per_1M_Output,
 
     # Update sector labels
     Sector = "ONLINE",

@@ -159,6 +159,7 @@ function getTermDefinitions(isOnline) {
     output: `Total value of goods and services produced across all industries stimulated by the ${entity}, including intermediate goods.`,
     gdp: 'Value added to the economy, calculated as output minus intermediate inputs. Also known as Gross Domestic Product contribution.',
     employment: 'Filled full- and part-time jobs supported. This is a job count, not a full-time-equivalent measure.',
+    fte: 'Estimated full-time-equivalent employment. QCEW jobs are converted using 2023 national BEA industry FTE-per-job ratios; supplier and induced effects use the ratios of the affected industries.',
     wages: 'Employee compensation, including cash wages and employer contributions to pensions, insurance, and government social insurance.',
     tax: 'Taxes on production and imports (TOPI) from the IO model, including sales taxes, property taxes, excise taxes, and fees paid by businesses.',
     direct: `The initial economic activity from the ${entity} itself — its own spending, employment, and output.`,
@@ -184,6 +185,7 @@ function RevenueBreakdownTable({ byRevenue }) {
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total Output</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total GDP</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total Jobs</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Estimated FTEs</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Employee Compensation</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">TOPI</th>
           </tr>
@@ -199,6 +201,7 @@ function RevenueBreakdownTable({ byRevenue }) {
               <td className="py-3 px-4 text-sm text-right">{formatCurrency(r.output.total)}</td>
               <td className="py-3 px-4 text-sm text-right">{formatCurrency(r.gdp.total)}</td>
               <td className="py-3 px-4 text-sm text-right">{formatJobs(r.employment.total)}</td>
+              <td className="py-3 px-4 text-sm text-right">{formatJobs(r.fte.total)}</td>
               <td className="py-3 px-4 text-sm text-right">{formatCurrency(r.wages.total)}</td>
               <td className="py-3 px-4 text-sm text-right">{formatCurrency(r.tax.total)}</td>
             </tr>

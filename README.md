@@ -41,13 +41,14 @@ This repository contains GEMS (Gaming Economic Modeling System), the economic mo
 
 ## Overview
 
-The calculator quantifies the total economic footprint of a casino or gaming property by computing **direct, indirect, and induced** effects across five metrics:
+The calculator quantifies the total economic footprint of a casino or gaming property by computing **direct, indirect, and induced** effects across six metrics:
 
 | Metric | What It Measures |
 |--------|-----------------|
 | **Output** | Total economic activity (gross output) generated |
 | **GDP** | Value added (contribution to Gross Domestic Product) |
 | **Employment** | Filled full- and part-time jobs supported (not FTEs) |
+| **Estimated FTEs** | Jobs converted to a full-time-equivalent basis with BEA industry ratios |
 | **Employee Compensation** | Cash wages plus employer-paid supplements generated |
 | **Tax Revenue** | TOPI, payroll, and household taxes; gaming tax is a memo component of TOPI |
 
@@ -60,7 +61,7 @@ Users can input revenue by department (Gaming, Food & Beverage, Lodging, Other) 
 3. **Direct effects** are calculated using coefficients (e.g., VA coefficient converts revenue to GDP contribution)
 4. **Indirect effects** are computed via the Leontief inverse, capturing supply-chain purchasing
 5. **Induced effects** capture household spending by employees throughout the economy
-6. **Employment** is estimated with a 2023 QCEW/StateIO employment satellite; current inputs are restated in 2023 dollars for this calculation only
+6. **Employment** is estimated with a 2023 QCEW/StateIO jobs satellite, with a separate BEA industry satellite producing estimated FTEs; current inputs are restated in 2023 dollars for these calculations only
 7. **Tax estimates** report IO-derived production taxes and state-specific gaming tax schedules without adding gaming tax to TOPI a second time
 
 ## Methodology
@@ -129,6 +130,16 @@ Three separate coefficients capture the different labor intensities across each 
 Direct propagation through the Leontief inverse uses jobs per output, which is dimensionally consistent with an output-requirements matrix. The frontend uses the resulting jobs/output coefficient for direct employment and effect-specific jobs/GDP coefficients for supplier and induced GDP. QCEW counts filled jobs, including full-time, part-time, temporary, and permanent positions; it does not report FTEs and can count a multiple-job holder more than once. See the [BLS QCEW definition](https://www.bls.gov/cew/questions-and-answers.htm#Q18).
 
 The QCEW satellite is regenerated from BLS's official [2023 annual singlefile](https://data.bls.gov/cew/data/files/2023/csv/2023_annual_singlefile.zip). The mapping uses exact aggregate codes and explicitly bridges the 2022 NAICS changes affecting retail and information. Owner-occupied housing (`HS`) and the federal/state-local government-enterprise sectors (`GFE`, `GSLE`) have no QCEW-compatible satellite and are assigned zero rather than an unrelated imputed labor intensity. Government general/defense sectors use disclosed public-administration ownership proxies; QCEW excludes uniformed military personnel.
+
+### Estimated FTE Satellite
+
+QCEW does not provide FTEs. The model therefore retains jobs as the primary employment result and reports a separate estimate:
+
+```
+Estimated FTEs = Modeled jobs × (BEA FTE employees / BEA employee jobs)
+```
+
+`08b_generate_bea_fte_ratios.R` downloads 2023 BEA NIPA table 6.4D employee-job series and table 6.5D FTE series through FRED and maps them to all 71 StateIO summary sectors. The resulting `fte_ratios_2023.csv` is versioned for reproducibility. Direct effects use the direct industry's ratio; indirect and induced FTEs are calculated with a separate FTE/output satellite propagated through the Leontief matrices, so they reflect the supplier and household-spending industries where the jobs occur. These are national industry estimates, not establishment-reported hours. See the [BEA FTE definition](https://www.bea.gov/help/faq/368).
 
 ### Tax Estimates
 
@@ -211,6 +222,15 @@ The IO tables contain only the blended sector **713** (Amusement, Gambling, and 
 | **Year** | 2023 Annual Averages |
 | **Coverage** | All 50 states, private employment only |
 
+### Full-Time-Equivalent Ratios
+
+| Attribute | Value |
+|-----------|-------|
+| **Source** | BEA NIPA Tables 6.4D and 6.5D, distributed through FRED |
+| **Year** | 2023 |
+| **Coverage** | National industry ratios mapped to 71 StateIO sectors |
+| **Interpretation** | Estimated FTE employees per full- and part-time employee job |
+
 ### Gaming Tax Rates
 
 | Attribute | Value |
@@ -261,6 +281,7 @@ For each analysis, the calculator produces:
 | **Output** | $M | Total gross economic output (all rounds of spending) |
 | **GDP (Value Added)** | $M | Net contribution to GDP (output minus intermediate purchases) |
 | **Employment** | Jobs | Filled full- and part-time jobs supported; no FTE conversion |
+| **Estimated FTEs** | FTEs | Industry-weighted estimate reported separately from jobs |
 | **Employee Compensation** | $M | Cash wages plus employer-paid supplements |
 | **TOPI** | $M | Taxes on production and imports (from IO tables) |
 | **Gaming Tax** | $M | State GGR tax shown as a non-additive memo component of direct TOPI |
@@ -280,6 +301,7 @@ Scripts are numbered to indicate execution order:
 | `07_process_qcew_employment_2023.R` | Optional compatibility extractor for the four target sectors from the complete QCEW satellite |
 | `08_state_multipliers_2023.R` | Build 2019 StateIO Leontief relationships and apply 2023 StateIO/QCEW jobs-per-output satellites for all 50 states |
 | `08a_process_all_qcew_employment.R` | Download/read the official BLS annual singlefile and build the complete 50-state × 71-sector employment satellite |
+| `08b_generate_bea_fte_ratios.R` | Download BEA NIPA employee-job and FTE series and build the 71-sector FTE/job crosswalk |
 | `09_employment_multipliers_2023.R` | Merge IO multipliers with QCEW employment data, calculate employment-weighted coefficients (direct, indirect, induced) |
 | `10_casino_impact_model.R` | Main impact calculation engine — takes revenue, sector, and state as input, returns full impact table with multiplier decomposition and tax estimates |
 | `11_property_impact_calculator.R` | Property-specific analysis and reporting script |
@@ -299,6 +321,7 @@ Scripts are numbered to indicate execution order:
 | File | Rows | Description |
 |------|------|-------------|
 | `employment_multipliers_2023.csv` | 200 | 50 states × 4 sectors — full multiplier dataset with employment coefficients |
+| `fte_ratios_2023.csv` | 71 | BEA national employee jobs, FTE employees, and FTE/job ratios mapped to StateIO sectors |
 | `gambling_multipliers_2023.csv` | 50 | Gambling-specific multipliers (one per state), adjusted from blended 713 |
 | `property_type_multipliers_2023.csv` | 200 | Four descriptive land-based property labels × 50 states, all using the canonical gambling coefficients |
 | `state_multipliers_with_tax.csv` | 200 | Backward-compatible tax-only export from the canonical state multiplier build |
@@ -425,6 +448,7 @@ To regenerate all multiplier data from raw sources:
 
 ```r
 source("08a_process_all_qcew_employment.R")  # Process mapped private-industry QCEW sectors
+source("08b_generate_bea_fte_ratios.R")      # Build national BEA industry FTE/job ratios
 source("08_state_multipliers_2023.R")         # Calculate state IO multipliers (this downloads StateIO data)
 source("09_employment_multipliers_2023.R")    # Merge multipliers with employment data
 source("13_extract_national_naics_ratios.R")  # Rebuild detailed national ratio evidence
@@ -475,15 +499,17 @@ Key npm packages: `react`, `recharts`, `pptxgenjs`, `@stripe/stripe-js`, `tailwi
 
 3. **Employment Dimensions:** Direct and Leontief-propagated jobs use jobs per output. Direct jobs per value added remains a diagnostic, while supplier and induced jobs/GDP coefficients are derived from their employment-weighted totals and GDP effects.
 
-4. **Gambling vs. Blended 713:** The blended IO sector 713 includes golf courses, fitness centers, and amusement parks alongside gambling. The model uses a single reproducible USEEIO detailed-industry calibration rather than the former competing legacy ratios.
+4. **Estimated FTE Dimensions:** FTEs use a separate industry-specific satellite built from BEA NIPA employee jobs and FTE employees. They are reported alongside, never in place of, QCEW jobs. A user-supplied known job count is converted with the selected direct industry's FTE/job ratio.
 
-5. **State Variation:** Multipliers vary significantly across states due to differences in economic structure, supply chain density, and trade patterns. States with more diversified, self-sufficient economies (e.g., California, Texas) tend to have higher multipliers because more supplier spending stays in-state.
+5. **Gambling vs. Blended 713:** The blended IO sector 713 includes golf courses, fitness centers, and amusement parks alongside gambling. The model uses a single reproducible USEEIO detailed-industry calibration rather than the former competing legacy ratios.
 
-6. **Known Data Override:** User employment inputs are full- and part-time job counts. User wage inputs are cash wages; the model converts them to employee compensation for reporting. Known cash wages replace the direct cash-wage estimate and proportionally rebase the induced component using adjusted Type I compensation. Known jobs replace direct jobs but do not independently drive induced effects.
+6. **State Variation:** Multipliers vary significantly across states due to differences in economic structure, supply chain density, and trade patterns. States with more diversified, self-sufficient economies (e.g., California, Texas) tend to have higher multipliers because more supplier spending stays in-state.
 
-7. **Property Types:** All land-based property labels intentionally share the canonical gambling coefficients. Department inputs, not the label, introduce lodging, food, and entertainment composition.
+7. **Known Data Override:** User employment inputs are full- and part-time job counts. User wage inputs are cash wages; the model converts them to employee compensation for reporting. Known cash wages replace the direct cash-wage estimate and proportionally rebase the induced component using adjusted Type I compensation. Known jobs replace direct jobs and are converted to estimated direct FTEs, but do not independently drive induced effects.
 
-8. **Reproducibility:** The national ratio evidence, complete employment coefficient derivation, canonical gambling generator, property assembler, JSON exporter, and offline integrity tests are versioned. The public QCEW ZIP can be supplied through `GEMS_QCEW_SINGLEFILE_ZIP`; generated input paths can be overridden with `GEMS_QCEW_ALL_SECTORS_FILE`. No developer-specific absolute path is required.
+8. **Property Types:** All land-based property labels intentionally share the canonical gambling coefficients. Department inputs, not the label, introduce lodging, food, and entertainment composition.
+
+9. **Reproducibility:** The national ratio evidence, complete jobs and FTE coefficient derivations, canonical gambling generator, property assembler, JSON exporter, and offline integrity tests are versioned. The public QCEW ZIP can be supplied through `GEMS_QCEW_SINGLEFILE_ZIP`; generated input paths can be overridden with `GEMS_QCEW_ALL_SECTORS_FILE` and `GEMS_FTE_RATIO_FILE`. No developer-specific absolute path is required.
 
 ## License
 

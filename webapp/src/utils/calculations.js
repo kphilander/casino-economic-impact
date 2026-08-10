@@ -68,6 +68,10 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
     Direct_Jobs_Per_1M_Output: directJobsPerOutput,
     Indirect_Emp_Coef: indirectEmpCoef,
     Induced_Emp_Coef: inducedEmpCoef,
+    FTE_Per_Job: ftePerJob,
+    Direct_FTE_Per_1M_Output: directFtePerOutput,
+    Indirect_FTE_Coef: indirectFteCoef,
+    Induced_FTE_Coef: inducedFteCoef,
     Type_I_Output: type1Output,
     Type_II_Output: type2Output,
     Type_I_VA: type1VA,
@@ -163,6 +167,18 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   const empInduced = (gdpInduced * DEFLATOR) * inducedEmpCoef;
   const empTotal = empDirect + empIndirect + empInduced;
 
+  // Estimated FTE impacts use a separate BEA industry satellite. Direct FTEs
+  // use the direct industry's ratio; supplier and induced FTE coefficients
+  // were propagated in R using the industries where those effects occur.
+  // A known employment input is a filled-job count and is converted with the
+  // direct industry's documented ratio rather than silently treated as FTEs.
+  const fteDirect = empSource === 'user'
+    ? empDirect * ftePerJob
+    : (revenue * DEFLATOR) * directFtePerOutput;
+  const fteIndirect = (gdpIndirect * DEFLATOR) * indirectFteCoef;
+  const fteInduced = (gdpInduced * DEFLATOR) * inducedFteCoef;
+  const fteTotal = fteDirect + fteIndirect + fteInduced;
+
   // TOPI (Taxes on Production & Imports) impacts
   // These flow through the Leontief inverse like wages
   const hasTaxData = taxCoef != null && type1Tax != null && type2Tax != null;
@@ -178,6 +194,7 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
     output: { direct: outputDirect, indirect: outputIndirect, induced: outputInduced, total: outputTotal },
     gdp: { direct: gdpDirect, indirect: gdpIndirect, induced: gdpInduced, total: gdpTotal },
     employment: { direct: empDirect, indirect: empIndirect, induced: empInduced, total: empTotal, source: empSource },
+    fte: { direct: fteDirect, indirect: fteIndirect, induced: fteInduced, total: fteTotal, source: 'estimated' },
     wages: { direct: wageDirect, indirect: wageIndirect, induced: wageInduced, total: wageTotal, source: wageSource },
     cashWages,
     tax: { direct: topiDirect, indirect: topiIndirect, induced: topiInduced, total: topiTotal },
@@ -186,6 +203,7 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
       output: outputTotal / outputDirect,
       gdp: gdpTotal / gdpDirect,
       employment: empTotal / empDirect,
+      fte: fteTotal / fteDirect,
       wages: wageTotal / wageDirect
     }
   };
@@ -432,13 +450,14 @@ export function calculateCombinedImpact(
     output: { direct: 0, indirect: 0, induced: 0, total: 0 },
     gdp: { direct: 0, indirect: 0, induced: 0, total: 0 },
     employment: { direct: 0, indirect: 0, induced: 0, total: 0 },
+    fte: { direct: 0, indirect: 0, induced: 0, total: 0 },
     wages: { direct: 0, indirect: 0, induced: 0, total: 0 },
     cashWages: { direct: 0, indirect: 0, induced: 0, total: 0 },
     tax: { direct: 0, indirect: 0, induced: 0, total: 0 }
   };
 
   for (const r of results) {
-    for (const metric of ['output', 'gdp', 'employment', 'wages', 'cashWages', 'tax']) {
+    for (const metric of ['output', 'gdp', 'employment', 'fte', 'wages', 'cashWages', 'tax']) {
       for (const effect of ['direct', 'indirect', 'induced', 'total']) {
         totals[metric][effect] += r[metric][effect];
       }
@@ -450,6 +469,7 @@ export function calculateCombinedImpact(
     output: totals.output.total / totals.output.direct,
     gdp: totals.gdp.total / totals.gdp.direct,
     employment: totals.employment.total / totals.employment.direct,
+    fte: totals.fte.total / totals.fte.direct,
     wages: totals.wages.total / totals.wages.direct
   };
 

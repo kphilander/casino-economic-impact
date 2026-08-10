@@ -18,13 +18,14 @@ When citing results produced by the model, please also state the analysis date a
 
 ## 1. Overview
 
-GEMS quantifies the total economic footprint of casino and gaming operations at the state level for all 50 US states. District of Columbia coefficients are not included in the deployed GEMS 2026 dataset. For a given revenue profile, it computes **direct, indirect, and induced** effects across five metrics:
+GEMS quantifies the total economic footprint of casino and gaming operations at the state level for all 50 US states. District of Columbia coefficients are not included in the deployed GEMS 2026 dataset. For a given revenue profile, it computes **direct, indirect, and induced** effects across six metrics:
 
 | Metric | What It Measures |
 |--------|-----------------|
 | Output | Total economic activity (gross output) generated |
 | GDP | Value added (contribution to Gross Domestic Product) |
 | Employment | Filled full- and part-time jobs supported (not FTEs) |
+| Estimated FTEs | Industry-weighted full-time-equivalent estimate reported separately from jobs |
 | Employee Compensation | Cash wages plus employer-paid supplements generated |
 | Tax Revenue | TOPI, payroll, and household taxes; gaming tax is a memo component of TOPI |
 
@@ -66,7 +67,9 @@ Supplier or induced jobs = GDP effect × Effect-specific jobs/GDP coefficient
 
 QCEW jobs are divided by 2023 StateIO output and value added. Jobs/output is propagated through the Leontief output-requirements matrix; the resulting supplier and induced jobs totals are divided by the corresponding GDP effects to produce `Indirect_Emp_Coef` and `Induced_Emp_Coef`. `Emp_Coef` retains the direct jobs/value-added diagnostic, while `Direct_Jobs_Per_1M_Output` drives calculated direct jobs in the application.
 
-The QCEW employment input counts filled jobs, including full-time, part-time, temporary, and permanent positions. It does not contain hours or an FTE conversion, and a person holding multiple jobs may be counted more than once. GEMS therefore reports **jobs**, not FTEs. See the [BLS QCEW definition](https://www.bls.gov/cew/questions-and-answers.htm#Q18).
+The QCEW employment input counts filled jobs, including full-time, part-time, temporary, and permanent positions. It does not contain hours or an FTE conversion, and a person holding multiple jobs may be counted more than once. GEMS therefore reports **jobs** as its primary employment measure. See the [BLS QCEW definition](https://www.bls.gov/cew/questions-and-answers.htm#Q18).
+
+The model also reports a separate estimated-FTE measure. `08b_generate_bea_fte_ratios.R` divides 2023 BEA NIPA table 6.5D FTE employees by table 6.4D full- and part-time employee jobs for each national industry and maps those ratios to the 71 StateIO sectors. A separate FTE/output satellite is then propagated through the Type I and Type II matrices. Direct, supplier, and induced FTEs therefore use the ratios of the industries where the corresponding jobs occur. The estimates are not establishment-reported hours and should always be labeled **estimated FTEs**. See the [BEA FTE definition](https://www.bea.gov/help/faq/368).
 
 ### 2.4 Reporting Basis and the Employment Base-Year Adjustment
 

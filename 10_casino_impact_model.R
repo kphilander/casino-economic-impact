@@ -4,7 +4,8 @@
 #
 # Takes casino revenue (GGR) and computes:
 #   - Direct, Indirect, and Induced effects
-#   - Output, GDP (Value Added), Employment (jobs), Employee Compensation
+#   - Output, GDP (Value Added), Employment (jobs), Estimated FTEs,
+#     Employee Compensation
 #   - Tax estimates:
 #     * Taxes on Production (TOPI from IO tables, direct/indirect/induced)
 #     * Gaming Tax (state-specific GGR tax rate, reported as a TOPI memo item)
@@ -13,6 +14,7 @@
 # Sources:
 #   - EPA StateIO (2019) for IO multipliers (pre-pandemic)
 #   - BLS QCEW (2023) for employment data
+#   - BEA NIPA 6.4D/6.5D (2023) for estimated FTE ratios
 #   - State gaming commission reports for GGR tax rates
 #   - BEA Detail IO (USEEIOv2.0.1-411) for gambling TOPI adjustment ratio
 #
@@ -243,6 +245,9 @@ calculate_casino_impact <- function(
   # Employment coefficients (jobs per $1M GDP for each effect type)
   indirect_emp_coef <- state_data$Indirect_Emp_Coef
   induced_emp_coef <- state_data$Induced_Emp_Coef
+  fte_per_job <- state_data$FTE_Per_Job
+  indirect_fte_coef <- state_data$Indirect_FTE_Coef
+  induced_fte_coef <- state_data$Induced_FTE_Coef
 
   # Tax multipliers (taxes on production & imports)
   type1_tax <- state_data$Type_I_Tax
@@ -302,6 +307,13 @@ calculate_casino_impact <- function(
   emp_induced <- gdp_induced * induced_emp_coef
   emp_total <- emp_direct + emp_indirect + emp_induced
 
+  # Estimated FTEs use the separate BEA industry satellite. Direct jobs use
+  # the target industry's ratio; ripple effects use affected-industry ratios.
+  fte_direct <- emp_direct * fte_per_job
+  fte_indirect <- gdp_indirect * indirect_fte_coef
+  fte_induced <- gdp_induced * induced_fte_coef
+  fte_total <- fte_direct + fte_indirect + fte_induced
+
   # ========================================
   # Calculate Employee Compensation Impacts
   # ========================================
@@ -357,12 +369,14 @@ calculate_casino_impact <- function(
   # ========================================
 
   summary_df <- data.frame(
-    Metric = c("Output ($M)", "GDP ($M)", "Employment (Jobs)", "Employee Compensation ($M)"),
+    Metric = c("Output ($M)", "GDP ($M)", "Employment (Jobs)",
+               "Estimated FTEs", "Employee Compensation ($M)"),
 
     Direct = c(
       round(output_direct, 2),
       round(gdp_direct, 2),
       round(emp_direct, 0),
+      round(fte_direct, 0),
       round(wage_direct, 2)
     ),
 
@@ -370,6 +384,7 @@ calculate_casino_impact <- function(
       round(output_indirect, 2),
       round(gdp_indirect, 2),
       round(emp_indirect, 0),
+      round(fte_indirect, 0),
       round(wage_indirect, 2)
     ),
 
@@ -377,6 +392,7 @@ calculate_casino_impact <- function(
       round(output_induced, 2),
       round(gdp_induced, 2),
       round(emp_induced, 0),
+      round(fte_induced, 0),
       round(wage_induced, 2)
     ),
 
@@ -384,6 +400,7 @@ calculate_casino_impact <- function(
       round(output_total, 2),
       round(gdp_total, 2),
       round(emp_total, 0),
+      round(fte_total, 0),
       round(wage_total, 2)
     ),
 
@@ -391,6 +408,7 @@ calculate_casino_impact <- function(
       round(type2_output, 3),
       round(type2_va / va_coef, 3),
       round(emp_total / emp_direct, 3),
+      round(fte_total / fte_direct, 3),
       round(type2_wage / wage_coef, 3)
     ),
 
@@ -445,7 +463,8 @@ calculate_casino_impact <- function(
     methodology = "Industry Technology Assumption (ITA)",
     data_sources = c(
       "IO Tables: EPA StateIO (2019)",
-      "Employment: BLS QCEW (2023)"
+      "Employment: BLS QCEW (2023)",
+      "Estimated FTE ratios: BEA NIPA 6.4D/6.5D (2023)"
     ),
     tax_rates = list(
       gaming_tax_rate = gaming_tax_rate
@@ -469,6 +488,9 @@ calculate_casino_impact <- function(
       direct_wage_coef = wage_coef,
       direct_tax_coef = tax_coef,
       employment_coef = emp_coef,
+      fte_per_job = fte_per_job,
+      indirect_fte_coef = indirect_fte_coef,
+      induced_fte_coef = induced_fte_coef,
 
       # Type I multipliers
       type1_output = type1_output,
@@ -582,7 +604,9 @@ get_state_multipliers <- function(state) {
            Type_I_Output, Type_II_Output,
            Type_I_VA, Type_II_VA,
            Type_I_Tax, Type_II_Tax,
-           Direct_VA_Coef, Direct_Tax_Coef, Emp_Coef)
+           Direct_VA_Coef, Direct_Tax_Coef, Emp_Coef,
+           FTE_Per_Job, FTE_Coef,
+           Indirect_FTE_Coef, Induced_FTE_Coef)
 
   return(state_data)
 }
@@ -599,7 +623,8 @@ compare_states <- function(casino_revenue, sector, states) {
         Output_Total = impact$summary$Total[1],
         GDP_Total = impact$summary$Total[2],
         Employment_Total = impact$summary$Total[3],
-        Employee_Compensation_Total = impact$summary$Total[4],
+        Estimated_FTE_Total = impact$summary$Total[4],
+        Employee_Compensation_Total = impact$summary$Total[5],
         Tax_Total = impact$tax_summary$Total[3],
         Output_Mult = impact$summary$Multiplier[1],
         stringsAsFactors = FALSE

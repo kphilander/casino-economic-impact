@@ -29,6 +29,7 @@ library(tidyverse)
 # Note: Using 2019 IO tables to avoid pandemic-distorted relationships in 2020
 io_year <- 2019
 employment_year <- 2023
+fte_ratio_year <- 2023
 
 # Target casino-related sectors
 target_sectors <- c("711AS", "713", "721", "722")
@@ -119,6 +120,29 @@ if (any(QCEW_ALL_SECTORS$employment[
   stop("HS, GFE, and GSLE must remain explicit zero-satellite sectors")
 }
 
+# National BEA FTE/job ratios are a second, explicitly estimated employment
+# satellite. QCEW filled jobs remain the primary employment measure.
+fte_ratio_file <- Sys.getenv(
+  "GEMS_FTE_RATIO_FILE",
+  unset = paste0("fte_ratios_", fte_ratio_year, ".csv")
+)
+if (!file.exists(fte_ratio_file)) {
+  stop("FTE ratio file not found: ", fte_ratio_file,
+       "\nRun 08b_generate_bea_fte_ratios.R first.")
+}
+FTE_RATIOS <- read.csv(fte_ratio_file, stringsAsFactors = FALSE)
+required_fte_columns <- c("io_sector", "fte_per_job", "source_year")
+if (!all(required_fte_columns %in% names(FTE_RATIOS))) {
+  stop("FTE ratio input is missing required columns: ",
+       paste(setdiff(required_fte_columns, names(FTE_RATIOS)), collapse = ", "))
+}
+if (nrow(FTE_RATIOS) != 71L || anyDuplicated(FTE_RATIOS$io_sector) ||
+    any(FTE_RATIOS$source_year != fte_ratio_year) ||
+    any(FTE_RATIOS$fte_per_job < 0 | FTE_RATIOS$fte_per_job > 1)) {
+  stop("Expected a complete, valid 71-sector BEA FTE/job crosswalk for ",
+       fte_ratio_year)
+}
+
 # ============================================================================
 # FUNCTION: Calculate all multipliers for a single state
 # ============================================================================
@@ -127,6 +151,7 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
                                         make_data, use_data,
                                         ind_output_data, com_output_data,
                                         va_data, qcew_emp_data,
+                                        fte_ratio_data,
                                         employment_use_data,
                                         employment_output_data) {
 
@@ -391,6 +416,16 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     employment_output_coef[is.na(employment_output_coef)] <- 0
     employment_va_coef[is.na(employment_va_coef)] <- 0
 
+    fte_per_job <- setNames(
+      fte_ratio_data$fte_per_job,
+      fte_ratio_data$io_sector
+    )[common_ind]
+    if (any(is.na(fte_per_job))) {
+      stop("Missing BEA FTE/job ratio for StateIO sectors: ",
+           paste(common_ind[is.na(fte_per_job)], collapse = ", "))
+    }
+    fte_output_coef <- employment_output_coef * fte_per_job
+
     # Total jobs supported per $1M of direct output.
     type1_emp_raw <- as.numeric(employment_output_coef %*% L)
     names(type1_emp_raw) <- common_ind
@@ -400,6 +435,15 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     type2_emp_raw <- as.numeric(emp_coef_bar %*% L_type2)[1:n]
     names(type2_emp_raw) <- common_ind
 
+    # Estimated FTEs are propagated with their own industry-specific satellite,
+    # so supplier and induced effects reflect the industries in which the jobs
+    # occur rather than the direct casino industry's FTE/job ratio.
+    type1_fte_raw <- as.numeric(fte_output_coef %*% L)
+    names(type1_fte_raw) <- common_ind
+    fte_coef_bar <- c(fte_output_coef, 0)
+    type2_fte_raw <- as.numeric(fte_coef_bar %*% L_type2)[1:n]
+    names(type2_fte_raw) <- common_ind
+
     # Convert to multiplier form: total / direct
     direct_emp_per_output <- employment_output_coef
     type1_emp <- type1_emp_raw / direct_emp_per_output
@@ -408,6 +452,12 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     # Handle division issues
     type1_emp[is.na(type1_emp) | is.infinite(type1_emp)] <- 1.0
     type2_emp[is.na(type2_emp) | is.infinite(type2_emp)] <- 1.0
+
+    direct_fte_per_output <- fte_output_coef
+    type1_fte <- type1_fte_raw / direct_fte_per_output
+    type2_fte <- type2_fte_raw / direct_fte_per_output
+    type1_fte[is.na(type1_fte) | is.infinite(type1_fte)] <- 1.0
+    type2_fte[is.na(type2_fte) | is.infinite(type2_fte)] <- 1.0
 
     # ========================================
     # Extract target sectors and build results
@@ -431,6 +481,7 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
           Employment_Output_M = round(employment_output_m[sector], 2),
           Employment_VA_M = round(employment_va_m[sector], 2),
           Employment_Coefficient_Year = employment_year,
+          FTE_Ratio_Year = fte_ratio_year,
           IO_Structure_Year = io_year,
 
           # Type I multipliers
@@ -451,6 +502,14 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
           Direct_Jobs_Per_1M_Output = round(direct_emp_per_output[sector], 6),
           Type_I_Jobs_Per_1M_Output = round(type1_emp_raw[sector], 6),
           Type_II_Jobs_Per_1M_Output = round(type2_emp_raw[sector], 6),
+
+          # Estimated FTE satellite (BEA national industry ratios)
+          FTE_Per_Job = round(fte_per_job[sector], 9),
+          Direct_FTE_Per_1M_Output = round(direct_fte_per_output[sector], 6),
+          Type_I_FTE_Per_1M_Output = round(type1_fte_raw[sector], 6),
+          Type_II_FTE_Per_1M_Output = round(type2_fte_raw[sector], 6),
+          Type_I_FTE_Mult = round(type1_fte[sector], 4),
+          Type_II_FTE_Mult = round(type2_fte[sector], 4),
 
           stringsAsFactors = FALSE
         ))
@@ -488,6 +547,7 @@ for (i in seq_along(state_names)) {
     two_region_ind_output, two_region_com_output,
     two_region_va,
     QCEW_ALL_SECTORS,
+    FTE_RATIOS,
     employment_year_use,
     employment_year_output
   )
@@ -568,6 +628,18 @@ if (va_check) {
   message("✓ All VA coefficients in valid range (0-1)")
 } else {
   message("✗ Some VA coefficients outside range")
+}
+
+fte_check <- all(
+  all_results$Direct_FTE_Per_1M_Output <= all_results$Direct_Jobs_Per_1M_Output &
+    all_results$Type_I_FTE_Per_1M_Output <= all_results$Type_I_Jobs_Per_1M_Output &
+    all_results$Type_II_FTE_Per_1M_Output <= all_results$Type_II_Jobs_Per_1M_Output,
+  na.rm = TRUE
+)
+if (fte_check) {
+  message("✓ Estimated FTEs do not exceed filled jobs")
+} else {
+  message("✗ Some estimated FTE totals exceed filled jobs")
 }
 
 # Check variation across states

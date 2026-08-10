@@ -218,7 +218,7 @@ def build():
         "State Input-Output tables, BLS Quarterly Census of Employment and Wages data, and "
         "gambling-specific coefficients derived from BEA Detail IO tables. For a given revenue "
         "profile, the model estimates direct, indirect, and induced effects on economic output, "
-        "GDP (value added), filled jobs, employee compensation, and tax revenue. This white paper documents the "
+        "GDP (value added), filled jobs, estimated FTEs, employee compensation, and tax revenue. This white paper documents the "
         f"modeling framework, data sources, and key methodological decisions of the {MODEL_VERSION} "
         "edition, and describes the model's appropriate uses and limitations.", S["abstract"]))
     el.append(Spacer(1, 8))
@@ -259,8 +259,8 @@ def build():
         "casinos, slot parlors, and bar/restaurant gaming) as well as online casino and sports "
         "betting operations.", S["body"]))
     el.append(Paragraph(
-        "For each analysis, the model reports five metrics - gross output, GDP (value added), "
-        "filled jobs, employee compensation, and tax revenue - each decomposed into direct, indirect, and induced "
+        "For each analysis, the model reports six metrics - gross output, GDP (value added), "
+        "filled jobs, estimated FTEs, employee compensation, and tax revenue - each decomposed into direct, indirect, and induced "
         "components with the implied multipliers.", S["body"]))
 
     # --- 2. Modeling framework ---
@@ -342,6 +342,18 @@ def build():
         "is built from the official BLS annual singlefile with exact aggregate mappings. StateIO's synthetic "
         "HS, GFE, and GSLE sectors have no QCEW-compatible measure and are explicit zeros rather than "
         "average-sector imputations.", S["body"])]))
+    el.append(Paragraph(
+        "QCEW does not supply FTEs, so filled jobs remain the primary employment measure. The model "
+        "reports a separate estimate using 2023 BEA NIPA tables 6.4D and 6.5D:", S["body"]))
+    el.append(Paragraph(
+        "Estimated FTEs = Modeled jobs x (BEA FTE employees / BEA employee jobs)",
+        S["formula"]))
+    el.append(Paragraph(
+        "The 71-sector national ratio crosswalk is versioned in fte_ratios_2023.csv. A separate "
+        "FTE/output satellite is propagated through the Type I and Type II matrices, so direct, "
+        "supplier, and induced FTEs use the ratios of the industries where the corresponding jobs "
+        "occur. These are national industry estimates, not establishment-reported hours. Known job "
+        "inputs are converted with the selected direct industry's ratio.", S["body"]))
 
     # --- 5. Reporting basis & inflation ---
     el.append(Paragraph("5. Reporting Basis & Inflation Adjustment", S["h1"]))
@@ -446,6 +458,8 @@ def build():
          "2019 production structure; 2023 output/VA\ndenominators for employment"],
         ["BLS Quarterly Census of Employment\nand Wages (QCEW)", "2023 annual\naverages",
          "Filled-job counts used in employment coefficients"],
+        ["BEA NIPA Tables 6.4D and 6.5D", "2023",
+         "National industry FTE/job ratios for\nestimated-FTE coefficients"],
         ["BEA Detail IO tables via useeior\n(USEEIOv2.0.1-411)", "2017",
          "National gaming/property-to-parent ratios;\nsource tables versioned in repository"],
         ["State gaming commissions,\nAGA State of the States", "Current",
@@ -535,6 +549,7 @@ def build():
         "Extensions</i> (2nd ed.). Cambridge University Press.",
         "US Bureau of Economic Analysis. Detail Input-Output tables (USEEIOv2.0.1-411).",
         "US Bureau of Economic Analysis. Compensation of employees glossary and NIPA Table 1.12.",
+        "US Bureau of Economic Analysis. NIPA Tables 6.4D and 6.5D, Full-Time and Part-Time Employees and Full-Time Equivalent Employees by Industry.",
         "US Bureau of Economic Analysis. Taxes on production and imports definition and GDP-by-state methodology.",
         "US Bureau of Labor Statistics. Quarterly Census of Employment and Wages, 2023 annual averages.",
     ]:

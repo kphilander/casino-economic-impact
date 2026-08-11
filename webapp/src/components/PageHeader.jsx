@@ -19,7 +19,7 @@ function PageHeader({ children }) {
               The {BRAND.descriptor.toLowerCase()} — estimate the direct, indirect, and
               induced economic impact of casino gaming operations across all 50 U.S.
               states, built on EPA Input-Output tables, BLS employment data, and
-              property-type-specific multipliers.
+              state-specific, gambling-calibrated multipliers.
             </p>
           </div>
           {children && <div className="flex-shrink-0">{children}</div>}

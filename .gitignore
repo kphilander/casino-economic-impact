@@ -7,6 +7,15 @@
 # Raw QCEW data files (too large for GitHub, can be downloaded from BLS)
 2023.annual*.csv
 2023.annual.by_industry/
+2023_annual_singlefile.zip
+
+# Reproducible QCEW and StateIO intermediate outputs
+employment_all_sectors_2023.csv
+employment_by_state_2023.csv
+employment_national_summary_2023.csv
+employment_multiplier_summary_2023.csv
+employment_multipliers_2023_with_gambling.csv
+state_multipliers_2023.csv
 
 # Nevada intermediate files (can be regenerated)
 Nevada_*.csv

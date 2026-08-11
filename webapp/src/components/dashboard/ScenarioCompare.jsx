@@ -12,8 +12,9 @@ const METRICS = [
   { key: 'output', label: 'Output', fmt: formatCurrency },
   { key: 'gdp', label: 'GDP', fmt: formatCurrency },
   { key: 'employment', label: 'Employment', fmt: (v) => formatJobs(v) },
-  { key: 'wages', label: 'Wages', fmt: formatCurrency },
-  { key: 'totalTax', label: 'Total Tax', fmt: formatCurrency },
+  { key: 'wages', label: 'Employee Compensation', fmt: formatCurrency },
+  { key: 'gamingTax', label: 'Gaming Tax (memo)', fmt: formatCurrency },
+  { key: 'totalTax', label: 'Non-duplicative Tax', fmt: formatCurrency },
 ];
 
 function Delta({ value, base, fmt }) {

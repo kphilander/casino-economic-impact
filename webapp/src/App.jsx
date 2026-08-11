@@ -4,7 +4,7 @@ import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
 import { ARCHETYPES, ARCHETYPE_LIST, calculateArchetypeEmployment } from './data/archetypes';
-import { calculateCombinedImpact, calculateGamingTax, calculatePayrollTax, calculateHouseholdTax, formatNumber, formatCurrency, formatJobs, isOnlinePropertyType } from './utils/calculations';
+import { calculateCombinedImpact, calculateGamingTax, calculatePayrollTax, calculateHouseholdTax, formatNumber, formatCurrency, formatJobs, getTaxableGgr, isOnlinePropertyType } from './utils/calculations';
 import {
   validateLicense,
   validateLicenseRemote,
@@ -158,8 +158,9 @@ function getTermDefinitions(isOnline) {
   return {
     output: `Total value of goods and services produced across all industries stimulated by the ${entity}, including intermediate goods.`,
     gdp: 'Value added to the economy, calculated as output minus intermediate inputs. Also known as Gross Domestic Product contribution.',
-    employment: 'Full-time equivalent (FTE) jobs supported, including part-time jobs converted to full-time equivalents.',
-    wages: 'Total compensation of employees, including salaries, wages, and benefits such as employer contributions to pensions and insurance.',
+    employment: 'Filled full- and part-time jobs supported. This is a job count, not a full-time-equivalent measure.',
+    fte: 'Estimated full-time-equivalent employment. QCEW jobs are converted using 2023 national BEA industry FTE-per-job ratios; supplier and induced effects use the ratios of the affected industries.',
+    wages: 'Employee compensation, including cash wages and employer contributions to pensions, insurance, and government social insurance.',
     tax: 'Taxes on production and imports (TOPI) from the IO model, including sales taxes, property taxes, excise taxes, and fees paid by businesses.',
     direct: `The initial economic activity from the ${entity} itself — its own spending, employment, and output.`,
     indirect: `Activity generated in the supply chain — businesses that provide goods and services to the ${entityShort}.`,
@@ -184,8 +185,9 @@ function RevenueBreakdownTable({ byRevenue }) {
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total Output</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total GDP</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total Jobs</th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total Wages</th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total Tax</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Estimated FTEs</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Employee Compensation</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">TOPI</th>
           </tr>
         </thead>
         <tbody>
@@ -199,6 +201,7 @@ function RevenueBreakdownTable({ byRevenue }) {
               <td className="py-3 px-4 text-sm text-right">{formatCurrency(r.output.total)}</td>
               <td className="py-3 px-4 text-sm text-right">{formatCurrency(r.gdp.total)}</td>
               <td className="py-3 px-4 text-sm text-right">{formatJobs(r.employment.total)}</td>
+              <td className="py-3 px-4 text-sm text-right">{formatJobs(r.fte.total)}</td>
               <td className="py-3 px-4 text-sm text-right">{formatCurrency(r.wages.total)}</td>
               <td className="py-3 px-4 text-sm text-right">{formatCurrency(r.tax.total)}</td>
             </tr>
@@ -237,10 +240,10 @@ function DownloadPPTXButton({ onClick, isGenerating }) {
 const PROPERTY_TYPE_OPTIONS = [
   { value: '', label: 'Select property type...', description: '', category: '' },
   // Land-Based
-  { value: '721120', label: 'Resort with Hotel & Casino', description: 'Integrated casino-hotel (e.g., Las Vegas Strip properties)', category: 'land' },
-  { value: '713210', label: 'Stand-alone Casino', description: 'Traditional casino without integrated hotel', category: 'land' },
-  { value: '713290', label: 'Slot Parlors / Bingo Halls', description: 'Limited gaming venues (card rooms, bingo halls)', category: 'land' },
-  { value: '722410', label: 'Bars/Restaurants with Slots', description: 'Establishments with gaming as ancillary activity', category: 'land' },
+  { value: '721120', label: 'Resort with Hotel & Casino', description: 'Reporting label; use department inputs to model lodging and food separately', category: 'land' },
+  { value: '713210', label: 'Stand-alone Casino', description: 'Uses the canonical land-based gambling coefficients', category: 'land' },
+  { value: '713290', label: 'Slot Parlors / Bingo Halls', description: 'Reporting label using the canonical land-based gambling coefficients', category: 'land' },
+  { value: '722410', label: 'Bars/Restaurants with Slots', description: 'Reporting label; use department inputs to model food revenue separately', category: 'land' },
   // Online
   { value: 'ONLINE_CASINO', label: 'Online Casino / iGaming', description: 'Online casino operations (slots, table games, poker)', category: 'online' },
   { value: 'ONLINE_SPORTSBOOK', label: 'Online Sportsbook', description: 'Online sports betting operations', category: 'online' }
@@ -544,7 +547,8 @@ export default function App() {
     }
   }, []);
 
-  // Calculate results using property-type-specific multipliers
+  // Calculate results using the canonical land-based gambling calibration or
+  // the separate online scenario coefficients.
   const isOnline = isOnlinePropertyType(propertyType);
   const results = useMemo(() => {
     return calculateCombinedImpact(
@@ -569,7 +573,7 @@ export default function App() {
     gamingTaxCustomRate, slotRevenuePct,
   }), [state, casinoName, propertyType, inputMode, revenues, knownData, gamingTaxCustomRate, slotRevenuePct]);
 
-  // Gaming tax calculation (separate from TOPI in IO model)
+  // Gaming tax calculation shown as a memo component of direct TOPI.
   const stateTaxConfig = gamingTaxRatesData.rates[state];
   const gamingTaxResult = useMemo(() => {
     // For online types, check if the state has that specific online type legalized
@@ -583,7 +587,9 @@ export default function App() {
       // Allow calculation if state has commercial gaming OR user provided a custom rate
       if (!hasCommercial && (gamingTaxCustomRate == null || gamingTaxCustomRate === '')) return null;
     }
-    const ggr = inputMode === 'total' ? (revenues.total || 0) : (revenues.gaming || 0);
+    // A legacy land-based total-revenue value can include rooms, food, and
+    // other sales, so it is never silently treated as taxable GGR.
+    const ggr = getTaxableGgr(inputMode, isOnline, revenues);
     if (ggr <= 0) return null;
 
     // Build tax config for calculation (passes propertyType for online routing)
@@ -599,7 +605,7 @@ export default function App() {
   const payrollTaxResult = useMemo(() => {
     if (!results || !stateEmploymentTaxRates) return null;
     const federal = employmentTaxRatesData.federal;
-    const w = results.totals.wages;
+    const w = results.totals.cashWages;
     const e = results.totals.employment;
     return {
       direct: calculatePayrollTax(w.direct, e.direct, stateEmploymentTaxRates, federal),
@@ -611,7 +617,7 @@ export default function App() {
 
   const householdTaxResult = useMemo(() => {
     if (!results || !stateEmploymentTaxRates) return null;
-    const w = results.totals.wages;
+    const w = results.totals.cashWages;
     return {
       direct: calculateHouseholdTax(w.direct, stateEmploymentTaxRates),
       indirect: calculateHouseholdTax(w.indirect, stateEmploymentTaxRates),
@@ -908,7 +914,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
 
       const sampleStateEmpTaxRates = employmentTaxRatesData.states[sampleState];
       const federal = employmentTaxRatesData.federal;
-      const w = sampleResults.totals.wages;
+      const w = sampleResults.totals.cashWages;
       const e = sampleResults.totals.employment;
       const samplePayrollTaxResult = {
         direct: calculatePayrollTax(w.direct, e.direct, sampleStateEmpTaxRates, federal),
@@ -1264,7 +1270,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
         )}
 
         {/* Archetype Comparison Panel */}
-        {results && !isOnlinePropertyType(propertyType) && (
+        {results && !isOnlinePropertyType(propertyType) && inputMode === 'department' && (
           <div className="bg-accent-soft border border-accent-100 rounded-xl p-4 mb-6 animate-fade-in-up">
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-3">
@@ -1290,7 +1296,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
             </div>
 
             {showArchetypeComparison && (() => {
-              const gamingRev = inputMode === 'total' ? (revenues.total || 0) : (revenues.gaming || 0);
+              const gamingRev = revenues.gaming || 0;
               const archKey = selectedArchetypeKey;
               const arch = archKey ? ARCHETYPES[archKey] : null;
               const archetypeEmp = arch ? calculateArchetypeEmployment(gamingRev, archKey) : 0;
@@ -1328,7 +1334,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                         </thead>
                         <tbody>
                           <tr className="border-b border-blue-50">
-                            <td className="text-xs text-gray-600 px-4 py-2">Direct FTEs</td>
+                            <td className="text-xs text-gray-600 px-4 py-2">Direct jobs</td>
                             <td className="text-right text-xs font-semibold text-primary px-4 py-2 font-mono">
                               {formatJobs(ioDirectEmp)}
                             </td>
@@ -1337,7 +1343,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                             </td>
                           </tr>
                           <tr className="border-b border-blue-50">
-                            <td className="text-xs text-gray-600 px-4 py-2">FTEs per $1M GGR</td>
+                            <td className="text-xs text-gray-600 px-4 py-2">Jobs per $1M GGR</td>
                             <td className="text-right text-xs text-primary px-4 py-2 font-mono">
                               {gamingRev > 0 ? (ioDirectEmp / gamingRev).toFixed(1) : '-'}
                             </td>
@@ -1616,17 +1622,17 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                       <h4 className="text-sm font-medium text-gray-700 mb-2">{label}</h4>
                       <div className="grid grid-cols-2 gap-3">
                         <InputField
-                          label="FTEs"
+                          label="Jobs"
                           value={knownData[key]?.emp}
                           onChange={(v) => setKnownData(prev => ({
                             ...prev,
                             [key]: { ...prev[key], emp: v }
                           }))}
-                          placeholder="FTEs"
+                          placeholder="Full- and part-time jobs"
                           id={`known-emp-${key}`}
                         />
                         <InputField
-                          label="Wages ($M)"
+                          label="Cash Wages ($M)"
                           value={knownData[key]?.wages}
                           onChange={(v) => setKnownData(prev => ({
                             ...prev,
@@ -1634,6 +1640,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                           }))}
                           placeholder="$M"
                           id={`known-wages-${key}`}
+                          helpText="Cash wages and salaries; the model estimates benefits separately"
                         />
                       </div>
                     </div>
@@ -1796,7 +1803,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                   <DashboardResultsTable results={results} termDefs={getTermDefinitions(isOnline)} />
                   {results.hasUserData && (
                     <p className="text-xs text-gray-500 mt-3 italic">
-                      Note: Direct employment and/or wages use user-provided values.
+                      Note: Direct jobs and/or cash wages use user-provided values. Known wages also rebase the induced household-spending effects.
                     </p>
                   )}
                 </div>
@@ -1829,10 +1836,10 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                                 <DefTooltip text={isOnline
                                   ? "State taxes levied on online gross gaming/betting revenue at statutory rates."
                                   : "State and local taxes levied directly on gross gaming revenue at rates set by statute or compact."}>
-                                  {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting Tax' : 'iGaming Tax') : 'Gaming Tax (GGR)'}
+                                  {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting Tax (memo)' : 'iGaming Tax (memo)') : 'Gaming Tax (GGR, memo)'}
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">
-                                  {formatNumber(gamingTaxResult.effectiveRate * 100, 1)}% effective rate
+                                  {formatNumber(gamingTaxResult.effectiveRate * 100, 1)}% effective rate; not added to TOPI
                                 </span>
                               </th>
                               <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(gamingTaxResult.amount)}</td>
@@ -1858,7 +1865,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                           {payrollTaxResult && payrollTaxResult.total > 0 && (
                             <tr className="border-b border-gray-100 hover:bg-gray-50">
                               <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                                <DefTooltip text="Employer-side payroll taxes: FICA (Social Security + Medicare), FUTA, SUTA, and state SDI/PFML where applicable. Applied to wages using per-employee caps and state-specific rates.">
+                                <DefTooltip text="Employer-side payroll taxes: FICA (Social Security + Medicare), FUTA, SUTA, and state SDI/PFML where applicable. Applied to estimated cash wages—not total employee compensation—using per-job caps and state-specific rates.">
                                   Payroll Taxes
                                 </DefTooltip>
                                 <span className="block text-xs text-gray-500">FICA, FUTA, SUTA{stateEmploymentTaxRates?.sdi_employer_rate > 0 ? ', SDI' : ''}{stateEmploymentTaxRates?.pfml_employer_rate > 0 ? ', PFML' : ''}</span>
@@ -1872,10 +1879,10 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                           {householdTaxResult && householdTaxResult.total > 0 && (
                             <tr className="border-b border-gray-100 hover:bg-gray-50">
                               <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                                <DefTooltip text="Federal, state, and local income taxes plus motor vehicle licenses and personal property taxes paid by employee households. Based on BEA personal current tax ratios by state. Does not include real estate or sales taxes (covered under TOPI).">
+                                <DefTooltip text="Federal, state, and local income taxes plus motor vehicle licenses and personal property taxes paid by employee households. Based on BEA personal current tax ratios applied to estimated cash wages. Does not include real estate or sales taxes (covered under TOPI).">
                                   Household Taxes
                                 </DefTooltip>
-                                <span className="block text-xs text-gray-500">{formatNumber((stateEmploymentTaxRates?.household_tax_ratio || 0) * 100, 1)}% of wages (BEA ratio)</span>
+                                <span className="block text-xs text-gray-500">{formatNumber((stateEmploymentTaxRates?.household_tax_ratio || 0) * 100, 1)}% of estimated cash wages (BEA ratio)</span>
                               </th>
                               <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(householdTaxResult.direct)}</td>
                               <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(householdTaxResult.indirect)}</td>
@@ -1884,9 +1891,9 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                             </tr>
                           )}
                           <tr className="bg-gray-50 border-t border-gray-200">
-                            <th scope="row" className="py-3 px-4 text-sm font-bold text-gray-900 text-left">Total Tax Revenue</th>
+                            <th scope="row" className="py-3 px-4 text-sm font-bold text-gray-900 text-left">Non-duplicative Tax Total</th>
                             <td className="py-3 px-4 text-sm text-right font-bold text-primary">
-                              {formatCurrency((gamingTaxResult?.amount || 0) + results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0))}
+                              {formatCurrency(results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0))}
                             </td>
                             <td className="py-3 px-4 text-sm text-right font-bold text-accent">
                               {formatCurrency(results.totals.tax.indirect + (payrollTaxResult?.indirect || 0) + (householdTaxResult?.indirect || 0))}
@@ -1895,18 +1902,17 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                               {formatCurrency(results.totals.tax.induced + (payrollTaxResult?.induced || 0) + (householdTaxResult?.induced || 0))}
                             </td>
                             <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">
-                              {formatCurrency((gamingTaxResult?.amount || 0) + results.totals.tax.total + (payrollTaxResult?.total || 0) + (householdTaxResult?.total || 0))}
+                              {formatCurrency(results.totals.tax.total + (payrollTaxResult?.total || 0) + (householdTaxResult?.total || 0))}
                             </td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
                     <p className="text-xs text-gray-500 mt-3">
-                      {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports betting tax' : 'iGaming tax') : 'Gaming tax'} is applied to GGR at state-mandated rates.
-                      TOPI from the IO model covers sales, property, excise taxes, and business fees.
-                      Payroll taxes are employer-side (FICA, FUTA, SUTA) using DOL average rates.
-                      Household taxes use BEA personal current tax ratios (income taxes, vehicle licenses, personal property taxes).
-                      These four categories are mutually exclusive — no double-counting.
+                      TOPI includes gross-receipts, amusement, license, property, excise, and other production taxes.
+                      The statutory {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'sports betting tax' : 'iGaming tax') : 'gaming tax'} estimate is therefore shown as a memo item and is not added again.
+                      StateIO does not identify the embedded gaming-tax amount by state, so the model does not subtract or replace it.
+                      Payroll and household taxes use estimated cash wages rather than total employee compensation; the cash-wage share is based on BEA NIPA table 1.12.
                       {stateTaxConfig?.localTaxNotes && (
                         <span className="block mt-1 italic">Note: {stateTaxConfig.localTaxNotes}</span>
                       )}

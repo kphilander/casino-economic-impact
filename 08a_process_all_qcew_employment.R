@@ -1,402 +1,212 @@
 # ============================================================================
-# PROCESS ALL QCEW EMPLOYMENT DATA FOR IO SECTORS
+# BUILD THE 2023 QCEW EMPLOYMENT SATELLITE FOR ALL STATEIO SUMMARY SECTORS
+# ============================================================================
 #
-# Reads BLS QCEW 2023 data for all industries and maps to IO sector codes.
-# This provides employment coefficients for all 71 IO sectors, which are
-# needed to calculate true employment-weighted multipliers.
+# Source: BLS QCEW 2023 annual singlefile
+#   https://data.bls.gov/cew/data/files/2023/csv/2023_annual_singlefile.zip
 #
-# Input: 2023.annual.by_industry/ folder with QCEW CSV files
-# Output: employment_all_sectors_2023.csv
+# The script uses exact annual NAICS aggregates, not a prefix match over
+# detailed rows. This prevents double counting. Private ownership supplies the
+# commodity-industry sectors. Public-administration ownership supplies limited
+# government proxies. StateIO's synthetic housing and government-enterprise
+# sectors have no defensible QCEW equivalent and are explicitly assigned zero.
+#
+# Output: employment_all_sectors_2023.csv (50 states x 71 sectors)
 # ============================================================================
 
-library(tidyverse)
+library(data.table)
 
-# ============================================================================
-# NAICS TO IO SECTOR MAPPING
-# ============================================================================
-
-# BEA Summary IO sectors use combinations of NAICS codes
-# This mapping is based on BEA's concordance for Summary-level IO tables
-
-naics_to_io <- tribble(
-  ~naics_prefix, ~io_sector, ~io_name,
-  # Agriculture, Forestry, Fishing
-  "111", "111CA", "Farms",
-  "112", "111CA", "Farms",
-  "113", "113FF", "Forestry, fishing, and related activities",
-  "114", "113FF", "Forestry, fishing, and related activities",
-  "115", "113FF", "Forestry, fishing, and related activities",
-
-  # Mining
-  "211", "211", "Oil and gas extraction",
-  "212", "212", "Mining, except oil and gas",
-  "213", "213", "Support activities for mining",
-
-  # Utilities
-  "22", "22", "Utilities",
-  "221", "22", "Utilities",
-
-  # Construction
-  "23", "23", "Construction",
-  "236", "23", "Construction",
-  "237", "23", "Construction",
-  "238", "23", "Construction",
-
-  # Manufacturing - Food, Beverage, Tobacco
-  "311", "311FT", "Food and beverage and tobacco products",
-  "312", "311FT", "Food and beverage and tobacco products",
-
-  # Manufacturing - Textiles, Apparel, Leather
-  "313", "313TT", "Textile mills and textile product mills",
-  "314", "313TT", "Textile mills and textile product mills",
-  "315", "315AL", "Apparel and leather and allied products",
-  "316", "315AL", "Apparel and leather and allied products",
-
-  # Manufacturing - Wood, Paper, Printing
-  "321", "321", "Wood products",
-  "322", "322", "Paper products",
-  "323", "323", "Printing and related support activities",
-
-  # Manufacturing - Petroleum, Chemical, Plastics
-  "324", "324", "Petroleum and coal products",
-  "325", "325", "Chemical products",
-  "326", "326", "Plastics and rubber products",
-
-  # Manufacturing - Nonmetallic minerals, Metals
-  "327", "327", "Nonmetallic mineral products",
-  "331", "331", "Primary metals",
-  "332", "332", "Fabricated metal products",
-
-  # Manufacturing - Machinery, Electronics
-  "333", "333", "Machinery",
-  "334", "334", "Computer and electronic products",
-  "335", "335", "Electrical equipment, appliances, and components",
-
-  # Manufacturing - Transportation equipment
-  "3361", "3361MV", "Motor vehicles, bodies and trailers, and parts",
-  "3362", "3361MV", "Motor vehicles, bodies and trailers, and parts",
-  "3363", "3361MV", "Motor vehicles, bodies and trailers, and parts",
-  "3364", "3364OT", "Other transportation equipment",
-  "3365", "3364OT", "Other transportation equipment",
-  "3366", "3364OT", "Other transportation equipment",
-  "3369", "3364OT", "Other transportation equipment",
-
-  # Manufacturing - Furniture, Misc
-  "337", "337", "Furniture and related products",
-  "339", "339", "Miscellaneous manufacturing",
-
-  # Wholesale Trade
-  "42", "42", "Wholesale trade",
-  "423", "42", "Wholesale trade",
-  "424", "42", "Wholesale trade",
-  "425", "42", "Wholesale trade",
-
-  # Retail Trade
-  "441", "441", "Motor vehicle and parts dealers",
-  "444", "4A0", "Other retail",
-  "445", "445", "Food and beverage stores",
-  "449", "4A0", "Other retail",
-  "452", "452", "General merchandise stores",
-  "455", "452", "General merchandise stores",
-  "456", "4A0", "Other retail",
-  "457", "4A0", "Other retail",
-  "458", "4A0", "Other retail",
-  "459", "4A0", "Other retail",
-
-  # Transportation
-  "481", "481", "Air transportation",
-  "482", "482", "Rail transportation",
-  "483", "483", "Water transportation",
-  "484", "484", "Truck transportation",
-  "485", "485", "Transit and ground passenger transportation",
-  "486", "486", "Pipeline transportation",
-  "487", "487OS", "Other transportation and support activities",
-  "488", "487OS", "Other transportation and support activities",
-  "491", "487OS", "Other transportation and support activities",
-  "492", "487OS", "Other transportation and support activities",
-  "493", "493", "Warehousing and storage",
-
-  # Information
-  "511", "511", "Publishing industries, except internet",
-  "512", "512", "Motion picture and sound recording industries",
-  "515", "513", "Broadcasting and telecommunications",
-  "517", "513", "Broadcasting and telecommunications",
-  "518", "514", "Data processing, internet publishing, and other information services",
-  "519", "514", "Data processing, internet publishing, and other information services",
-
-  # Finance and Insurance
-  "521", "521CI", "Federal Reserve banks, credit intermediation, and related activities",
-  "522", "521CI", "Federal Reserve banks, credit intermediation, and related activities",
-  "523", "523", "Securities, commodity contracts, and investments",
-  "524", "524", "Insurance carriers and related activities",
-  "525", "525", "Funds, trusts, and other financial vehicles",
-
-  # Real Estate
-  "531", "HS", "Housing",  # Owner-occupied housing imputed
-  "5311", "ORE", "Other real estate",
-  "5312", "ORE", "Other real estate",
-  "532", "532RL", "Rental and leasing services and lessors of intangible assets",
-  "533", "532RL", "Rental and leasing services and lessors of intangible assets",
-
-  # Professional Services
-  "5411", "5411", "Legal services",
-  "5412", "5412OP", "Miscellaneous professional, scientific, and technical services",
-  "5413", "5412OP", "Miscellaneous professional, scientific, and technical services",
-  "5414", "5412OP", "Miscellaneous professional, scientific, and technical services",
-  "5415", "5415", "Computer systems design and related services",
-  "5416", "5412OP", "Miscellaneous professional, scientific, and technical services",
-  "5417", "5412OP", "Miscellaneous professional, scientific, and technical services",
-  "5418", "5412OP", "Miscellaneous professional, scientific, and technical services",
-  "5419", "5412OP", "Miscellaneous professional, scientific, and technical services",
-
-  # Management
-  "55", "55", "Management of companies and enterprises",
-  "551", "55", "Management of companies and enterprises",
-
-  # Administrative and Waste Services
-  "561", "561", "Administrative and support services",
-  "562", "562", "Waste management and remediation services",
-
-  # Education
-  "61", "61", "Educational services",
-  "611", "61", "Educational services",
-
-  # Health Care
-  "621", "621", "Ambulatory health care services",
-  "622", "622", "Hospitals",
-  "623", "623", "Nursing and residential care facilities",
-  "624", "624", "Social assistance",
-
-  # Arts, Entertainment, Recreation
-  "711", "711AS", "Performing arts, spectator sports, museums, and related activities",
-  "712", "711AS", "Performing arts, spectator sports, museums, and related activities",
-  "713", "713", "Amusements, gambling, and recreation industries",
-
-  # Accommodation and Food Services
-  "721", "721", "Accommodation",
-  "722", "722", "Food services and drinking places",
-
-  # Other Services
-  "81", "81", "Other services, except government",
-  "811", "81", "Other services, except government",
-  "812", "81", "Other services, except government",
-  "813", "81", "Other services, except government",
-  "814", "81", "Other services, except government",
-
-  # Government
-  "92", "GSLG", "State and local general government",
-  "921", "GSLG", "State and local general government",
-  "922", "GSLG", "State and local general government",
-  "923", "GSLG", "State and local general government",
-  "924", "GSLG", "State and local general government",
-  "925", "GSLG", "State and local general government",
-  "926", "GSLG", "State and local general government",
-  "927", "GSLG", "State and local general government",
-  "928", "GFGD", "Federal general government (defense)",  # Simplified
-  "999", "GSLG", "State and local general government"  # Unclassified -> state/local
+qcew_year <- 2023L
+qcew_url <- paste0(
+  "https://data.bls.gov/cew/data/files/", qcew_year,
+  "/csv/", qcew_year, "_annual_singlefile.zip"
+)
+qcew_zip <- Sys.getenv(
+  "GEMS_QCEW_SINGLEFILE_ZIP",
+  unset = paste0(qcew_year, "_annual_singlefile.zip")
+)
+output_file <- Sys.getenv(
+  "GEMS_QCEW_ALL_SECTORS_FILE",
+  unset = paste0("employment_all_sectors_", qcew_year, ".csv")
 )
 
-# State FIPS codes
-state_fips <- c(
-  "01000" = "Alabama", "02000" = "Alaska", "04000" = "Arizona", "05000" = "Arkansas",
-  "06000" = "California", "08000" = "Colorado", "09000" = "Connecticut", "10000" = "Delaware",
-  "11000" = "District of Columbia", "12000" = "Florida", "13000" = "Georgia", "15000" = "Hawaii",
-  "16000" = "Idaho", "17000" = "Illinois", "18000" = "Indiana", "19000" = "Iowa",
-  "20000" = "Kansas", "21000" = "Kentucky", "22000" = "Louisiana", "23000" = "Maine",
-  "24000" = "Maryland", "25000" = "Massachusetts", "26000" = "Michigan", "27000" = "Minnesota",
-  "28000" = "Mississippi", "29000" = "Missouri", "30000" = "Montana", "31000" = "Nebraska",
-  "32000" = "Nevada", "33000" = "New Hampshire", "34000" = "New Jersey", "35000" = "New Mexico",
-  "36000" = "New York", "37000" = "North Carolina", "38000" = "North Dakota", "39000" = "Ohio",
-  "40000" = "Oklahoma", "41000" = "Oregon", "42000" = "Pennsylvania", "44000" = "Rhode Island",
-  "45000" = "South Carolina", "46000" = "South Dakota", "47000" = "Tennessee", "48000" = "Texas",
-  "49000" = "Utah", "50000" = "Vermont", "51000" = "Virginia", "53000" = "Washington",
-  "54000" = "West Virginia", "55000" = "Wisconsin", "56000" = "Wyoming"
+if (!file.exists(qcew_zip)) {
+  message("Downloading official BLS QCEW annual singlefile...")
+  download.file(qcew_url, qcew_zip, mode = "wb", quiet = FALSE)
+}
+
+zip_members <- unzip(qcew_zip, list = TRUE)$Name
+csv_member <- zip_members[grepl("annual[._]singlefile\\.csv$", zip_members)]
+if (length(csv_member) != 1L) {
+  stop("Expected one annual_singlefile.csv member in ", qcew_zip)
+}
+
+message("Reading state-level records from ", qcew_zip)
+read_command <- paste(
+  "unzip -p", shQuote(qcew_zip), shQuote(csv_member)
+)
+qcew <- fread(
+  cmd = read_command,
+  select = c(
+    "area_fips", "own_code", "industry_code",
+    "annual_avg_emplvl", "total_annual_wages"
+  ),
+  colClasses = list(character = c("area_fips", "industry_code"))
 )
 
-# ============================================================================
-# FUNCTION: Read and process QCEW file
-# ============================================================================
+state_names <- c(
+  "01" = "Alabama", "02" = "Alaska", "04" = "Arizona",
+  "05" = "Arkansas", "06" = "California", "08" = "Colorado",
+  "09" = "Connecticut", "10" = "Delaware", "12" = "Florida",
+  "13" = "Georgia", "15" = "Hawaii", "16" = "Idaho",
+  "17" = "Illinois", "18" = "Indiana", "19" = "Iowa",
+  "20" = "Kansas", "21" = "Kentucky", "22" = "Louisiana",
+  "23" = "Maine", "24" = "Maryland", "25" = "Massachusetts",
+  "26" = "Michigan", "27" = "Minnesota", "28" = "Mississippi",
+  "29" = "Missouri", "30" = "Montana", "31" = "Nebraska",
+  "32" = "Nevada", "33" = "New Hampshire", "34" = "New Jersey",
+  "35" = "New Mexico", "36" = "New York", "37" = "North Carolina",
+  "38" = "North Dakota", "39" = "Ohio", "40" = "Oklahoma",
+  "41" = "Oregon", "42" = "Pennsylvania", "44" = "Rhode Island",
+  "45" = "South Carolina", "46" = "South Dakota",
+  "47" = "Tennessee", "48" = "Texas", "49" = "Utah",
+  "50" = "Vermont", "51" = "Virginia", "53" = "Washington",
+  "54" = "West Virginia", "55" = "Wisconsin", "56" = "Wyoming"
+)
+state_abbrevs <- setNames(state.abb, state.name)
 
-process_qcew_file <- function(file_path) {
+qcew <- qcew[
+  substr(area_fips, 1L, 2L) %in% names(state_names) &
+    grepl("000$", area_fips)
+]
+qcew[, annual_avg_emplvl := as.numeric(annual_avg_emplvl)]
+qcew[, total_annual_wages := as.numeric(total_annual_wages)]
 
-  # Extract NAICS code from filename
-  filename <- basename(file_path)
+# Exact 2022-NAICS aggregates used in the 2023 file, mapped to the 2017 BEA
+# Summary schema used by StateIO. The 2022 changes affecting retail and
+# information are bridged explicitly (455, 513, and 516).
+private_codes <- list(
+  "111CA" = c("111", "112"),
+  "113FF" = c("113", "114", "115"),
+  "211" = "211", "212" = "212", "213" = "213",
+  "22" = "22", "23" = "23",
+  "311FT" = c("311", "312"),
+  "313TT" = c("313", "314"),
+  "315AL" = c("315", "316"),
+  "321" = "321", "322" = "322", "323" = "323",
+  "324" = "324", "325" = "325", "326" = "326",
+  "327" = "327", "331" = "331", "332" = "332",
+  "333" = "333", "334" = "334", "335" = "335",
+  "3361MV" = c("3361", "3362", "3363"),
+  "3364OT" = c("3364", "3365", "3366", "3369"),
+  "337" = "337", "339" = "339", "42" = "42",
+  "441" = "441", "445" = "445", "452" = "455",
+  "4A0" = c("444", "449", "456", "457", "458", "459"),
+  "481" = "481", "482" = "482", "483" = "483",
+  "484" = "484", "485" = "485", "486" = "486",
+  "487OS" = c("487", "488", "491", "492"), "493" = "493",
+  "511" = "513", "512" = "512", "513" = c("516", "517"),
+  "514" = c("518", "519"),
+  "521CI" = c("521", "522"), "523" = "523", "524" = "524",
+  "525" = "525", "ORE" = "531", "532RL" = c("532", "533"),
+  "5411" = "5411", "5415" = "5415",
+  "5412OP" = c("5412", "5413", "5414", "5416", "5417", "5418", "5419"),
+  "55" = "55", "561" = "561", "562" = "562", "61" = "61",
+  "621" = "621", "622" = "622", "623" = "623", "624" = "624",
+  "711AS" = c("711", "712"), "713" = "713",
+  "721" = "721", "722" = "722", "81" = "81"
+)
 
-  # Pattern: "2023.annual XXX NAICS XXX description.csv"
-  naics_match <- str_match(filename, "NAICS (\\d+)")
-  if (is.na(naics_match[1])) {
-    return(NULL)
-  }
-  naics_code <- naics_match[2]
+private_map <- rbindlist(lapply(names(private_codes), function(io_sector) {
+  data.table(io_sector = io_sector, industry_code = private_codes[[io_sector]])
+}))
 
-  # Read file
-  tryCatch({
-    df <- read.csv(file_path, stringsAsFactors = FALSE)
+private_employment <- merge(
+  qcew[own_code == 5L],
+  private_map,
+  by = "industry_code",
+  allow.cartesian = TRUE
+)[, .(
+  employment = sum(annual_avg_emplvl, na.rm = TRUE),
+  total_wages = sum(total_annual_wages, na.rm = TRUE)
+), by = .(area_fips, io_sector)]
 
-    # Filter for state-level private sector data
-    state_data <- df %>%
-      filter(
-        agglvl_code %in% c(50, 51, 52, 53, 54, 55, 56, 57, 58),  # State-level by ownership
-        own_code == 5,  # Private sector
-        grepl("000$", area_fips),  # Statewide totals
-        area_fips %in% names(state_fips)
-      ) %>%
-      select(
-        area_fips,
-        industry_code,
-        annual_avg_emplvl,
-        total_annual_wages
-      ) %>%
-      mutate(
-        naics = naics_code,
-        state_name = state_fips[area_fips]
-      )
-
-    return(state_data)
-
-  }, error = function(e) {
-    return(NULL)
-  })
+aggregate_government <- function(ownership, codes, io_sector) {
+  qcew[
+    own_code %in% ownership & industry_code %in% codes,
+    .(
+      employment = sum(annual_avg_emplvl, na.rm = TRUE),
+      total_wages = sum(total_annual_wages, na.rm = TRUE)
+    ),
+    by = area_fips
+  ][, io_sector := io_sector]
 }
 
-# ============================================================================
-# MAIN PROCESSING
-# ============================================================================
+# QCEW excludes uniformed military personnel and does not distinguish the
+# synthetic StateIO enterprise sectors. These are therefore limited proxies,
+# not a claim of complete government employment coverage.
+government_employment <- rbindlist(list(
+  aggregate_government(1L, "928", "GFGD"),
+  aggregate_government(1L, as.character(921:927), "GFGN"),
+  aggregate_government(c(2L, 3L), "92", "GSLG")
+), fill = TRUE)
 
-message("\n=== Processing All QCEW Employment Data ===\n")
+employment <- rbindlist(
+  list(private_employment, government_employment),
+  use.names = TRUE,
+  fill = TRUE
+)[, .(
+  employment = sum(employment, na.rm = TRUE),
+  total_wages = sum(total_wages, na.rm = TRUE)
+), by = .(area_fips, io_sector)]
 
-qcew_dir <- "2023.annual.by_industry"
+all_sectors <- c(names(private_codes), "GFGD", "GFGN", "GSLG",
+                 "HS", "GFE", "GSLE")
+expected_rows <- CJ(
+  area_fips = paste0(names(state_names), "000"),
+  io_sector = all_sectors,
+  unique = TRUE
+)
+employment <- merge(
+  expected_rows,
+  employment,
+  by = c("area_fips", "io_sector"),
+  all.x = TRUE
+)
+employment[is.na(employment), `:=`(employment = 0, total_wages = 0)]
 
-# Get all NAICS files (3-digit level preferred for IO mapping)
-all_files <- list.files(qcew_dir, pattern = "NAICS.*\\.csv$", full.names = TRUE)
-message("Found ", length(all_files), " QCEW files")
-
-# Process files for 3-digit NAICS codes (best mapping to IO sectors)
-naics_3digit_files <- all_files[grepl("NAICS [0-9]{3} ", basename(all_files))]
-message("Processing ", length(naics_3digit_files), " 3-digit NAICS files")
-
-all_data <- data.frame()
-
-for (file in naics_3digit_files) {
-  file_data <- process_qcew_file(file)
-  if (!is.null(file_data) && nrow(file_data) > 0) {
-    all_data <- rbind(all_data, file_data)
-  }
-}
-
-message("Total records from 3-digit files: ", nrow(all_data))
-
-# Also process 2-digit NAICS for sectors that aggregate at that level
-naics_2digit_files <- all_files[grepl("NAICS [0-9]{2} ", basename(all_files))]
-message("Processing ", length(naics_2digit_files), " 2-digit NAICS files for aggregates")
-
-for (file in naics_2digit_files) {
-  file_data <- process_qcew_file(file)
-  if (!is.null(file_data) && nrow(file_data) > 0) {
-    # Only add if not already covered by 3-digit
-    existing_naics <- unique(substr(all_data$naics, 1, 2))
-    file_naics <- unique(file_data$naics)
-    if (!file_naics %in% existing_naics) {
-      all_data <- rbind(all_data, file_data)
-    }
-  }
-}
-
-message("Total records after adding 2-digit: ", nrow(all_data))
-
-# ============================================================================
-# MAP TO IO SECTORS
-# ============================================================================
-
-message("\n=== Mapping NAICS to IO Sectors ===\n")
-
-# Function to find IO sector for a NAICS code
-find_io_sector <- function(naics) {
-  # Try exact match first, then progressively shorter prefixes
-  for (len in c(nchar(naics), 4, 3, 2)) {
-    prefix <- substr(naics, 1, len)
-    match <- naics_to_io %>% filter(naics_prefix == prefix)
-    if (nrow(match) > 0) {
-      return(match$io_sector[1])
-    }
-  }
-  return(NA_character_)
-}
-
-# Map each record to IO sector
-all_data <- all_data %>%
-  rowwise() %>%
-  mutate(io_sector = find_io_sector(naics)) %>%
-  ungroup()
-
-# Check mapping coverage
-mapped <- sum(!is.na(all_data$io_sector))
-total <- nrow(all_data)
-message("Mapped ", mapped, " of ", total, " records (", round(100*mapped/total, 1), "%)")
-
-# Show unmapped NAICS codes
-unmapped_naics <- all_data %>%
-  filter(is.na(io_sector)) %>%
-  distinct(naics)
-if (nrow(unmapped_naics) > 0) {
-  message("Unmapped NAICS codes: ", paste(unmapped_naics$naics, collapse = ", "))
-}
-
-# ============================================================================
-# AGGREGATE TO IO SECTOR LEVEL
-# ============================================================================
-
-message("\n=== Aggregating to IO Sector Level ===\n")
-
-employment_by_io <- all_data %>%
-  filter(!is.na(io_sector)) %>%
-  group_by(state_name, io_sector) %>%
-  summarise(
-    employment = sum(annual_avg_emplvl, na.rm = TRUE),
-    total_wages = sum(total_annual_wages, na.rm = TRUE),
-    avg_wage = if(sum(annual_avg_emplvl, na.rm = TRUE) > 0) {
-      sum(total_annual_wages, na.rm = TRUE) / sum(annual_avg_emplvl, na.rm = TRUE)
-    } else {
-      NA_real_
-    },
-    .groups = "drop"
+employment[, state_name := unname(state_names[substr(area_fips, 1L, 2L)])]
+employment[, state_abbrev := unname(state_abbrevs[state_name])]
+employment[, avg_wage := fifelse(
+  employment > 0, total_wages / employment, NA_real_
+)]
+employment[, employment_source := fifelse(
+  io_sector %in% c("HS", "GFE", "GSLE"),
+  "No QCEW-compatible satellite; explicit zero",
+  fifelse(
+    io_sector %in% c("GFGD", "GFGN", "GSLG"),
+    "BLS QCEW public-administration ownership proxy",
+    "BLS QCEW private ownership"
   )
+)]
 
-# Check coverage
-io_sectors_found <- length(unique(employment_by_io$io_sector))
-states_found <- length(unique(employment_by_io$state_name))
-message("Found ", io_sectors_found, " unique IO sectors across ", states_found, " states")
+employment <- employment[
+  order(state_name, io_sector),
+  .(
+    state_name, state_abbrev, io_sector, employment,
+    total_wages, avg_wage, employment_source
+  )
+]
 
-# ============================================================================
-# SAVE RESULTS
-# ============================================================================
+stopifnot(
+  uniqueN(employment$state_name) == 50L,
+  uniqueN(employment$io_sector) == 71L,
+  nrow(employment) == 50L * 71L,
+  all(employment[io_sector %in% c("HS", "GFE", "GSLE"), employment] == 0)
+)
 
-message("\n=== Saving Results ===\n")
+write.csv(employment, output_file, row.names = FALSE)
 
-output_file <- "employment_all_sectors_2023.csv"
-write.csv(employment_by_io, output_file, row.names = FALSE)
-message("Saved: ", output_file)
-message("Records: ", nrow(employment_by_io))
-
-# Show Nevada summary
-message("\n=== Nevada Employment by IO Sector (sample) ===\n")
-nv_sample <- employment_by_io %>%
-  filter(state_name == "Nevada") %>%
-  arrange(desc(employment)) %>%
-  head(15)
-print(nv_sample)
-
-# Show sector coverage
-message("\n=== IO Sectors with Employment Data ===\n")
-io_sectors <- employment_by_io %>%
-  group_by(io_sector) %>%
-  summarise(
-    states = n(),
-    total_emp = sum(employment, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  arrange(desc(total_emp))
-
-print(io_sectors)
-
-message("\n=== COMPLETE ===\n")
+message("Saved ", nrow(employment), " state-sector rows to ", output_file)
+message("Employment measure: annual-average filled jobs (not FTEs)")
+message("Explicit zero-satellite sectors: HS, GFE, GSLE")

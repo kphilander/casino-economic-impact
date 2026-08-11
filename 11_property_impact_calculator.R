@@ -31,9 +31,9 @@ direct_output <- NULL                  # Total direct output in $M (or NULL)
 ggr <- 100                             # Gross gaming revenue in $M (or NULL)
                                        # If both provided, direct_output is used
 
-# Employment & Wages (optional - will be calculated if NULL)
-direct_employment <- NULL              # Actual property jobs (or NULL)
-direct_wages <- NULL                   # Actual total wages in $M (or NULL)
+# Employment & payroll (optional - will be calculated if NULL)
+direct_employment <- NULL              # Actual filled jobs, not FTEs (or NULL)
+direct_wages <- NULL                   # Actual cash wages and salaries in $M (or NULL)
 
 # Output options
 output_file <- NULL                    # Filename (auto-generated if NULL)
@@ -97,8 +97,11 @@ type1_va <- state_data$Type_I_VA
 type2_va <- state_data$Type_II_VA
 type1_wage <- state_data$Type_I_Wage
 type2_wage <- state_data$Type_II_Wage
-type1_emp_mult <- state_data$Type_I_Emp_Mult
-type2_emp_mult <- state_data$Type_II_Emp_Mult
+indirect_emp_coef <- state_data$Indirect_Emp_Coef
+induced_emp_coef <- state_data$Induced_Emp_Coef
+fte_per_job <- state_data$FTE_Per_Job
+indirect_fte_coef <- state_data$Indirect_FTE_Coef
+induced_fte_coef <- state_data$Induced_FTE_Coef
 type1_tax <- state_data$Type_I_Tax
 type2_tax <- state_data$Type_II_Tax
 tax_coef <- state_data$Direct_Tax_Coef
@@ -118,12 +121,21 @@ if (is.null(direct_employment)) {
   emp_source <- "user-provided"
 }
 
-# Wages: use user value or calculate
+# StateIO V001 is employee compensation, not cash wages. Use the national 2019
+# BEA NIPA wage-and-salary share as an explicit approximation until an
+# industry-by-state series is added.
+WAGE_SHARE_OF_COMPENSATION <- 9323.5 / 11447.7
+modeled_direct_compensation <- direct_output * wage_coef
+
+# Payroll: a user value is cash wages; modeled V001 is employee compensation.
 if (is.null(direct_wages)) {
-  direct_wages <- direct_output * wage_coef
-  wage_source <- "calculated from IO coefficients"
+  direct_compensation <- modeled_direct_compensation
+  direct_cash_wages <- direct_compensation * WAGE_SHARE_OF_COMPENSATION
+  wage_source <- "calculated employee compensation (cash wages estimated)"
 } else {
-  wage_source <- "user-provided"
+  direct_cash_wages <- direct_wages
+  direct_compensation <- direct_cash_wages / WAGE_SHARE_OF_COMPENSATION
+  wage_source <- "user-provided cash wages (converted to employee compensation)"
 }
 
 # ============================================================================
@@ -139,18 +151,12 @@ direct_tax <- direct_output * tax_coef
 indirect_output <- direct_output * (type1_output - 1)
 indirect_gdp <- direct_output * type1_va - direct_gdp
 
-# For wages: if user provided direct wages, scale indirect proportionally
-if (wage_source == "user-provided") {
-  # Scale by ratio of actual to calculated wage coefficient
-  actual_wage_coef <- direct_wages / direct_output
-  indirect_wages <- direct_output * type1_wage - direct_output * actual_wage_coef
-} else {
-  indirect_wages <- direct_output * type1_wage - direct_wages
-}
+# Supplier compensation is driven by the fixed operating-revenue relationship.
+indirect_compensation <- direct_output * type1_wage - modeled_direct_compensation
 
-# For employment: use actual employment multipliers (accounts for labor intensity
-# of sectors in the supply chain, which differs from output multipliers)
-indirect_employment <- direct_employment * (type1_emp_mult - 1)
+# Supplier jobs use the QCEW jobs-per-GDP coefficient and do not scale from
+# observed direct employment.
+indirect_employment <- indirect_gdp * indirect_emp_coef
 
 # Indirect taxes
 indirect_tax <- direct_output * type1_tax - direct_tax
@@ -159,11 +165,26 @@ indirect_tax <- direct_output * type1_tax - direct_tax
 # CALCULATE INDUCED EFFECTS (Type II - Type I)
 # ============================================================================
 
-induced_output <- direct_output * (type2_output - type1_output)
-induced_gdp <- direct_output * (type2_va - type1_va)
-induced_wages <- direct_output * (type2_wage - type1_wage)
-induced_employment <- direct_employment * (type2_emp_mult - type1_emp_mult)
-induced_tax <- direct_output * (type2_tax - type1_tax)
+# Household spending is driven by Type I employee compensation. Rebase the
+# modeled induced round when observed direct cash wages are supplied.
+modeled_type1_compensation <- direct_output * type1_wage
+adjusted_type1_compensation <- direct_compensation + indirect_compensation
+induced_scale <- if (modeled_type1_compensation > 0) {
+  adjusted_type1_compensation / modeled_type1_compensation
+} else {
+  1
+}
+
+induced_output <- direct_output * (type2_output - type1_output) * induced_scale
+induced_gdp <- direct_output * (type2_va - type1_va) * induced_scale
+induced_compensation <- direct_output * (type2_wage - type1_wage) * induced_scale
+induced_employment <- induced_gdp * induced_emp_coef
+induced_tax <- direct_output * (type2_tax - type1_tax) * induced_scale
+
+# Estimated FTEs are reported separately from filled jobs.
+direct_fte <- direct_employment * fte_per_job
+indirect_fte <- indirect_gdp * indirect_fte_coef
+induced_fte <- induced_gdp * induced_fte_coef
 
 # ============================================================================
 # CALCULATE TOTALS
@@ -172,7 +193,8 @@ induced_tax <- direct_output * (type2_tax - type1_tax)
 total_output <- direct_output + indirect_output + induced_output
 total_gdp <- direct_gdp + indirect_gdp + induced_gdp
 total_employment <- direct_employment + indirect_employment + induced_employment
-total_wages <- direct_wages + indirect_wages + induced_wages
+total_fte <- direct_fte + indirect_fte + induced_fte
+total_compensation <- direct_compensation + indirect_compensation + induced_compensation
 total_tax <- direct_tax + indirect_tax + induced_tax
 
 # ============================================================================
@@ -180,40 +202,46 @@ total_tax <- direct_tax + indirect_tax + induced_tax
 # ============================================================================
 
 summary_df <- data.frame(
-  Metric = c("Output ($M)", "GDP ($M)", "Employment (Jobs)", "Wages ($M)", "Tax Revenue ($M)"),
+  Metric = c("Output ($M)", "GDP ($M)", "Employment (Jobs)",
+             "Estimated FTEs", "Employee Compensation ($M)", "TOPI ($M)"),
   Direct = c(
     round(direct_output, 2),
     round(direct_gdp, 2),
     round(direct_employment, 0),
-    round(direct_wages, 2),
+    round(direct_fte, 0),
+    round(direct_compensation, 2),
     round(direct_tax, 2)
   ),
   Indirect = c(
     round(indirect_output, 2),
     round(indirect_gdp, 2),
     round(indirect_employment, 0),
-    round(indirect_wages, 2),
+    round(indirect_fte, 0),
+    round(indirect_compensation, 2),
     round(indirect_tax, 2)
   ),
   Induced = c(
     round(induced_output, 2),
     round(induced_gdp, 2),
     round(induced_employment, 0),
-    round(induced_wages, 2),
+    round(induced_fte, 0),
+    round(induced_compensation, 2),
     round(induced_tax, 2)
   ),
   Total = c(
     round(total_output, 2),
     round(total_gdp, 2),
     round(total_employment, 0),
-    round(total_wages, 2),
+    round(total_fte, 0),
+    round(total_compensation, 2),
     round(total_tax, 2)
   ),
   Multiplier = c(
     round(type2_output, 3),
     round(total_gdp / direct_gdp, 3),
     round(total_employment / direct_employment, 3),
-    round(total_wages / direct_wages, 3),
+    round(total_fte / direct_fte, 3),
+    round(total_compensation / direct_compensation, 3),
     round(total_tax / direct_tax, 3)
   ),
   stringsAsFactors = FALSE
@@ -236,9 +264,10 @@ cat("\n")
 cat("-------------------------------------------------------------------\n")
 cat("Data Sources:\n")
 cat("  - Employment: ", emp_source, "\n", sep = "")
-cat("  - Wages:      ", wage_source, "\n", sep = "")
+cat("  - Compensation:", wage_source, "\n", sep = "")
 cat("  - Multipliers: EPA StateIO (2019)\n")
 cat("  - Employment coefficients: BLS QCEW (2023)\n")
+cat("  - Estimated FTE ratios: BEA NIPA 6.4D/6.5D (2023)\n")
 cat("-------------------------------------------------------------------\n")
 cat("\n")
 print(summary_df, row.names = FALSE, right = TRUE)
@@ -262,17 +291,18 @@ meta_df <- data.frame(
     paste0("Sector: ", state_data$Sector_Name),
     paste0("Direct Output: $", direct_output, "M"),
     paste0("Employment: ", emp_source),
-    paste0("Wages: ", wage_source),
+    paste0("Employee compensation: ", wage_source),
     paste0("IO Data: EPA StateIO 2019"),
     paste0("Employment Data: BLS QCEW 2023"),
+    paste0("Estimated FTE Ratios: BEA NIPA 2023"),
     paste0("Generated: ", Sys.time()),
     ""
   ),
-  Direct = rep("", 10),
-  Indirect = rep("", 10),
-  Induced = rep("", 10),
-  Total = rep("", 10),
-  Multiplier = rep("", 10),
+  Direct = rep("", 11),
+  Indirect = rep("", 11),
+  Induced = rep("", 11),
+  Total = rep("", 11),
+  Multiplier = rep("", 11),
   stringsAsFactors = FALSE
 )
 

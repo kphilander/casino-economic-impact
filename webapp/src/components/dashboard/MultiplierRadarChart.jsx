@@ -36,9 +36,9 @@ export default function MultiplierRadarChart({ results, gamblingData, state }) {
     const data = [
       { metric: 'Output', value: multipliers.output || 0, average: avgOutput || 0 },
       { metric: 'GDP', value: multipliers.gdp || 0, average: avgGdp || 0 },
-      { metric: 'Employment', value: multipliers.employment || 0, average: 0 },
-      { metric: 'Wages', value: multipliers.wages || 0, average: avgWage || 0 },
-      { metric: 'Tax', value: taxMult, average: 0 },
+      { metric: 'Jobs', value: multipliers.employment || 0, average: 0 },
+      { metric: 'Compensation', value: multipliers.wages || 0, average: avgWage || 0 },
+      { metric: 'TOPI', value: taxMult, average: 0 },
     ];
 
     return { radarData: data, hasAverage: count > 0 };

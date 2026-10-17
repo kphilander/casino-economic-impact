@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BRAND, PRODUCT_NAME_VERSIONED, suggestedCitation } from './brand';
+import { BRAND, BUILD, PRODUCT_NAME_VERSIONED, buildLabel, suggestedCitation } from './brand';
 import { computeScenario, defaultAnalysis, PROPERTY_TYPES, type Analysis } from './engine/scenario';
 import { analysisFromForecaster, analysisFromUrl, clearImportParams } from './engine/share';
 import { InputsPanel } from './ui/InputsPanel';
@@ -102,6 +102,12 @@ export function App() {
           <a href={`${BRAND.repository}/issues/new`}>Report an issue</a> · {BRAND.publisher}
         </p>
         <p className="citation">Suggested citation: {suggestedCitation()}</p>
+        <p className="citation">
+          Build{' '}
+          {BUILD.dirty || BUILD.commit === 'unknown'
+            ? buildLabel()
+            : <a href={`${BRAND.repository}/commit/${BUILD.commit}`}>{buildLabel()}</a>}
+        </p>
       </footer>
     </div>
   );

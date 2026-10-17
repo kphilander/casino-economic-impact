@@ -377,7 +377,16 @@ webapp/
 
 **Key technologies:** React 18, Vite, TypeScript, Vitest. No other runtime dependencies.
 
-**Deployment:** Netlify static site (`webapp/netlify.toml`). Each state's tables load on first use (about 40 KB compressed).
+**Hosting:** the calculator at https://gamblingpolicy.com/tools/economic-impact/ is a committed build in the `kphilander/gamblingpolicy.com` repository (`public/tools/economic-impact/`). Netlify deploys that repository when its `main` branch changes. Each state's tables load on first use (about 40 KB compressed). The footer and the Method tab show the commit the hosted build comes from.
+
+### Deploying
+
+Deploy only from `main` of this repository:
+
+1. Merge the change into `main`.
+2. Run `scripts/deploy-site.sh [path to a gamblingpolicy.com clone]` (default `../gamblingpolicy.com`). The script builds from a clean checkout of `origin/main`, runs the tests, and commits the new snapshot to a `gems-deploy-<commit>` branch of the site clone.
+3. Push that branch and open a pull request in `kphilander/gamblingpolicy.com`. Check the Netlify deploy preview at `/tools/economic-impact/`.
+4. Merge the pull request. Netlify deploys the site, and the footer shows the new commit.
 
 ## Revenue Forecaster Integration
 

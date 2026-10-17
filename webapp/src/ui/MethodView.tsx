@@ -4,6 +4,7 @@ import { multipliers, type RegionalModel } from '../engine/io';
 import { NON_GAMING_TOPI_SHARE, PAYROLL_ADJUSTMENT, WAGE_BASIS } from '../engine/scenario';
 import { coef, ratio, pct } from './format';
 import { Explain } from './Explain';
+import { buildLabel } from '../brand';
 
 const KEY_SECTORS = ['713', '721', '722', '711AS', '23'];
 
@@ -209,6 +210,7 @@ export function MethodView({ model }: { model: RegionalModel }) {
       <section className="card prose">
         <h3>Data files</h3>
         <ul className="sources">
+          <li>Calculator build: commit <code>{buildLabel()}</code>.</li>
           {meta.sources.map((s) => <li key={s.file}><code>{s.file}</code> <span className="muted">md5 {s.md5}</span></li>)}
           <li><code>employment_all_sectors_2023.csv</code>, from 08a_process_all_qcew_employment.R: 2023 QCEW private filled jobs (annual average) by StateIO industry. HS, GFE and GSLE have zero jobs.</li>
           <li><code>fte_ratios_2023.csv</code>, from 08b_generate_bea_fte_ratios.R: BEA NIPA tables 6.4D and 6.5D, 2023.</li>

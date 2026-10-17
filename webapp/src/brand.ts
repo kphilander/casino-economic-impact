@@ -13,6 +13,11 @@ export const BRAND = {
 
 export const PRODUCT_NAME_VERSIONED = `${BRAND.productName} ${BRAND.modelVersion}`;
 
+/** The commit this bundle was built from (vite.config.ts). */
+export const BUILD = __GEMS_BUILD__;
+
+export const buildLabel = (): string => `${BUILD.commit}${BUILD.dirty ? ' (with local changes)' : ''}, ${BUILD.date}`;
+
 /** APA-style software citation. */
 export function suggestedCitation(): string {
   return `Simeon-Rose, K. (${BRAND.citationYear}). ${BRAND.productName}: ${BRAND.productFullName} (Version ${BRAND.modelVersion}) [Computer software]. ${BRAND.publisher}. ${BRAND.url}`;

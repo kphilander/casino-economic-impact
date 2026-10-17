@@ -1,0 +1,413 @@
+{
+  "metadata": {
+    "generatedBy": "scripts/export_state_io.R",
+    "stateior": "0.4.0",
+    "ioYear": 2019,
+    "employmentYear": 2023,
+    "sources": [
+      {
+        "file": "TwoRegion_Summary_Make_2019_0.2.1.rds",
+        "md5": "6950cf8977a54c86c50310fb42a7ae49"
+      },
+      {
+        "file": "TwoRegion_Summary_DomesticUse_2019_0.2.1.rds",
+        "md5": "5ff22282aba5ca9eedaffd6861594367"
+      },
+      {
+        "file": "TwoRegion_Summary_IndustryOutput_2019_0.2.1.rds",
+        "md5": "d95b502b4a1c8d1370ef0eeebe31e4e9"
+      },
+      {
+        "file": "TwoRegion_Summary_CommodityOutput_2019_0.2.1.rds",
+        "md5": "2dcbfa0f59d5fbd2ff395af0aa3fb920"
+      },
+      {
+        "file": "TwoRegion_Summary_ValueAdded_2019_0.2.1.rds",
+        "md5": "325a0f57b517fa9811084c61e98aac5c"
+      },
+      {
+        "file": "State_Summary_IndustryOutput_2023_0.4.0.rds",
+        "md5": "25baacb0203923d67bea9d8b6d0ede32"
+      },
+      {
+        "file": "State_Summary_DomesticUse_2023_0.4.0.rds",
+        "md5": "8efff490c6762a9aae794a7679e81d4f"
+      }
+    ],
+    "employmentSatellite": "employment_all_sectors_2023.csv (08a_process_all_qcew_employment.R): 2023 QCEW private annual-average filled jobs by StateIO sector; HS, GFE and GSLE are explicit zeros",
+    "ftePerJob": "fte_ratios_2023.csv (08b_generate_bea_fte_ratios.R): BEA NIPA tables 6.4D/6.5D, 2023"
+  },
+  "industries": [
+    {
+      "code": "111CA",
+      "name": "Farms"
+    },
+    {
+      "code": "113FF",
+      "name": "Forestry, fishing, and related activities"
+    },
+    {
+      "code": "211",
+      "name": "Oil and gas extraction"
+    },
+    {
+      "code": "212",
+      "name": "Mining, except oil and gas"
+    },
+    {
+      "code": "213",
+      "name": "Support activities for mining"
+    },
+    {
+      "code": "22",
+      "name": "Utilities"
+    },
+    {
+      "code": "23",
+      "name": "Construction"
+    },
+    {
+      "code": "321",
+      "name": "Wood products"
+    },
+    {
+      "code": "327",
+      "name": "Nonmetallic mineral products"
+    },
+    {
+      "code": "331",
+      "name": "Primary metals"
+    },
+    {
+      "code": "332",
+      "name": "Fabricated metal products"
+    },
+    {
+      "code": "333",
+      "name": "Machinery"
+    },
+    {
+      "code": "334",
+      "name": "Computer and electronic products"
+    },
+    {
+      "code": "335",
+      "name": "Electrical equipment, appliances, and components"
+    },
+    {
+      "code": "3361MV",
+      "name": "Motor vehicles, bodies and trailers, and parts"
+    },
+    {
+      "code": "3364OT",
+      "name": "Other transportation equipment"
+    },
+    {
+      "code": "337",
+      "name": "Furniture and related products"
+    },
+    {
+      "code": "339",
+      "name": "Miscellaneous manufacturing"
+    },
+    {
+      "code": "311FT",
+      "name": "Food and beverage and tobacco products"
+    },
+    {
+      "code": "313TT",
+      "name": "Textile mills and textile product mills"
+    },
+    {
+      "code": "315AL",
+      "name": "Apparel and leather and allied products"
+    },
+    {
+      "code": "322",
+      "name": "Paper products"
+    },
+    {
+      "code": "323",
+      "name": "Printing and related support activities"
+    },
+    {
+      "code": "324",
+      "name": "Petroleum and coal products"
+    },
+    {
+      "code": "325",
+      "name": "Chemical products"
+    },
+    {
+      "code": "326",
+      "name": "Plastics and rubber products"
+    },
+    {
+      "code": "42",
+      "name": "Wholesale trade"
+    },
+    {
+      "code": "441",
+      "name": "Motor vehicle and parts dealers"
+    },
+    {
+      "code": "445",
+      "name": "Food and beverage stores"
+    },
+    {
+      "code": "452",
+      "name": "General merchandise stores"
+    },
+    {
+      "code": "4A0",
+      "name": "Other retail"
+    },
+    {
+      "code": "481",
+      "name": "Air transportation"
+    },
+    {
+      "code": "482",
+      "name": "Rail transportation"
+    },
+    {
+      "code": "483",
+      "name": "Water transportation"
+    },
+    {
+      "code": "484",
+      "name": "Truck transportation"
+    },
+    {
+      "code": "485",
+      "name": "Transit and ground passenger transportation"
+    },
+    {
+      "code": "486",
+      "name": "Pipeline transportation"
+    },
+    {
+      "code": "487OS",
+      "name": "Other transportation and support activities"
+    },
+    {
+      "code": "493",
+      "name": "Warehousing and storage"
+    },
+    {
+      "code": "511",
+      "name": "Publishing industries (includes software)"
+    },
+    {
+      "code": "512",
+      "name": "Motion picture and sound recording industries"
+    },
+    {
+      "code": "513",
+      "name": "Broadcasting and telecommunications"
+    },
+    {
+      "code": "514",
+      "name": "Information and data processing services"
+    },
+    {
+      "code": "521CI",
+      "name": "Federal Reserve banks, credit intermediation, and related activities"
+    },
+    {
+      "code": "523",
+      "name": "Securities, commodity contracts, and investments"
+    },
+    {
+      "code": "524",
+      "name": "Insurance carriers and related activities"
+    },
+    {
+      "code": "525",
+      "name": "Funds, trusts, and other financial vehicles"
+    },
+    {
+      "code": "HS",
+      "name": "Housing services"
+    },
+    {
+      "code": "ORE",
+      "name": "Real estate"
+    },
+    {
+      "code": "532RL",
+      "name": "Rental and leasing services and lessors of intangible assets"
+    },
+    {
+      "code": "5411",
+      "name": "Legal services"
+    },
+    {
+      "code": "5415",
+      "name": "Computer systems design and related services"
+    },
+    {
+      "code": "5412OP",
+      "name": "Miscellaneous professional, scientific, and technical services"
+    },
+    {
+      "code": "55",
+      "name": "Management of companies and enterprises"
+    },
+    {
+      "code": "561",
+      "name": "Administrative and support services"
+    },
+    {
+      "code": "562",
+      "name": "Waste management and remediation services"
+    },
+    {
+      "code": "61",
+      "name": "Educational services"
+    },
+    {
+      "code": "621",
+      "name": "Ambulatory health care services"
+    },
+    {
+      "code": "622",
+      "name": "Hospitals"
+    },
+    {
+      "code": "623",
+      "name": "Nursing and residential care facilities"
+    },
+    {
+      "code": "624",
+      "name": "Social assistance"
+    },
+    {
+      "code": "711AS",
+      "name": "Performing arts, spectator sports, museums, and related activities"
+    },
+    {
+      "code": "713",
+      "name": "Amusements, gambling, and recreation industries"
+    },
+    {
+      "code": "721",
+      "name": "Accommodation"
+    },
+    {
+      "code": "722",
+      "name": "Food services and drinking places"
+    },
+    {
+      "code": "81",
+      "name": "Other services, except government"
+    },
+    {
+      "code": "GFGD",
+      "name": "Federal general government, civilian"
+    },
+    {
+      "code": "GFGN",
+      "name": "Federal general government, civilian"
+    },
+    {
+      "code": "GFE",
+      "name": "Federal government enterprises"
+    },
+    {
+      "code": "GSLG",
+      "name": "State and local general government, other"
+    },
+    {
+      "code": "GSLE",
+      "name": "State and local government enterprises"
+    }
+  ],
+  "commodities": ["111CA", "113FF", "211", "212", "213", "22", "23", "321", "327", "331", "332", "333", "334", "335", "3361MV", "3364OT", "337", "339", "311FT", "313TT", "315AL", "322", "323", "324", "325", "326", "42", "441", "445", "452", "4A0", "481", "482", "483", "484", "485", "486", "487OS", "493", "511", "512", "513", "514", "521CI", "523", "524", "525", "HS", "ORE", "532RL", "5411", "5415", "5412OP", "55", "561", "562", "61", "621", "622", "623", "624", "711AS", "713", "721", "722", "81", "GFGD", "GFGN", "GFE", "GSLG", "GSLE", "Used", "Other"],
+  "ftePerJob": [0.856088560885609, 0.865319865319865, 0.982758620689655, 0.984042553191489, 0.982142857142857, 0.986111111111111, 0.971351284888725, 0.968973747016706, 0.973621103117506, 0.981233243967828, 0.981301939058172, 0.978704525288376, 0.98292220113852, 0.985542168674699, 0.985133795837463, 0.986631016042781, 0.972144846796657, 0.979166666666667, 0.960982658959538, 0.958333333333333, 0.956521739130435, 0.969529085872576, 0.967567567567568, 0.990740740740741, 0.98659217877095, 0.983695652173913, 0.965123859191656, 0.872235872235872, 0.87218045112782, 0.872266244057052, 0.872214765100671, 0.942959001782531, 0.94375, 0.940298507462687, 0.941955835962145, 0.940528634361233, 0.943396226415094, 0.942118863049096, 0.942286947141316, 0.960187353629977, 0.89501312335958, 0.985277463193658, 0.926267281105991, 0.976190476190476, 0.975881261595547, 0.980801616705962, 0.966666666666667, 0, 0.921693121693122, 0.927731092436975, 0.96157059314954, 0.961835160373528, 0.961860854987427, 0.992854307264788, 0.922093935657437, 0.962, 0.909605974761782, 0.911286522148916, 0.946886104357584, 0.91128526645768, 0.88508504143044, 0.832872928176796, 0.832777777777778, 0.921610169491525, 0.791786447638604, 0.86648846370287, 0.9723991507431, 0.9723991507431, 0.794202898550725, 0.862795857988166, 0.945968412302577],
+  "states": {
+    "AL": "Alabama",
+    "AK": "Alaska",
+    "AZ": "Arizona",
+    "AR": "Arkansas",
+    "CA": "California",
+    "CO": "Colorado",
+    "CT": "Connecticut",
+    "DE": "Delaware",
+    "FL": "Florida",
+    "GA": "Georgia",
+    "HI": "Hawaii",
+    "ID": "Idaho",
+    "IL": "Illinois",
+    "IN": "Indiana",
+    "IA": "Iowa",
+    "KS": "Kansas",
+    "KY": "Kentucky",
+    "LA": "Louisiana",
+    "ME": "Maine",
+    "MD": "Maryland",
+    "MA": "Massachusetts",
+    "MI": "Michigan",
+    "MN": "Minnesota",
+    "MS": "Mississippi",
+    "MO": "Missouri",
+    "MT": "Montana",
+    "NE": "Nebraska",
+    "NV": "Nevada",
+    "NH": "New Hampshire",
+    "NJ": "New Jersey",
+    "NM": "New Mexico",
+    "NY": "New York",
+    "NC": "North Carolina",
+    "ND": "North Dakota",
+    "OH": "Ohio",
+    "OK": "Oklahoma",
+    "OR": "Oregon",
+    "PA": "Pennsylvania",
+    "RI": "Rhode Island",
+    "SC": "South Carolina",
+    "SD": "South Dakota",
+    "TN": "Tennessee",
+    "TX": "Texas",
+    "UT": "Utah",
+    "VT": "Vermont",
+    "VA": "Virginia",
+    "WA": "Washington",
+    "WV": "West Virginia",
+    "WI": "Wisconsin",
+    "WY": "Wyoming"
+  },
+  "gambling": {
+    "source": "national_naics_ratios.csv (13_extract_national_naics_ratios.R): USEEIOv2.0.1-411 713200/US relative to the output-weighted 713 parent",
+    "parentSector": "713",
+    "direct": {
+      "va": 1.00800545808947,
+      "compensation": 0.863141361890893,
+      "topi": 0.608584014453917,
+      "jobs": 0.539997273796407,
+      "jobsPerVa": 0.535708680407244
+    },
+    "increment": {
+      "output": 0.966729140602886,
+      "va": 0.99274141960898,
+      "compensation": 1.04705449829441,
+      "topi": 0.939592309012066
+    }
+  },
+  "online": {
+    "source": "14_online_gambling_multipliers.R: scenario ratios estimated from DraftKings, Rush Street Interactive and Flutter SEC filings (2024)",
+    "direct": {
+      "va": 0.9,
+      "compensation": 0.55,
+      "topi": 1,
+      "jobsPerVa": 0.23
+    },
+    "increment": {
+      "output": 0.85,
+      "va": 0.85,
+      "compensation": 0.8,
+      "topi": 0.9
+    },
+    "fteSector": "5415"
+  }
+}

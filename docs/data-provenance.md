@@ -50,15 +50,32 @@ The canonical 713200-to-713 ratios are 1.008 for direct value added, 0.863 for d
 
 `13b_property_type_multipliers.R` assembles the four land-based property labels from the canonical gambling rows. The labels do not claim four independently estimated production functions. In department mode, lodging, food, and other revenue are assigned to StateIO 721, 722, and 711AS. Total mode applies the gambling production function to the full input and is an approximation when non-gaming revenue is material.
 
-Legacy land-based total-revenue input is never silently treated as GGR for statutory gaming tax. That memo estimate requires an explicit gaming-revenue input in department mode; online total revenue remains GGR by construction.
+Legacy land-based total-revenue input is never silently treated as GGR for statutory gaming tax, which requires an explicit gaming-revenue input in department mode; online total revenue remains GGR by construction.
 
 Online casino and sportsbook data remain a documented scenario approximation because BEA IO data do not isolate online gambling. The operator's direct labor ratio is not applied to supplier or induced jobs/GDP coefficients.
 
 ## TOPI and statutory gaming tax
 
-USEEIO directly identifies “Taxes on production and imports, less subsidies,” allowing the national gambling TOPI ratios to be reproduced alongside the other coefficients. StateIO TOPI can already contain gaming-related gross-receipts, amusement, and license taxes. The application therefore reports statutory gaming tax as a memo component and does not add it to TOPI.
+BEA classifies state and local taxes on gaming receipts and admissions (Census "amusements" taxes, T11) as taxes on products within TOPI and, in the GDP-by-state accounts, assigns them to "Amusement, gambling, and recreation". `stateior::assembleStateSummaryGrossValueAdded` gives every state the national TOPI-to-value-added intensity, so StateIO's 713 TOPI embeds a national-average gaming tax unrelated to the state's own rate. Adding the statutory tax would double count it.
 
-GEMS does not estimate and subtract an embedded state gaming-tax amount. StateIO does not expose that component separately, so a numerical replacement would create unsupported precision. Indirect and induced TOPI remain unchanged by the statutory memo.
+The statutory gaming tax therefore **replaces** the gaming share of the gaming stream's direct TOPI. The retained share is the part of BEA detail industry 713200's TOPI recorded as other taxes on production rather than taxes on products: T00OTOP / (T00TOP + T00OTOP) = 737 / 2,130 = 0.346 in the 2017 detail supply-use table (`useeior::Detail_Use_SUT_2017_17sch`). `scripts/derive_gaming_topi_share.R` derives it into `webapp/src/data/fiscalAssumptions.json`. Flat per-device license fees stay inside the retained share and small non-gaming product taxes are removed with the gaming tax; both are minor relative to GGR taxes. Indirect and induced TOPI are unchanged.
+
+## Tribal casinos
+
+BEA records gaming administered by tribal governments as a state and local government enterprise (GSLE), not as part of the private gambling industry; QCEW codes tribal casinos as local government (own_code 3). StateIO's 713 output therefore excludes tribal gaming, and the employment satellite correctly keeps the private-only filter: adding tribal jobs would place them over an output base that does not contain them. A **tribal ownership** option instead omits the state gaming tax, replaces the gaming stream's direct TOPI with the compact revenue share, and shows no direct-jobs range (the Economic Census benchmark excludes most tribal casinos).
+
+## Wage basis and household taxes
+
+Model compensation (StateIO V001 = BEA compensation) is converted to QCEW-comparable wages by industry for payroll and income-tax bases and for user-entered payroll: national 2023 QCEW private wages ÷ BEA NIPA Table 6.2D compensation (`webapp/src/data/wageBasis.json`). Household income taxes use wage-level tables for 2025 built by `scripts/build_income_tax_tables.py` from `data/income_tax_parameters_2025.json`. Each state's parameters were verified against official 2025 instructions, schedules or statutes, and the build asserts 1,337 reference and hand-checked values.
+
+## State tables for the browser engine
+
+`scripts/export_state_io.R` writes one file per state, `webapp/src/data/io/{AB}.json`, and `webapp/src/data/io/national.json`.
+
+- Each state file holds the in-state block of the StateIO 2019 two-region summary tables: Make (71 industries × 73 commodities), domestic Use (73 × 71), industry and commodity output, V001–V003, and F010 personal consumption. It also holds the 2023 satellite: QCEW jobs and StateIO 2023 industry output and value added. Values are in dollars, to 12 significant digits.
+- `national.json` holds the sector list, the BEA FTE/job ratios, the USEEIO gambling ratios from `national_naics_ratios.csv`, the online scenario ratios of script 14, and the file names and MD5 checksums of the StateIO data files.
+
+The exporter derives nothing; the engine computes every multiplier. `webapp/src/engine/io.test.ts` checks the engine against the R CSVs at their stated rounding: 4 decimals for multipliers, 6 for coefficients and jobs. Rerun the exporter after any rerun of scripts 08a–09 or 13; the test fails if the tables and the CSVs diverge. The exporter reads `employment_all_sectors_2023.csv` from script 08a, which is not committed; `GEMS_QCEW_ALL_SECTORS_FILE` sets its path.
 
 ## Verification
 
@@ -68,4 +85,4 @@ Rscript tests/test_multiplier_integrity.R
 cd webapp && npm test
 ```
 
-The offline tests independently recalculate the national parent benchmarks and ratios, verify the 2023 employment denominators, confirm all 50 states and 200 sector rows, and confirm that every land-based property label uses the canonical gambling coefficients.
+The offline R tests independently recalculate the national parent benchmarks and ratios, verify the 2023 employment denominators, confirm all 50 states and 200 sector rows, and confirm that every land-based property label uses the canonical gambling coefficients. The webapp tests reproduce the R multipliers from the exported tables, compare 65 complete analyses with the calculator before the rebuild (`webapp/src/engine/__fixtures__/legacy-scenarios.json`), and test the tax, fiscal and module rules.

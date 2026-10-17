@@ -1,5 +1,5 @@
 # ============================================================================
-# EXPORT THE VERSIONED MULTIPLIER DATA TO THE WEB APPLICATION
+# EXPORT THE VERSIONED MULTIPLIER CSVs AS ONE JSON FILE
 # ============================================================================
 
 library(tidyverse)
@@ -8,6 +8,8 @@ employment <- read.csv("employment_multipliers_2023.csv", stringsAsFactors = FAL
 gambling <- read.csv("gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
 properties <- read.csv("property_type_multipliers_2023.csv", stringsAsFactors = FALSE)
 online <- read.csv("online_gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
+construction <- read.csv("construction_multipliers_2023.csv", stringsAsFactors = FALSE)
+stopifnot(nrow(construction) == 50L, all(construction$Sector == "23"))
 
 stopifnot(nrow(employment) == 200, nrow(gambling) == 50,
           nrow(properties) == 200, nrow(online) == 50)
@@ -106,12 +108,14 @@ output <- list(
       "Land-based property type is descriptive; department mode uses 721, 722, and 711AS for separately entered lodging, food, and other revenue.",
       "Wage fields are StateIO V001 employee compensation; cash wages are estimated separately for tax bases.",
       "TOPI includes production taxes. Statutory gaming tax is a memo component and is not added to TOPI.",
-      "Online coefficients are scenario approximations; enter observed in-state jobs and cash wages when available."
+      "Online coefficients are scenario approximations; enter observed in-state jobs and cash wages when available.",
+      "Construction (StateIO 23) rows support one-time construction-phase estimates; construction jobs are job-years."
     )
   ),
   multipliers = employment,
   gambling = gambling,
   onlineGaming = online,
+  construction = construction,
   propertyTypes = property_types,
   propertyTypeMetadata = property_metadata,
   states = sort(unique(employment$State))
@@ -119,6 +123,7 @@ output <- list(
 
 json_output <- toJSON(output, pretty = TRUE, auto_unbox = TRUE, digits = 10,
                       na = "null")
-writeLines(json_output, "webapp/src/data/multipliers.json")
+# The web application computes its model from the state tables written by
+# scripts/export_state_io.R; this JSON is a convenience export of the CSVs.
 writeLines(json_output, "multipliers_with_tax.json")
-message("Exported webapp/src/data/multipliers.json and multipliers_with_tax.json")
+message("Exported multipliers_with_tax.json")

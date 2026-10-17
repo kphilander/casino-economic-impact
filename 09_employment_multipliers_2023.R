@@ -58,7 +58,7 @@ if (!file.exists(employment_file)) {
        "\nRun 08a_process_all_qcew_employment.R first.")
 }
 employment <- read.csv(employment_file, stringsAsFactors = FALSE)
-employment <- employment[employment$io_sector %in% c("711AS", "713", "721", "722"), ]
+employment <- employment[employment$io_sector %in% c("711AS", "713", "721", "722", "23"), ]
 message("Loaded employment: ", nrow(employment), " records from ", employment_file)
 
 # ============================================================================
@@ -250,6 +250,13 @@ output_data <- combined %>%
 
 message("\n=== Saving Results ===\n")
 
+# Construction (23) supports the one-time construction-phase module and is
+# written separately so the operating-sector table keeps its 200-row schema.
+construction_file <- paste0("construction_multipliers_", my_year, ".csv")
+write.csv(output_data[output_data$Sector == "23", ], construction_file, row.names = FALSE)
+message("Saved: ", construction_file, " (", sum(output_data$Sector == "23"), " records)")
+
+output_data <- output_data[output_data$Sector != "23", ]
 write.csv(output_data, output_file, row.names = FALSE)
 message("Saved: ", output_file)
 message("Records: ", nrow(output_data))

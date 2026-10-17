@@ -1,0 +1,37 @@
+{
+  "_metadata": {
+    "description": "90% predictive ranges for direct jobs from the gambling coefficient, by land-based casino property type.",
+    "method": "Each state's direct jobs coefficient (jobs per $1M output) is compared with 2022 Economic Census employees per $1M receipts (2023 dollars) for the same state and property type, cells with at least 50 employees. No bias is detectable (geometric-mean ratios 0.94, 1.06, 0.96; p > 0.5), so the point estimate stays at the coefficient. p05/p95 are the 5th and 95th percentiles of a lognormal fitted to 1/(model/observed) across states, applied to direct jobs.",
+    "why_not_calibrated": "A QCEW test of jobs per WAGE dollar shows a shortfall, but the Census test, which observes revenue, attributes it to an overstated compensation share of revenue (which falls with the state gaming tax), not to too few jobs.",
+    "scope": "Direct jobs only; supplier and induced jobs have no observed benchmark. Not provided for bars with slots (no gaming-tavern benchmark), tribal properties (the Economic Census excludes most tribal casinos), online operations, or user-entered jobs.",
+    "source": "Philander, 'Multipliers for sectors that are not casinos' (in preparation); replication repository kphilander/casino-io-validation (script 19, analysis_output/output_side_jobs_ranges.csv; private until publication). Data: U.S. Census Bureau, 2022 Economic Census, EC2271BASIC and EC2272BASIC.",
+    "modelCommit": "0b9aac3b16cb4f2442639a2878aa11b8b79ee733"
+  },
+  "gamingDepartmentProxy": "713210",
+  "propertyTypes": {
+    "713210": {
+      "label": "Stand-alone Casino",
+      "n": 15,
+      "biasFactor": 0.9411,
+      "pValueNoBias": 0.555,
+      "p05": 0.5605,
+      "p95": 2.0146
+    },
+    "713290": {
+      "label": "Slot Parlors / Bingo Halls",
+      "n": 22,
+      "biasFactor": 1.0649,
+      "pValueNoBias": 0.651,
+      "p05": 0.3261,
+      "p95": 2.7044
+    },
+    "721120": {
+      "label": "Resort with Hotel & Casino",
+      "n": 19,
+      "biasFactor": 0.959,
+      "pValueNoBias": 0.6,
+      "p05": 0.594,
+      "p95": 1.8304
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "metadata": {
     "description": "Gaming tax rates by state, formatted for frontend calculator",
-    "sourceYear": "2025 (verified March 2026)",
+    "sourceYear": "2026 (28 states re-verified October 2026)",
     "thresholdUnit": "millions USD",
     "notes": [
       "Rates reflect commercial casino GGR taxes as of late 2024 / early 2025 legislative sessions.",
@@ -10,8 +10,9 @@
       "Local taxes listed are the most common; some jurisdictions may differ.",
       "Some states operate state-owned/managed casinos where the state retains revenue rather than taxing a private operator.",
       "Rates verified against state gaming commission websites, AGA State of the States 2025, and state statutes in March 2026.",
-      "Rates verified against state gaming commission websites, AGA State of the States 2025, and state statutes in March 2026.",
-      "iGaming (online casino) and sports betting operator tax rates added for states where legal. Sources: Tax Foundation, AGA State of the States 2025, state gaming commission websites (verified March 2026)."
+      "iGaming (online casino) and sports betting operator tax rates added for states where legal. Sources: Tax Foundation, AGA State of the States 2025, state gaming commission websites (verified March 2026).",
+      "October 2026: 28 states re-verified against statutes and regulator reports (entries carry lastVerified and sources). Flat add-ons on top of a schedule are coded as additionalRate; handle-based taxes as handleRate with an assumedHold.",
+      "October 2026: 28 states re-verified against statutes and regulator reports (entries carry lastVerified and sources). Flat add-ons on top of a schedule are coded as additionalRate; handle-based taxes as handleRate with an assumedHold."
     ]
   },
   "rates": {
@@ -19,20 +20,37 @@
       "abbrev": "NV",
       "hasCommercial": true,
       "hasTribal": true,
-      "rateStructure": "flat",
+      "rateStructure": "tiered",
       "slotTableSplit": false,
       "effectiveRate": 0.0675,
-      "localTaxNotes": "Counties may levy additional fees; Clark County (Las Vegas) charges no additional GGR tax but has a county license fee structure. No significant local GGR surcharge.",
-      "sourceYear": 2025,
-      "flatRate": 0.0675,
-      "description": "6.75% of GGR on all game types. Lowest rate among major gaming states.",
+      "localTaxNotes": "No GGR-based county tax. Flat per-device and per-game state and county fees (NRS 463.373-.390), e.g. $250/yr slot excise tax and $10/month county slot fee, are not modeled.",
+      "sourceYear": 2026,
+      "description": "Graduated monthly license fee on gross revenue (NRS 463.370): 3.5% on the first $50,000 per month, 4.5% on $50,000-$134,000, 6.75% above. Thresholds annualized here ($0.6M, $1.608M); large casinos pay ~6.75%.",
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.0675,
         "description": "6.75% of sports betting GGR. Tied with Iowa for lowest rate."
-      }
+      },
+      "tiers": [
+        {
+          "threshold": 0,
+          "rate": 0.035
+        },
+        {
+          "threshold": 0.6,
+          "rate": 0.045
+        },
+        {
+          "threshold": 1.608,
+          "rate": 0.0675
+        }
+      ],
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.leg.state.nv.us/NRS/NRS-463.html"
+      ]
     },
     "New Jersey": {
       "abbrev": "NJ",
@@ -40,23 +58,29 @@
       "hasTribal": false,
       "rateStructure": "flat",
       "slotTableSplit": false,
-      "effectiveRate": 0.0975,
-      "localTaxNotes": "Atlantic City receives payments in lieu of property taxes (PILOT). The 1.25% investment alternative and 2.5% community investment alternative effectively bring total to ~12.25% for brick-and-mortar.",
-      "sourceYear": 2025,
-      "flatRate": 0.0975,
-      "description": "8.5% state GGR tax, plus 1.25% investment alternative tax, plus community investment alternative (~2.5%). Total ~12.25%. iGaming: 17.5% + 2.5% CRA.",
+      "effectiveRate": 0.0925,
+      "localTaxNotes": "Atlantic City also receives PILOT payments and per-room/parking fees ($3 room fee, $3 parking fee, $2 room surcharge, $2 tourism fee) and the 9% luxury tax; these are not GGR taxes and are not modeled.",
+      "sourceYear": 2026,
+      "flatRate": 0.0925,
+      "description": "8% gross revenue tax (N.J.S.A. 5:12-144) plus the Investment Alternative Tax, satisfied at 1.25% when invested through CRDA (5:12-144.1; 2.5% if paid as tax). Effective 9.25%.",
       "hasIGaming": true,
       "iGaming": {
         "rateStructure": "flat",
-        "flatRate": 0.1975,
-        "description": "19.75% on iGaming GGR (raised from 15% effective July 2025) + 2.5% CRDA assessment."
+        "flatRate": 0.2225,
+        "description": "19.75% on internet gaming revenue from July 1, 2025 (P.L.2025, c.66; was 15%) plus the 5% statutory IAT satisfied by a 2.5% CRDA investment. Effective ~22.25%. The 8% casino tax does not apply."
       },
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
-        "flatRate": 0.1975,
-        "description": "19.75% on sports betting GGR (unified rate as of 2025, raised from 13% online / 8.5% retail)."
-      }
+        "flatRate": 0.21,
+        "description": "Online sports wagering 19.75% from July 1, 2025 (P.L.2025, c.66; was 13%) plus a 1.25% CRDA tax: ~21%. Retail sports wagering remains 8.5% + 1.25% = 9.75%."
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.nj.gov/casinos/law/act/docs_article11/cca-article11.pdf",
+        "https://www.nj.gov/oag/ge/docs/Financials/QuarterlyFinRpt2025/AC%20Specific%20Taxes%20and%20Fees%201978-2025.pdf",
+        "https://pub.njleg.gov/Bills/2024/PL25/66_.HTM"
+      ]
     },
     "Pennsylvania": {
       "abbrev": "PA",
@@ -64,26 +88,32 @@
       "hasTribal": false,
       "rateStructure": "split_game_type",
       "slotTableSplit": true,
-      "slotsRate": 0.55,
+      "slotsRate": 0.504,
       "tableRate": 0.16,
-      "effectiveRate": 0.41,
-      "localTaxNotes": "Host municipalities receive 2% of slot revenue and 2% of table game revenue (included in state rates). Additional 2% local share on slots. Economic development/tourism fund gets 5% of slots.",
-      "description": "55% on slot machine revenue, 16% on table game revenue. Highest slot tax rate in the US for full-scale commercial casinos. iGaming taxed at same rates.",
-      "sourceYear": 2025,
+      "effectiveRate": 0.4,
+      "localTaxNotes": "Host municipalities also receive a flat $10M/yr license operation fee (not a % of revenue; not modeled). Category 4 casinos pay exactly 54% on slots (50% + 4% local). Fully automated electronic table games: 34% + 14% + 2% = 50%.",
+      "description": "Category 1-2 slots: 34% state tax + 2% county local share + 5.5% Economic Development and Tourism Fund + 0.5% supplemental + Race Horse Development Fund (18% x racetrack-casino revenue share, capped at 12%; ~8.7% in 2025). PGCB-reported effective slot rate 50.4% (2025). Table games: 14% state + 2% local = 16%.",
+      "sourceYear": 2026,
       "hasIGaming": true,
       "iGaming": {
         "rateStructure": "split_game_type",
         "slotsRate": 0.54,
         "tableRate": 0.16,
         "effectiveRate": 0.42,
-        "description": "54% on online slots, 16% on online table games and poker. Among the highest iGaming rates in the US."
+        "description": "Online slots 52% state + 2% local = 54% (4 Pa.C.S. 13B52); online table games and poker 14% + 2% = 16%."
       },
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.36,
-        "description": "36% of sports betting GGR. Promotional deductions allowed, effective rate ~24.6%."
-      }
+        "description": "34% state + 2% local share on sports wagering revenue (4 Pa.C.S. 13C62-63) = 36%."
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.palegis.us/statutes/consolidated (4 Pa.C.S. 1403, 1405, 1407, 13A62, 13B52, 13C62-63)",
+        "https://gamingcontrolboard.pa.gov/sites/default/files/2026-01/012126%20Revenue%20year%20end%202025.pdf",
+        "https://gamingcontrolboard.pa.gov/sites/default/files/2026-04/FY%202025-2026%20Table%20Games%20Monthly%20Report_0.pdf"
+      ]
     },
     "Illinois": {
       "abbrev": "IL",
@@ -132,9 +162,9 @@
           "rate": 0.2
         }
       ],
-      "localTaxNotes": "Admissions tax of $2-$5 per patron depending on annual volume. $1/admission to local governments. Chicago casino faces additional 3.5% privilege tax on top of graduated state tax.",
-      "description": "Graduated tax on AGR. Slots: 15%-50% across 7 tiers. Table games: 15% up to $25M, 20% above. Chicago casino has additional surcharges.",
-      "sourceYear": 2025,
+      "localTaxNotes": "Admission tax $2 per person for licensees with <=1M admissions in 2004, $3 otherwise (230 ILCS 10/12(a)). The Chicago casino has its own combined state/city schedule (230 ILCS 10/13(a-5)(2)): slots 22.5% to 74.7% and tables 15% to 35% by revenue band; use a custom rate for Chicago.",
+      "description": "Graduated wagering tax on AGR (230 ILCS 10/13(a-5)(1)). Electronic gaming: 15%, 22.5%, 27.5%, 32.5%, 37.5%, 45%, 50% at $25M, $50M, $75M, $100M, $150M, $200M. Table games: 15% to $25M, 20% above.",
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
@@ -149,21 +179,26 @@
             "rate": 0.25
           },
           {
-            "threshold": 100,
+            "threshold": 50,
             "rate": 0.3
           },
           {
-            "threshold": 200,
+            "threshold": 100,
             "rate": 0.35
           },
           {
-            "threshold": 500,
+            "threshold": 200,
             "rate": 0.4
           }
         ],
         "effectiveRate": 0.3,
-        "description": "Graduated 20-40% on operator GGR (effective Jan 2025). Plus per-wager tax."
-      }
+        "description": "From July 1, 2024 (230 ILCS 45/25-90(d)): 20% of AGR to $30M, 25% $30-50M, 30% $50-100M, 35% $100-200M, 40% above $200M, applied separately to online and in-person revenue. Plus 2% on Cook County wagers and, from July 1, 2025, $0.25 per online wager for the first 20M wagers and $0.50 thereafter (not modeled)."
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://igb.illinois.gov/casino-gambling/casino-faq.html",
+        "230 ILCS 10/12, 10/13 and 45/25-90 (FindLaw copies; ilga.gov unreachable at verification)"
+      ]
     },
     "Indiana": {
       "abbrev": "IN",
@@ -174,7 +209,7 @@
       "tiers": [
         {
           "threshold": 0,
-          "rate": 0.15
+          "rate": 0.1
         },
         {
           "threshold": 25,
@@ -197,17 +232,23 @@
           "rate": 0.4
         }
       ],
-      "effectiveRate": 0.32,
-      "localTaxNotes": "Supplemental admission tax of $3 per person ($1 each to state, host city, host county). 25% of graduated wagering tax goes to host city. Casinos with prior year AGR <$75M pay 5% on first $25M instead of 15%.",
-      "description": "Graduated tax on AGR: 15%-40% across 6 tiers. Supplemental $3/person admission tax. 25% of wagering tax to host city.",
-      "sourceYear": 2025,
+      "effectiveRate": 0.3,
+      "localTaxNotes": "The $3 admission tax was replaced by the supplemental wagering tax (HEA 1350, 2017). Casinos with prior-year AGR under $75M use a reduced schedule (2.5% on the first $25M, then 10%, 20%, 30-40%). Racinos (IC 4-35-8-1): 25% to $100M, 30% above, on 88% of revenue.",
+      "description": "Graduated wagering tax on AGR (IC 4-33-13-1.5(a), FY2022+): 10% to $25M, 20%, 25%, 30%, 35%, 40% above $600M. Plus a licensee-specific supplemental wagering tax (IC 4-33-12-1.5; ~2.3-3.5% in 2025, capped at 3.5%), modeled at 3%.",
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.095,
         "description": "9.5% of sports betting GGR."
-      }
+      },
+      "additionalRate": 0.03,
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.in.gov/igc/files/reports/2025/2025-07-Revenue.pdf",
+        "IC 4-33-13-1.5, 4-33-12-1.5, 4-35-8-1 (FindLaw copies, current to Jan 1, 2026)"
+      ]
     },
     "Iowa": {
       "abbrev": "IA",
@@ -226,20 +267,25 @@
         },
         {
           "threshold": 3,
-          "rate": 0.2
+          "rate": 0.22
         }
       ],
-      "effectiveRate": 0.2,
-      "localTaxNotes": "Tax cut enacted 2024: rate dropping from 22% to 19% over 3 years (FY2025: 21%, FY2026: 20%, FY2027: 19%). Sports wagering taxed at 6.75%.",
-      "description": "Graduated tax: 5% on first $1M, 10% on $1-3M, top rate phasing from 22% to 19% (currently 20% for FY2026). Nearly all revenue hits top bracket.",
-      "sourceYear": 2025,
+      "effectiveRate": 0.22,
+      "localTaxNotes": "No rate phase-down was enacted (the 2024 proposal, House Study Bill 719, did not pass). Promotional play is fully excluded from AGR from July 1, 2026 (SF 619). Sports wagering 6.75%.",
+      "description": "Graduated tax on AGR (Iowa Code 99F.11): 5% on the first $1M, 10% on the next $2M, 22% above $3M. Racetrack casinos with table games and prior-year AGR of $100M or more pay 24%.",
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.0675,
         "description": "6.75% of sports betting GGR. Tied with Nevada for lowest rate."
-      }
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://irgc.iowa.gov/news-release/2026-07-17/iowa-casino-and-sports-wagering-tax-revenue-exceeds-331-million-fiscal-year-2026",
+        "Iowa Code 99F.11 (2026)"
+      ]
     },
     "Michigan": {
       "abbrev": "MI",
@@ -247,10 +293,10 @@
       "hasTribal": true,
       "rateStructure": "flat",
       "slotTableSplit": false,
-      "effectiveRate": 0.193,
-      "localTaxNotes": "Detroit casinos pay 8.35% state tax plus 10.9% city wagering tax plus 1.25% development agreement tax. Total effective rate ~20.5% for Detroit casinos.",
-      "sourceYear": 2025,
-      "description": "8.35% state tax on AGR. Detroit casinos also pay 10.9% city wagering tax + 1.25% development agreement. Total ~20.5% for Detroit.",
+      "effectiveRate": 0.2025,
+      "localTaxNotes": "Development agreements add payments of 1% for casinos with AGR above $400M (Senate Fiscal Agency, 2025); not modeled. Tribal casinos operate under compacts.",
+      "sourceYear": 2026,
+      "description": "Detroit commercial casinos: 8.1% state wagering tax (MCL 432.212(1)) + 10.9% city wagering tax (9.9% + 1%) = 19%, plus the municipal services fee of the greater of 1.25% of AGR or $4M (MCL 432.213). Total ~20.25%.",
       "hasIGaming": true,
       "iGaming": {
         "rateStructure": "tiered",
@@ -284,7 +330,15 @@
         "rateStructure": "flat",
         "flatRate": 0.084,
         "description": "8.4% of sports betting GGR. Among the lowest rates; promotional deductions allowed."
-      }
+      },
+      "flatRate": 0.19,
+      "additionalRate": 0.0125,
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.legislature.mi.gov/Laws/MCL?objectName=mcl-432-212",
+        "https://legislature.mi.gov/documents/mcl/pdf/MCL-432-213.pdf",
+        "https://sfa.senate.michigan.gov/Publications/OneFAB/2025/OneFAB08-25-2025cs.pdf"
+      ]
     },
     "Mississippi": {
       "abbrev": "MS",
@@ -295,28 +349,34 @@
       "tiers": [
         {
           "threshold": 0,
-          "rate": 0.04
+          "rate": 0.044
         },
         {
           "threshold": 0.6,
-          "rate": 0.06
+          "rate": 0.066
         },
         {
           "threshold": 1.608,
-          "rate": 0.08
+          "rate": 0.088
         }
       ],
       "effectiveRate": 0.12,
-      "localTaxNotes": "Local graduated tax adds: 0.4% on GGR $0-$50K/mo, 3.2% on $50K-$134K/mo, 4% on >$134K/mo. Combined effective rate approximately 12% for large casinos. Note: Mississippi uses MONTHLY thresholds.",
-      "description": "Graduated state tax computed monthly: 4% up to $50K, 6% on $50-134K, 8% above $134K per month. Local taxes add ~4%, bringing total to ~12%.",
-      "sourceYear": 2025,
+      "localTaxNotes": "The 3.2% local levy applies in most host jurisdictions (e.g. Biloxi, Gulfport, Tunica, Natchez); a few differ.",
+      "description": "State tax (Miss. Code 75-76-177) 4% / 6% / 8% and local tax (75-76-195) 0.4% / 0.6% / 0.8% on monthly revenue up to $50K, $50-134K and above (annualized: $0.6M, $1.608M), plus a flat 3.2% local tax under local and private laws in most host jurisdictions. Top combined rate 12%.",
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.12,
         "description": "12% of sports betting GGR. Retail only; no statewide online betting."
-      }
+      },
+      "additionalRate": 0.032,
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.dor.ms.gov/business/gaming",
+        "https://peer.ms.gov/sites/default/files/peer_publications/rpt633.pdf"
+      ]
     },
     "Missouri": {
       "abbrev": "MO",
@@ -325,8 +385,8 @@
       "rateStructure": "flat",
       "slotTableSplit": false,
       "effectiveRate": 0.21,
-      "localTaxNotes": "Plus $2 per person admission fee. Portion of tax revenue to education, local governments.",
-      "sourceYear": 2025,
+      "localTaxNotes": "10% of the 21% goes to the home dock city or county. $2 admission fee per person per excursion ($1 state, $1 home dock; RSMo 313.820), not modeled.",
+      "sourceYear": 2026,
       "flatRate": 0.21,
       "description": "21% of AGR. Plus $2/person admission fee.",
       "hasIGaming": false,
@@ -334,8 +394,14 @@
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.1,
-        "description": "10% on online sports betting GGR. 12% on retail. Legal as of Dec 2025."
-      }
+        "description": "10% of AGR for online and retail sports wagering (Mo. Const. Art. III, 39(g)); promotional-credit deduction capped at 25% of cash receipts."
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://revisor.mo.gov/main/OneSection.aspx?section=313.822",
+        "https://revisor.mo.gov/main/OneSection.aspx?section=313.820",
+        "https://revisor.mo.gov/main/OneSection.aspx?section=III++++39(g)"
+      ]
     },
     "Ohio": {
       "abbrev": "OH",
@@ -344,17 +410,23 @@
       "rateStructure": "flat",
       "slotTableSplit": false,
       "effectiveRate": 0.33,
-      "localTaxNotes": "Host cities receive a direct share from the 33% (roughly 5% of the 33% goes to the host city, with the remainder distributed to counties and the state). Racinos (7 video lottery terminal facilities) have revenues shared differently through the state lottery commission.",
-      "sourceYear": 2025,
+      "localTaxNotes": "The 33% is distributed 51% counties, 34% school districts, 5% host city, 3% Casino Control Commission, 3% Racing Commission, 2% law enforcement training, 2% problem gambling (ORC 5753.03(D)). Racinos (video lottery terminals) are lottery revenue, not modeled here.",
+      "sourceYear": 2026,
       "flatRate": 0.33,
       "description": "33% of GGR for commercial casinos. Racinos (VLTs) at racetracks have different structure.",
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
-        "flatRate": 0.1,
-        "description": "10% of sports betting GGR. Promotional deductions phase out over 5 years."
-      }
+        "flatRate": 0.2,
+        "description": "20% of sports gaming receipts from July 4, 2023 (ORC 5753.021, HB 33; was 10%)."
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://codes.ohio.gov/ohio-revised-code/section-5753.02",
+        "https://codes.ohio.gov/ohio-revised-code/section-5753.021",
+        "https://codes.ohio.gov/ohio-revised-code/section-5753.03"
+      ]
     },
     "Colorado": {
       "abbrev": "CO",
@@ -430,17 +502,23 @@
       "rateStructure": "flat",
       "slotTableSplit": false,
       "effectiveRate": 0.215,
-      "localTaxNotes": "Riverboat casinos: 21.5% of net gaming revenue. Land-based (New Orleans): negotiated rate. Racino slot machines: 36.5%.",
-      "sourceYear": 2025,
+      "localTaxNotes": "Caesars New Orleans (land-based): the greater of 18.5% of gross revenue or $65M per year (R.S. 27:241.1), plus fixed payments; use a custom 18.5% rate. Racetrack slots: 18.5% state tax on net proceeds after the 18% owed to horsemen, plus 4% local (~19.2% of net slot proceeds to government; inference).",
+      "sourceYear": 2026,
       "flatRate": 0.215,
-      "description": "21.5% on riverboat casino net gaming revenue. Racino slots at 36.5%. Land-based Harrahs New Orleans has separate agreement.",
+      "description": "Riverboat casinos: 3.5% license fee + 15% franchise fee + 3% additional = 21.5% of net gaming proceeds (R.S. 27:91).",
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.215,
-        "description": "21.5% on online sports betting GGR (raised from 15%). Retail at 15%."
-      }
+        "description": "Online sports wagering 21.5% of net gaming proceeds (R.S. 27:625(B), Act 298 of 2025; was 15%). Retail 10%."
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://legis.la.gov/Legis/Law.aspx?d=85081",
+        "https://legis.la.gov/Legis/Law.aspx?d=84935",
+        "https://legis.la.gov/Legis/Law.aspx?d=1239411"
+      ]
     },
     "Maryland": {
       "abbrev": "MD",
@@ -448,19 +526,25 @@
       "hasTribal": false,
       "rateStructure": "split_game_type",
       "slotTableSplit": true,
-      "slotsRate": 0.4,
+      "slotsRate": 0.53,
       "tableRate": 0.2,
-      "effectiveRate": 0.4,
-      "localTaxNotes": "Slot rates vary by facility: MGM National Harbor 61%, Live! Casino 61%, Horseshoe Baltimore 61%, Hollywood Perryville 40%, Ocean Downs 40%, Rocky Gap 40%. Table games uniform at 20%.",
-      "description": "Slot rates: 40-61% depending on facility (larger Baltimore-area facilities pay 61%). Table games: 20%. Rates vary by facility license terms.",
-      "sourceYear": 2025,
+      "effectiveRate": 0.45,
+      "localTaxNotes": "Non-operator slot shares include the Education Trust Fund (27-43%), 6% purse dedication, 5.5% local impact grants, 1% racetrack renewal, 1% lottery agency and 1.5% small/minority/women-owned business fund. Use a custom rate for a specific facility.",
+      "description": "Slot (VLT) proceeds are split by statute, with facility-specific operator shares. FY2026 non-operator shares: MGM National Harbor 56%, Live! 51%, Horseshoe Baltimore 53%, Hollywood Perryville 58%, Ocean Downs 47%, Rocky Gap 42%; modeled at 53% (the three large facilities). Table games: 20% (15% Education Trust Fund + 5% local).",
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.2,
-        "description": "20% on online sports betting GGR (raised from 15% in mid-2025). Retail at 15%."
-      }
+        "description": "Mobile sports wagering 20% from July 1, 2025 (licensee retains 80%; 9-1E-12); retail 15%."
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://mgaleg.maryland.gov/mgawebsite/Laws/StatuteText?article=gsg&section=9-1A-27",
+        "https://mgaleg.maryland.gov/mgawebsite/Laws/StatuteText?article=gsg&section=9-1E-12",
+        "https://www.mdgaming.com/wp-content/uploads/2025/09/AUGUST-2025-CASINO-REVENUE-DATA.pdf"
+      ]
     },
     "Massachusetts": {
       "abbrev": "MA",
@@ -470,15 +554,20 @@
       "slotTableSplit": false,
       "effectiveRate": 0.25,
       "localTaxNotes": "Category 1 (resort casino, e.g., Encore Boston Harbor): 25% of GGR. Category 2 (slots-only, e.g., Plainridge Park): 49% of GGR.",
-      "description": "Category 1 resort casino: 25% of GGR. Category 2 slots-only facility: 49% of GGR.",
-      "sourceYear": 2025,
+      "description": "Category 1 resort casinos (Encore Boston Harbor, MGM Springfield): 25% of GGR (G.L. c.23K 55(a)). Category 2 slots parlor (Plainridge Park): 40% + 9% Race Horse Development Fund = 49%; use a custom rate.",
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.2,
         "description": "20% on online sports betting GGR. 15% on retail."
-      }
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleII/Chapter23K/Section55",
+        "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleII/Chapter23N/Section14"
+      ]
     },
     "New York": {
       "abbrev": "NY",
@@ -488,17 +577,23 @@
       "slotTableSplit": true,
       "slotsRate": 0.3,
       "tableRate": 0.1,
-      "effectiveRate": 0.37,
-      "localTaxNotes": "VLT/racino facilities pay ~38.5-56% on VLTs (state retains larger share). Upstate commercial casinos: 30% slots/ETGs, 10% table games. Downstate licenses (pending): minimum 25% slots, 10% tables \u2014 bidders proposing 25-56%.",
-      "description": "Upstate commercial casinos: 30% on slots/ETGs, 10% on table games. VLT/racino facilities pay much higher rates. Three downstate licenses pending with rates TBD.",
-      "sourceYear": 2025,
+      "effectiveRate": 0.3,
+      "localTaxNotes": "Downstate casinos licensed Dec 15, 2025 at bid rates: Resorts World NYC 56% slots / 30% tables, Hard Rock Metropolitan Park 25% / 10%, Bally's Bronx 30% / 10% (statutory floors 25% / 10%). VLT facilities: education receives 34-50.5% of net win plus 10% to the Lottery.",
+      "description": "Upstate commercial casinos: 30% on slots/ETGs and 10% on table games, a temporary reduced rate through June 30, 2031 (PML 1351(1)(b)); statutory base slot rates are 37-45% by region.",
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.51,
         "description": "51% of online sports betting GGR. 10% for retail. Highest online rate in the US."
-      }
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.nysenate.gov/legislation/laws/PML/1351",
+        "https://gaming.ny.gov/commercial-casinos",
+        "https://www.osc.ny.gov/files/reports/pdf/sports-wagering-in-new-york.pdf"
+      ]
     },
     "West Virginia": {
       "abbrev": "WV",
@@ -506,12 +601,12 @@
       "hasTribal": false,
       "rateStructure": "split_game_type",
       "slotTableSplit": true,
-      "slotsRate": 0.535,
+      "slotsRate": 0.52,
       "tableRate": 0.35,
       "effectiveRate": 0.47,
-      "localTaxNotes": "Limited video lottery (LVL) facilities pay 50% on net terminal income. iGaming taxed at 15% of GGR.",
-      "description": "VLTs: state retains 53.5% of net terminal income. Table games: 35% tax on AGR. iGaming: 15%. Limited video lottery: 50%.",
-      "sourceYear": 2025,
+      "localTaxNotes": "The licensee retains 46.5% of base and 42% of excess net terminal income; purses, breeders and pension funds receive the remainder (not counted as tax). Limited video lottery (bars): 50% of net terminal income.",
+      "description": "Racetrack VLTs: government share of net terminal income above the FY2001 base (most current revenue) ~52% (inference from 29-22A-10b: a 10% surcharge of which 58% to the Excess Lottery Revenue Fund, then ~50% state funds + 2% county); ~45% on the base tier. Table games: 35% of AGR (29-22C-26). iGaming 15%; sports 10%.",
+      "sourceYear": 2026,
       "hasIGaming": true,
       "iGaming": {
         "rateStructure": "flat",
@@ -523,30 +618,48 @@
         "rateStructure": "flat",
         "flatRate": 0.1,
         "description": "10% of sports betting GGR."
-      }
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://code.wvlegislature.gov/29-22A-10/",
+        "https://code.wvlegislature.gov/29-22A-10b/",
+        "https://code.wvlegislature.gov/29-22C-26/",
+        "https://code.wvlegislature.gov/29-22D-16/",
+        "https://code.wvlegislature.gov/29-22E-16/"
+      ]
     },
     "Rhode Island": {
       "abbrev": "RI",
       "hasCommercial": true,
       "hasTribal": false,
-      "rateStructure": "state_operated",
-      "slotTableSplit": false,
-      "effectiveRate": 0.51,
-      "localTaxNotes": "State-operated through RI Lottery at Twin River (Bally's) and Tiverton Casino. State retains ~61% of VLT net revenue. Table games revenue split is different.",
-      "description": "State-operated gaming. State retains approximately 61% of VLT net terminal revenue. Two facilities: Bally's Twin River and Tiverton Casino.",
-      "sourceYear": 2025,
+      "rateStructure": "split_game_type",
+      "slotTableSplit": true,
+      "effectiveRate": 0.55,
+      "localTaxNotes": "Host towns also receive a share of VLT revenue within the operator/town payments.",
+      "description": "State-operated through the RI Lottery at Bally's Lincoln and Bally's Tiverton. VLTs: the state retains the residual after operator, technology-provider and town payments, 60.4% of net terminal income in FY2025. Table games: 15.5% to the state + 1% to the host town.",
+      "sourceYear": 2026,
       "hasIGaming": true,
       "iGaming": {
-        "rateStructure": "flat",
-        "flatRate": 0.51,
-        "description": "51% of iGaming GGR. State-operated monopoly through Bally's."
+        "rateStructure": "split_game_type",
+        "description": "iGaming: 61% of slot revenue (42-61.2-5.1) and 15.5% of table game revenue (42-61.2-5.2) to the state.",
+        "slotsRate": 0.61,
+        "tableRate": 0.155
       },
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.51,
-        "description": "51% of sports betting GGR. State-operated monopoly."
-      }
+        "description": "51% of sports wagering revenue to the state (42-61.2-5); IGT 32%, host facilities 17%."
+      },
+      "slotsRate": 0.604,
+      "tableRate": 0.165,
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://webserver.rilegislature.gov/Statutes/TITLE42/42-61.2/42-61.2-7.htm",
+        "https://webserver.rilegislature.gov/Statutes/TITLE42/42-61.2/42-61.2-5.1.htm",
+        "https://webserver.rilegislature.gov/Statutes/TITLE42/42-61.2/42-61.2-5.htm",
+        "https://www.oag.ri.gov/reports-financial/LotteryRI2025.pdf"
+      ]
     },
     "Delaware": {
       "abbrev": "DE",
@@ -554,24 +667,29 @@
       "hasTribal": false,
       "rateStructure": "split_game_type",
       "slotTableSplit": true,
-      "slotsRate": 0.435,
+      "slotsRate": 0.425,
       "tableRate": 0.155,
-      "effectiveRate": 0.375,
-      "localTaxNotes": "State-operated gaming through Delaware Lottery. Three racinos: Delaware Park, Dover Downs, Harrington Raceway.",
-      "description": "State-operated: 43.5% state share on VLTs, 15.5% on table games. Operated through Delaware Lottery at three racino facilities.",
-      "sourceYear": 2025,
+      "effectiveRate": 0.37,
+      "localTaxNotes": "Purses receive 9.6% (thoroughbred) or 11.35% (harness) of VLT proceeds, not counted as tax here.",
+      "description": "State-operated through the Delaware Lottery at three racinos. VLTs: 42.5% of net proceeds returned to the state after equipment costs (29 Del. C. 4815(b)(3)a; 40.5% for agents meeting the 3% capital-investment test). Table games: 15.5% to the state + 4.5% to purses.",
+      "sourceYear": 2026,
       "hasIGaming": true,
       "iGaming": {
         "rateStructure": "flat",
-        "flatRate": 0.57,
-        "description": "57% of iGaming gross revenues. State-operated through Delaware Lottery."
+        "flatRate": 0.255,
+        "description": "The first $3.75M each year goes to the Lottery Fund; the remainder follows the VLT/table formulas after a 20% vendor fee and admin costs (4815(e)). FY2025 state gross margin ~25.5% of iGaming revenue (inference from the Lottery ACFR)."
       },
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.5,
         "description": "50% of sports betting GGR. State-operated through Delaware Lottery."
-      }
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://delcode.delaware.gov/title29/c048/sc01/index.html",
+        "https://auditor.delaware.gov/wp-content/uploads/sites/209/2026/02/Delaware-State-Lottery-ACFR-FY25.pdf"
+      ]
     },
     "South Dakota": {
       "abbrev": "SD",
@@ -596,19 +714,25 @@
       "abbrev": "ME",
       "hasCommercial": true,
       "hasTribal": true,
-      "rateStructure": "split_by_facility",
-      "slotTableSplit": false,
-      "effectiveRate": 0.39,
+      "rateStructure": "split_game_type",
+      "slotTableSplit": true,
+      "effectiveRate": 0.4,
       "localTaxNotes": "Oxford Casino: ~46% on slot revenue. Bangor (Hollywood Casino): ~39% on slot revenue. Rates differ by facility.",
-      "description": "Facility-specific rates: Oxford Casino ~46% on slots, Hollywood Casino Bangor ~39% on slots. Two commercial casinos.",
-      "sourceYear": 2025,
+      "description": "Facility-specific (8 M.R.S. 1036). Hollywood Casino Bangor: 39% of net slot income + 1% of gross for administration, tables 16%. Oxford Casino: 46% of net slot income, tables 16% (use a custom rate). Modeled at Bangor's rates.",
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.1,
         "description": "10% of sports betting GGR."
-      }
+      },
+      "slotsRate": 0.4,
+      "tableRate": 0.16,
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://legislature.maine.gov/statutes/8/title8sec1036.html"
+      ]
     },
     "Arkansas": {
       "abbrev": "AR",
@@ -692,16 +816,20 @@
       "slotTableSplit": false,
       "flatRate": 0.27,
       "effectiveRate": 0.27,
-      "localTaxNotes": "State-owned casinos managed by private operators. 27% privilege fee on gross gaming revenue. Additional 3% to Problem Gambling and Addictions Grant Fund.",
+      "localTaxNotes": "The 27% (K.S.A. 74-8734(h)) is a state share of not less than 22%, plus 2% to the Problem Gambling and Addictions Grant Fund and 3% to the host city and county. State-owned casinos managed by private operators.",
       "description": "27% privilege fee on GGR at four state-owned casinos managed by private operators.",
-      "sourceYear": 2025,
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.1,
         "description": "10% of sports betting GGR."
-      }
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.ksrevisor.gov/statutes/chapters/ch74/074_087_0034.html"
+      ]
     },
     "Virginia": {
       "abbrev": "VA",
@@ -743,16 +871,21 @@
       "slotTableSplit": false,
       "flatRate": 0.2,
       "effectiveRate": 0.2,
-      "localTaxNotes": "New market authorized by voter initiative in 2020. Casinos at licensed horse racetracks. 70% of tax revenue to property tax relief, 30% to compulsive gamblers assistance.",
+      "localTaxNotes": "Initiative Law 2020 No. 431. Distribution (Neb. Rev. Stat. 9-1204): 70% Property Tax Credit Cash Fund, 25% to the county (split with the city inside city limits), 2.5% Compulsive Gamblers Assistance Fund, 2.5% General Fund.",
       "description": "20% of GGR. New market (2020), casinos at licensed horse racetracks.",
-      "sourceYear": 2025,
+      "sourceYear": 2026,
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
         "flatRate": 0.2,
         "description": "20% of sports betting GGR. Retail only."
-      }
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://nebraskalegislature.gov/laws/statutes.php?statute=9-1203",
+        "https://nebraskalegislature.gov/laws/statutes.php?statute=9-1204"
+      ]
     },
     "Alabama": {
       "abbrev": "AL",
@@ -802,13 +935,23 @@
       "hasTribal": true,
       "rateStructure": "tribal_compact",
       "slotTableSplit": false,
-      "effectiveRate": 0.12,
-      "localTaxNotes": "Compact revenue payments go to the state general revenue fund. Pari-mutuel slot facilities distribute taxes per county and state formula.",
-      "sourceYear": 2024,
-      "flatRate": 0.12,
-      "description": "The Seminole Tribe operates major casinos under a 2021 compact that provides guaranteed minimum payments to the state (~$500M/yr). Pari-mutuel facilities with authorized slot machines pay 35% of slot revenue. The 2021 compact grants the Seminole Tribe exclusive rights to sports betting statewide.",
+      "effectiveRate": 0.34,
+      "localTaxNotes": "Compact payments go to state general revenue; pari-mutuel slot taxes go to the state Educational Enhancement Trust Fund.",
+      "sourceYear": 2026,
+      "flatRate": 0.34,
+      "description": "Pari-mutuel facilities with slot machines: 34% of slot revenue (Fla. Stat. 551.106, 2026; 35% through 2025). The Seminole Tribe operates the major casinos under the 2021 compact: revenue share on slots 12% to $2B rising to 25% above $3.5B, on tables 15% to $1B rising to 25% above $2B (enter as a custom rate for a tribal property).",
       "hasIGaming": false,
-      "hasSportsBetting": false
+      "hasSportsBetting": true,
+      "sportsBetting": {
+        "rateStructure": "flat",
+        "flatRate": 0.1375,
+        "description": "Statewide sports betting is offered by the Seminole Tribe (Hard Rock Bet) under the 2021 compact: 13.75% of the Tribe's own net win (10% on pari-mutuel partner brands)."
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.flsenate.gov/Laws/Statutes/2026/551.106",
+        "https://www.flsenate.gov/PublishedContent/Offices/2020-2022/President/Documents/Summaryof2021Compact.pdf"
+      ]
     },
     "Georgia": {
       "abbrev": "GA",
@@ -892,11 +1035,15 @@
       "slotTableSplit": false,
       "effectiveRate": 0.15,
       "localTaxNotes": "Local jurisdictions receive portions of the VGT tax. Tribal casinos operate separately under compacts.",
-      "sourceYear": 2024,
-      "flatRate": null,
-      "description": "No full-scale commercial casinos. Montana allows video gambling terminals (VGTs) in bars, restaurants, and taverns - limited to 20 machines per location. 15% state tax on net income from machines. This is small-scale gaming, not comparable to casino operations.",
+      "sourceYear": 2026,
+      "flatRate": 0.15,
+      "description": "No full-scale commercial casinos. Video gambling machines in licensed bars and taverns (up to 20 per location): 15% of gross income, i.e. money played less cash credits paid (MCA 23-5-610).",
       "hasIGaming": false,
-      "hasSportsBetting": false
+      "hasSportsBetting": false,
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://mca.legmt.gov/bills/mca/title_0230/chapter_0050/part_0060/section_0100/0230-0050-0060-0100.html"
+      ]
     },
     "New Hampshire": {
       "abbrev": "NH",
@@ -923,13 +1070,17 @@
       "hasTribal": true,
       "rateStructure": "flat",
       "slotTableSplit": false,
-      "effectiveRate": 0.26,
+      "effectiveRate": 0.248,
       "localTaxNotes": "Distributions to the state general fund, municipalities with racetracks, and the horse racing industry.",
-      "sourceYear": 2024,
-      "flatRate": 0.26,
-      "description": "Racetrack casinos (racinos): 26% of net take. Fraternal/veterans organizations with gaming machines: 26% of net take. Tribal casinos operate under separate compacts with revenue sharing of 3-8.5%.",
+      "sourceYear": 2026,
+      "flatRate": 0.248,
+      "description": "Racetrack casinos: gaming tax of 24.8% of net take (Laws 2023, ch. 122) until July 1, 2027, when it reverts to 26%. Racetracks also pay 20% to purses and 1.2% for jockey insurance (not counted as tax). Tribal casinos operate under compacts with revenue sharing of 3-8.5%.",
       "hasIGaming": false,
-      "hasSportsBetting": false
+      "hasSportsBetting": false,
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://nmlegis.gov/Sessions/23%20Regular/final/SB0336.PDF"
+      ]
     },
     "North Carolina": {
       "abbrev": "NC",
@@ -1021,14 +1172,19 @@
       "localTaxNotes": "N/A",
       "sourceYear": 2024,
       "flatRate": 0.0,
-      "description": "No commercial or tribal casino gambling. Sports betting is legal (online only, 20% GGR tax rate), but no casino gaming authorized.",
+      "description": "No commercial or tribal casino gambling. Online sports wagering only, taxed at 1.85% of handle since July 1, 2023.",
       "hasIGaming": false,
       "hasSportsBetting": true,
       "sportsBetting": {
         "rateStructure": "flat",
-        "flatRate": 0.0185,
-        "description": "1.85% of handle (not GGR). Equivalent to roughly 20% of GGR. Online only."
-      }
+        "description": "1.85% of gross handle (amount wagered) since July 1, 2023, replacing the 20% GGR tax. Converted to a GGR rate with an assumed 9.5% hold (1.85% / 9.5% = 19.5% of GGR); enter a custom rate if the operator's hold differs.",
+        "handleRate": 0.0185,
+        "assumedHold": 0.095
+      },
+      "lastVerified": "2026-10-17",
+      "sources": [
+        "https://www.tn.gov/content/dam/tn/swac/documents/report/2023/July.pdf"
+      ]
     },
     "Texas": {
       "abbrev": "TX",

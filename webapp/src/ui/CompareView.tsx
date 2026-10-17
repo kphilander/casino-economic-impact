@@ -45,14 +45,14 @@ export function CompareView(props: {
         <div>
           <h2>Compare scenarios</h2>
           <p>
-            Add up to {MAX} versions of the analysis, for example different states, tax rates or revenue. The first is the baseline. Each scenario is
-            recomputed with its own state&apos;s model; the percentage under a value is its change from the baseline.
+            Add a maximum of {MAX} versions of the analysis. For example, use different states, tax rates or revenue. The first version is the baseline.
+            The model calculates each scenario with the model of its state. The percentage below a value is its change from the baseline.
           </p>
         </div>
         <button type="button" className="btn primary" onClick={props.onAdd} disabled={scenarios.length >= MAX}>Add current analysis</button>
       </div>
       {scenarios.length === 0 ? (
-        <p className="empty">No scenarios yet. Set up an analysis and add it here.</p>
+        <p className="empty">There are no scenarios. Make an analysis, then add it here.</p>
       ) : (
         <div className="table-wrap">
           <table className="compare-table">
@@ -76,7 +76,7 @@ export function CompareView(props: {
                 <tr key={label}>
                   <th scope="row">{label}</th>
                   {results.map((r, i) => {
-                    if (r === undefined) return <td key={i} className="muted">loading</td>;
+                    if (r === undefined) return <td key={i} className="muted">…</td>;
                     if (r === null) return <td key={i} className="muted">no revenue</td>;
                     const v = get(r);
                     const b = base ? get(base) : 0;

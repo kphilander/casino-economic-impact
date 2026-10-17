@@ -63,8 +63,8 @@ export function MethodView({ model }: { model: RegionalModel }) {
         <div>
           <h2>Method and data</h2>
           <p>
-            The calculator builds a regional input-output model for {model.state} in the browser from the state&apos;s StateIO tables and applies
-            it to the revenue entered. Full documentation: <a href={`${REPO}/blob/main/docs/methodology.md`}>methodology</a> and{' '}
+            The calculator makes a regional input-output model for {model.state} in your browser, from the StateIO tables of the state. It uses this model
+            for the revenue that you enter. For full documentation, see the <a href={`${REPO}/blob/main/docs/methodology.md`}>methodology</a> and the{' '}
             <a href={`${REPO}/blob/main/docs/data-provenance.md`}>data provenance</a>.
           </p>
         </div>
@@ -72,7 +72,7 @@ export function MethodView({ model }: { model: RegionalModel }) {
 
       <section className="card">
         <h3>Multipliers for {model.state}</h3>
-        <p className="card-sub">Per dollar of revenue (jobs per $1M of 2023 dollars). Type II includes household spending of labor income.</p>
+        <p className="card-sub">For each dollar of revenue. Jobs are for each $1M in 2023 dollars. Type II includes household purchases from labor income.</p>
         <div className="table-wrap">
           <table>
             <thead>
@@ -101,12 +101,15 @@ export function MethodView({ model }: { model: RegionalModel }) {
       </section>
 
       <section className="card">
-        <h3>Coefficients behind the multipliers</h3>
+        <h3>Coefficients of the multipliers</h3>
         <p className="card-sub">
-          Per dollar of output of each industry in {model.state}: in-state intermediate inputs (column sum of A), value added, labor income and taxes on production
-          (StateIO 2019), 2023 jobs per $1M of 2023 output, and the BEA FTE/job ratio. StateIO gives every state the national value-added, labor-income
-          and tax ratios of each industry, so state differences come from in-state inputs and jobs. The household column of the Type II model spends{' '}
-          {coef(model.householdColumn.reduce((s, x) => s + x, 0))} in-state per $1 of labor income: all in-state personal consumption divided by total labor income, as in the R pipeline.
+          The table gives values for each dollar of output of each industry in {model.state}. In-state inputs are the column total of A. Value added, labor
+          income and taxes on production come from StateIO 2019. Jobs are 2023 jobs for each $1M of 2023 output. FTE per job is the BEA ratio.
+        </p>
+        <p className="card-sub">
+          StateIO gives all states the same national ratios for value added, labor income and taxes. As a result, the differences between states come from
+          in-state inputs and jobs. The household column of the Type II model has {coef(model.householdColumn.reduce((s, x) => s + x, 0))} of in-state
+          purchases for each $1 of labor income. This value is all in-state personal consumption divided by total labor income, as in the R pipeline.
         </p>
         <CoefficientTable model={model} codes={KEY_SECTORS} />
         <Explain title={`All ${model.n} industries`}>
@@ -115,55 +118,90 @@ export function MethodView({ model }: { model: RegionalModel }) {
       </section>
 
       <section className="card prose">
-        <h3>How a result is computed</h3>
+        <h3>How the model calculates a result</h3>
         <ol className="steps">
-          <li><strong>Tables.</strong> The state&apos;s Make table V (industries × commodities), domestic Use table U (in-state commodities × industries), industry output g and commodity output q, from StateIO {meta.ioYear}.</li>
-          <li><strong>Direct requirements.</strong> D = V q̂⁻¹ gives each industry&apos;s share of each commodity; B = U ĝ⁻¹ gives in-state inputs per dollar of output; A = D B (industry technology assumption).</li>
-          <li><strong>Type I.</strong> L = (I − A)⁻¹. Column j is the in-state output of every industry required by $1 of final demand for industry j, over all rounds of purchases.</li>
-          <li><strong>Type II.</strong> Households become an extra industry. Their row is labor income per dollar of output (V001 ÷ g); their column is in-state personal consumption per dollar of total labor income, mapped to industries with D. L̄ = (I − Ā)⁻¹.</li>
-          <li><strong>Satellites.</strong> For each industry: GDP, labor income and taxes on production per dollar of output (V001–V003 ÷ g); jobs per $1M of output ({meta.employmentYear} QCEW jobs ÷ {meta.employmentYear} StateIO output); FTEs = jobs × BEA FTE/job.</li>
-          <li><strong>Effects.</strong> For revenue R to industry j: direct = R × j&apos;s coefficient; supplier = R × Σᵢ coefficientᵢ × (Lᵢⱼ − δᵢⱼ); induced = R × Σᵢ coefficientᵢ × (L̄ᵢⱼ − Lᵢⱼ). Jobs and FTEs use R converted to 2023 dollars with CPI-U.</li>
-          <li><strong>Gaming and online.</strong> Gaming revenue uses the 713 response with national USEEIO 713200 ratios; online uses the gambling response with operator ratios (see Model, below).</li>
-          <li><strong>Labor adjustments.</strong> Direct gaming labor income × exp(−{PAYROLL_ADJUSTMENT.slope} × gaming tax rate); observed jobs or wages replace direct values; induced effects scale with direct plus supplier labor income.</li>
-          <li><strong>Taxes.</strong> Cash wages = labor income × QCEW/BEA wage ratio; the statutory gaming tax replaces the gaming share of direct taxes on production; payroll and income taxes are computed per job at the average wage.</li>
-          <li><strong>Ranges and modules.</strong> The direct-jobs range multiplies direct jobs by Economic Census-based factors; net impact scales every figure by the net share; construction is final demand for industry 23.</li>
+          <li>
+            <strong>Tables.</strong> The model uses four tables of the state from StateIO {meta.ioYear}. These are the Make table V (industries × commodities), the
+            domestic Use table U (in-state commodities × industries), industry output g and commodity output q.
+          </li>
+          <li>
+            <strong>Direct requirements.</strong> D = V q̂⁻¹ gives the share of each commodity that each industry makes. B = U ĝ⁻¹ gives the in-state inputs
+            for each dollar of output. A = D B (industry technology assumption).
+          </li>
+          <li>
+            <strong>Type I.</strong> L = (I − A)⁻¹. Column j gives the in-state output of each industry that $1 of final demand for industry j causes, through
+            all rounds of purchases.
+          </li>
+          <li>
+            <strong>Type II.</strong> The model adds households as an industry. The household row is labor income for each dollar of output (V001 ÷ g). The
+            household column is in-state personal consumption for each dollar of total labor income, changed to industries with D. L̄ = (I − Ā)⁻¹.
+          </li>
+          <li>
+            <strong>Satellites.</strong> For each industry, the model calculates GDP, labor income and taxes on production for each dollar of output
+            (V001–V003 ÷ g). Jobs for each $1M of output = {meta.employmentYear} QCEW jobs ÷ {meta.employmentYear} StateIO output. FTEs = jobs × BEA FTE/job.
+          </li>
+          <li>
+            <strong>Effects.</strong> For revenue R to industry j: direct = R × coefficient of j; supplier = R × Σᵢ coefficientᵢ × (Lᵢⱼ − δᵢⱼ); induced = R × Σᵢ
+            coefficientᵢ × (L̄ᵢⱼ − Lᵢⱼ). For jobs and FTEs, the model first changes R to 2023 dollars with CPI-U.
+          </li>
+          <li>
+            <strong>Gaming and online.</strong> Gaming revenue uses the 713 response with national USEEIO 713200 ratios. Online revenue uses the gambling
+            response with operator ratios (see Model, below).
+          </li>
+          <li>
+            <strong>Labor adjustments.</strong> Direct gaming labor income × exp(−{PAYROLL_ADJUSTMENT.slope} × gaming tax rate). Observed jobs or wages replace
+            the direct values. Induced effects change with direct and supplier labor income.
+          </li>
+          <li>
+            <strong>Taxes.</strong> Cash wages = labor income × QCEW/BEA wage ratio. The statutory gaming tax replaces the gaming part of direct taxes on
+            production. The model calculates payroll and income taxes for each job at the average wage.
+          </li>
+          <li>
+            <strong>Ranges and modules.</strong> The range for direct jobs multiplies direct jobs by factors from the Economic Census. Net impact multiplies
+            each value by the net share. Construction is final demand for industry 23.
+          </li>
         </ol>
-        <p className="footnote">On the Results tab, each table has a &ldquo;How this is computed&rdquo; panel with these steps and the numbers of the current analysis.</p>
+        <p className="footnote">
+          On the Results tab, each table has a &ldquo;How the model calculates this&rdquo; panel. The panel shows these steps with the numbers of the current analysis.
+        </p>
       </section>
 
       <section className="card prose">
         <h3>Model</h3>
         <ul>
           <li>
-            <strong>Structure.</strong> EPA StateIO {meta.ioYear} two-region summary tables (stateior {meta.stateior}), in-state block, {NATIONAL.industries.length} industries.
-            Direct requirements use the industry technology assumption, A = (V q̂⁻¹)(U ĝ⁻¹); Type I effects use (I − A)⁻¹.
-            Type II effects close the model with households: employee compensation per dollar of output, and in-state personal consumption per dollar of compensation.
+            <strong>Structure.</strong> EPA StateIO {meta.ioYear} two-region summary tables (stateior {meta.stateior}), in-state part, {NATIONAL.industries.length} industries.
+            Direct requirements use the industry technology assumption, A = (V q̂⁻¹)(U ĝ⁻¹). Type I effects use (I − A)⁻¹. Type II effects add households to the
+            model: compensation for each dollar of output, and in-state personal consumption for each dollar of compensation.
           </li>
           <li>
-            <strong>Employment.</strong> {meta.employmentYear} QCEW private filled jobs per dollar of {meta.employmentYear} StateIO output, by industry; estimated FTEs apply BEA national FTE/job ratios.
-            Revenue is deflated to 2023 dollars with CPI-U before jobs are computed.
+            <strong>Employment.</strong> {meta.employmentYear} QCEW private filled jobs for each dollar of {meta.employmentYear} StateIO output, by industry. The model
+            calculates FTEs with BEA national FTE/job ratios. Before it calculates jobs, the model changes revenue to 2023 dollars with CPI-U.
           </li>
           <li>
-            <strong>Gambling.</strong> The StateIO 713 response adapted with national USEEIO 713200/US ratios: direct value added ×{ratio(NATIONAL.gambling.direct.va, 3)},
-            compensation ×{ratio(NATIONAL.gambling.direct.compensation, 3)}, jobs ×{ratio(NATIONAL.gambling.direct.jobs, 3)}; supplier and induced value added ×{ratio(NATIONAL.gambling.increment.va, 3)}.
-            All land-based property types use it for gaming revenue.
+            <strong>Gambling.</strong> The StateIO 713 response, with national USEEIO 713200/US ratios: direct value added ×{ratio(NATIONAL.gambling.direct.va, 3)},
+            compensation ×{ratio(NATIONAL.gambling.direct.compensation, 3)}, jobs ×{ratio(NATIONAL.gambling.direct.jobs, 3)}; supplier and induced value added
+            ×{ratio(NATIONAL.gambling.increment.va, 3)}. All land-based property types use these coefficients for gaming revenue.
           </li>
           <li>
-            <strong>Labor income and the gaming tax.</strong> StateIO gives every state the national value-added mix, but casino revenue includes the state gaming tax.
-            Direct gaming compensation is multiplied by exp(−{PAYROLL_ADJUSTMENT.slope} × rate), estimated against the 2022 Economic Census (n = {PAYROLL_ADJUSTMENT.n};
-            leave-one-out error {PAYROLL_ADJUSTMENT.leaveOneOutMAE.before} → {PAYROLL_ADJUSTMENT.leaveOneOutMAE.after} log points).
+            <strong>Labor income and the gaming tax.</strong> StateIO gives all states the national value-added mix. But casino revenue includes the state gaming
+            tax. For this reason, the model multiplies direct gaming compensation by exp(−{PAYROLL_ADJUSTMENT.slope} × rate). The slope comes from the 2022 Economic
+            Census (n = {PAYROLL_ADJUSTMENT.n}). The leave-one-out error decreases from {PAYROLL_ADJUSTMENT.leaveOneOutMAE.before} to {PAYROLL_ADJUSTMENT.leaveOneOutMAE.after} log points.
           </li>
           <li>
-            <strong>Direct jobs range.</strong> The coefficient shows no bias against 2022 Economic Census jobs per revenue dollar; the 90% range is the cross-state spread of that comparison.
+            <strong>Range for direct jobs.</strong> The coefficient shows no bias against 2022 Economic Census jobs per revenue dollar. The 90% range is the
+            spread of that comparison across states.
           </li>
           <li>
-            <strong>Taxes.</strong> The statutory gaming tax replaces the gaming share of direct taxes on production; {pct(NON_GAMING_TOPI_SHARE)} (other taxes on production) is kept.
-            Cash wages are compensation × the QCEW/BEA wage ratio ({pct(WAGE_BASIS.sectors['7132'], 1)} for gambling, {pct(WAGE_BASIS.private, 1)} all private).
-            Payroll taxes use 2026 federal parameters and 2024 average state unemployment insurance rates; income taxes use 2025 schedules per worker.
+            <strong>Taxes.</strong> The statutory gaming tax replaces the gaming part of direct taxes on production. The model keeps {pct(NON_GAMING_TOPI_SHARE)} (other
+            taxes on production). Cash wages = compensation × the QCEW/BEA wage ratio: {pct(WAGE_BASIS.sectors['7132'], 1)} for gambling and {pct(WAGE_BASIS.private, 1)} for
+            all private industries. Payroll taxes use 2026 federal values and 2024 average state unemployment insurance rates. Income taxes use 2025 schedules
+            for each worker.
           </li>
           <li>
-            <strong>Online.</strong> Scenario ratios from operator SEC filings (2024), applied to the gambling profile: direct value added ×{ratio(NATIONAL.online.direct.va, 2)},
-            compensation ×{ratio(NATIONAL.online.direct.compensation, 2)}, jobs per dollar of value added ×{ratio(NATIONAL.online.direct.jobsPerVa, 2)}; supplier and induced value added ×{ratio(NATIONAL.online.increment.va, 2)}.
+            <strong>Online.</strong> The model uses approximate ratios from operator SEC filings (2024) on the gambling profile. Direct effects: value added
+            ×{ratio(NATIONAL.online.direct.va, 2)}, compensation ×{ratio(NATIONAL.online.direct.compensation, 2)}, jobs for each dollar of value added
+            ×{ratio(NATIONAL.online.direct.jobsPerVa, 2)}. Supplier and induced effects: value added ×{ratio(NATIONAL.online.increment.va, 2)}.
           </li>
         </ul>
       </section>
@@ -172,9 +210,9 @@ export function MethodView({ model }: { model: RegionalModel }) {
         <h3>Data files</h3>
         <ul className="sources">
           {meta.sources.map((s) => <li key={s.file}><code>{s.file}</code> <span className="muted">md5 {s.md5}</span></li>)}
-          <li>{meta.employmentSatellite}</li>
-          <li>{meta.ftePerJob}</li>
-          <li>{NATIONAL.gambling.source}</li>
+          <li><code>employment_all_sectors_2023.csv</code>, from 08a_process_all_qcew_employment.R: 2023 QCEW private filled jobs (annual average) by StateIO industry. HS, GFE and GSLE have zero jobs.</li>
+          <li><code>fte_ratios_2023.csv</code>, from 08b_generate_bea_fte_ratios.R: BEA NIPA tables 6.4D and 6.5D, 2023.</li>
+          <li><code>national_naics_ratios.csv</code>, from 13_extract_national_naics_ratios.R: USEEIOv2.0.1-411 713200/US compared with the output-weighted 713 parent.</li>
         </ul>
       </section>
     </div>

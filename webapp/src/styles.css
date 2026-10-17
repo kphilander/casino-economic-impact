@@ -235,3 +235,4 @@ tr.grand th, tr.grand td { font-weight: 700; border-top: 2px solid var(--navy); 
 .segmented.small button { padding: 5px 10px; font-size: 12px; }
 .explain-body .table-wrap + .table-wrap { margin-top: 12px; }
 .coef-table thead th { white-space: normal; vertical-align: bottom; }
+.steps ul { margin: 4px 0; padding-left: 18px; }

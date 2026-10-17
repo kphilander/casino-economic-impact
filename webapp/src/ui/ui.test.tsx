@@ -35,13 +35,13 @@ describe('views render', () => {
       expect(results).toContain('Economic impact');
       expect(results).toContain('All taxes');
       expect(results).toContain('Supplier and induced jobs by industry');
-      expect(results).toContain('How this is computed');
+      expect(results).toContain('How the model calculates this');
       expect(results).toContain('Leontief inverse');
       expect(results).toContain('Social Security');
-      expect(results).toContain('What these figures measure');
+      expect(results).toContain('What these values measure');
       if (a.construction.enabled) expect(results).toContain('Job-years');
       if (a.netImpact.enabled) expect(results).toContain('Net new impact');
-      if (a.ownership === 'tribal') expect(results).toContain('Tribal revenue sharing (compact)');
+      if (a.ownership === 'tribal') expect(results).toContain('Tribal revenue share (compact)');
       expect(renderToStaticMarkup(<SensitivityView analysis={a} model={model} result={r} />)).toContain('Multi-year projection');
       expect(renderToStaticMarkup(<InputsPanel analysis={a} update={() => {}} result={r} />)).toContain('Annual revenue');
     });
@@ -52,9 +52,9 @@ describe('views render', () => {
     const method = renderToStaticMarkup(<MethodView model={model} />);
     expect(method).toContain('Multipliers for Pennsylvania');
     expect(method).toContain('TwoRegion_Summary_ValueAdded_2019');
-    expect(method).toContain('How a result is computed');
+    expect(method).toContain('How the model calculates a result');
     expect(method).toContain('All 71 industries');
     const compare = renderToStaticMarkup(<CompareView scenarios={[]} onAdd={() => {}} onRemove={() => {}} onLoad={() => {}} />);
-    expect(compare).toContain('No scenarios yet');
+    expect(compare).toContain('There are no scenarios');
   });
 });

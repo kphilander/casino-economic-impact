@@ -38,19 +38,19 @@ export function SensitivityView({ analysis, model, result }: { analysis: Analysi
       <div className="view-head">
         <div>
           <h2>Sensitivity</h2>
-          <p>Each point recomputes the full analysis, so tiered tax schedules, wage caps and the payroll adjustment respond.</p>
+          <p>At each point, the model calculates the full analysis again. As a result, tiered tax schedules, wage limits and the payroll adjustment change correctly.</p>
         </div>
       </div>
       <section className="card">
         <div className="controls">
-          <Segmented label="Vary" value={driver} onChange={setDriver}
+          <Segmented label="Change" value={driver} onChange={setDriver}
             options={[{ value: 'ggr', label: 'Gaming revenue ±40%' }, { value: 'tax', label: 'Gaming tax rate 0–40%' }]} />
           <SelectField label="Show" value={metric} onChange={setMetric} options={METRICS.map((x) => ({ value: x.key, label: x.label }))} />
         </div>
         {!(ggr > 0) ? (
-          <p className="empty">Enter gaming revenue to run a sweep.</p>
+          <p className="empty">To see this chart, enter gaming revenue.</p>
         ) : taxSweepUnavailable ? (
-          <p className="empty">A tax-rate sweep needs gaming revenue (GGR). Enter revenue by department.</p>
+          <p className="empty">For the tax rate chart, enter gaming revenue (GGR) by department.</p>
         ) : (
           <>
             <LineChart
@@ -79,7 +79,7 @@ export function SensitivityView({ analysis, model, result }: { analysis: Analysi
 
       <section className="card">
         <h3>Multi-year projection</h3>
-        <p className="card-sub">Gaming revenue grows at a constant annual rate; other revenue is held at the current level. Values stay in {result.dollarYear} dollars.</p>
+        <p className="card-sub">Gaming revenue increases at a constant annual rate. Other revenue does not change. All values are in {result.dollarYear} dollars.</p>
         <div className="controls">
           <NumberField label="Years" value={years} onChange={setYears} min={1} max={30} step={1} />
           <NumberField label="Real growth of gaming revenue" value={growth} onChange={setGrowth} unit="% per year" percent />
@@ -97,7 +97,7 @@ export function SensitivityView({ analysis, model, result }: { analysis: Analysi
                   </tr>
                 ))}
                 <tr className="grand">
-                  <th scope="row">Cumulative</th>
+                  <th scope="row">Total</th>
                   <td />
                   {METRICS.map((x) => <td key={x.key}>{x.key === 'jobs' ? '–' : money(proj.cumulative[x.key as Exclude<keyof Headline, 'jobs'>])}</td>)}
                 </tr>

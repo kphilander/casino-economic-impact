@@ -43,24 +43,24 @@ function Notes({ r }: { r: ScenarioResult }) {
   const tribal = a.ownership === 'tribal' && !online;
   if (r.payrollAdjustment) {
     const p = r.payrollAdjustment;
-    notes.push(`Direct labor income of gaming is ${pct(1 - p.factor)} below the unadjusted coefficient (${money(p.directChange)}) for the ${pct(p.rate)} gaming tax carried in revenue. The adjustment is estimated from the model's payroll share of casino revenue against the 2022 Economic Census; direct jobs and GDP are unchanged.`);
+    notes.push(`The gaming tax decreases direct labor income of gaming by ${pct(1 - p.factor)} (${money(p.directChange)}). Casino revenue includes this tax, at a rate of ${pct(p.rate)}. The adjustment comes from a comparison of the model with the 2022 Economic Census. Direct jobs and GDP do not change.`);
   }
   if (r.totals.jobsRange) {
     const d = r.totals.jobsRange.direct;
     const partial = r.streams.some((s) => !s.impact.jobsRange && s.impact.sources.jobs === 'model');
-    notes.push(`Direct jobs: ${jobs(r.totals.jobs.direct)}, 90% predictive range ${jobs(d[0])} to ${jobs(d[1])}, from the state-by-state comparison of the coefficient with 2022 Economic Census jobs per revenue dollar.${partial ? ' The range covers gaming jobs; other departments enter at their point estimates.' : ''} Supplier and induced jobs are model estimates with no observed benchmark.`);
+    notes.push(`Direct jobs: ${jobs(r.totals.jobs.direct)}. The 90% range is ${jobs(d[0])} to ${jobs(d[1])}. The range comes from a comparison of the model with 2022 Economic Census jobs per revenue dollar in each state.${partial ? ' The range is for gaming jobs only. Other departments use their point values.' : ''} Supplier and induced jobs are model values. No observed data is available for them.`);
   }
   if (tribal) {
-    notes.push('Tribal ownership: the compact revenue share, if any, replaces the gaming tax, and the gaming enterprise’s direct taxes on production are excluded (trust land). No jobs range is given: the Economic Census excludes most tribal casinos.');
+    notes.push('Tribal ownership: the compact revenue share replaces the gaming tax. The gaming enterprise is on trust land, so the model includes no direct taxes on production for it. There is no range for jobs, because the Economic Census does not include most tribal casinos.');
   }
   if (online) {
-    notes.push('Online operator coefficients are scenario ratios estimated from operator filings. Enter observed in-state jobs and wages where they are available.');
+    notes.push('The coefficients for online operators are approximate. They come from ratios in operator SEC filings. If you have observed jobs and wages in the state, enter them.');
   }
   if (a.inputMode === 'total' && !online) {
-    notes.push('Total revenue is modeled as gambling industry output, and no gaming tax is computed on it. Enter revenue by department to model lodging, food and other revenue with their own industries.');
+    notes.push('The model uses the gambling coefficients for all of the total revenue. It calculates no gaming tax for this revenue. To use the correct industries for lodging, food and other revenue, enter revenue by department.');
   }
   const user = r.streams.filter((s) => s.impact.sources.jobs === 'user' || s.impact.sources.compensation === 'user');
-  if (user.length) notes.push(`Observed jobs or wages replace modeled direct values for: ${user.map((s) => s.label.toLowerCase()).join(', ')}.`);
+  if (user.length) notes.push(`Observed jobs or wages replace the direct values of the model for: ${user.map((s) => s.label.toLowerCase()).join(', ')}.`);
   if (!notes.length) return null;
   return <ul className="notes">{notes.map((n) => <li key={n}>{n}</li>)}</ul>;
 }
@@ -154,9 +154,9 @@ export function FiscalTable({ fiscal, showGamingNote }: { fiscal: Fiscal; showGa
         </table>
       </div>
       <p className="footnote">
-        {showGamingNote && `The gaming tax replaces the gaming share of the I-O model's direct taxes on production for the gaming stream; the remaining ${pct(NON_GAMING_TOPI_SHARE)} (property taxes and licenses) is kept. `}
-        Payroll and income taxes apply to estimated cash wages: BEA compensation converted with QCEW-to-BEA wage ratios.
-        {fiscal.incomeTaxMethod === 'per_worker' ? ' Income taxes treat each job as a single filer at the average wage, under 2025 federal, state and typical local schedules.' : ''}
+        {showGamingNote && `For the gaming stream, the gaming tax replaces the gaming part of the direct taxes on production in the I-O model. The model keeps the other ${pct(NON_GAMING_TOPI_SHARE)} (property taxes and licenses). `}
+        Payroll and income taxes use cash wages. The model calculates cash wages from BEA compensation with QCEW-to-BEA wage ratios.
+        {fiscal.incomeTaxMethod === 'per_worker' ? ' For income taxes, the model counts each job as a single filer at the average wage. It uses 2025 federal, state and typical local tax schedules.' : ''}
       </p>
     </>
   );
@@ -174,7 +174,7 @@ function Industries({ r, model }: { r: ScenarioResult; model: RegionalModel }) {
   return (
     <section className="card">
       <h3>Supplier and induced jobs by industry</h3>
-      <p className="card-sub">Top ten of {model.industries.length} industries in {r.analysis.state}; {jobs(total)} jobs in all.</p>
+      <p className="card-sub">The ten largest of {model.industries.length} industries in {r.analysis.state}. Total: {jobs(total)} jobs.</p>
       <ol className="bars">
         {top.map((x) => (
           <li key={x.code}>
@@ -184,7 +184,7 @@ function Industries({ r, model }: { r: ScenarioResult; model: RegionalModel }) {
           </li>
         ))}
       </ol>
-      {profiled && <p className="footnote">Gaming supply chains follow the StateIO amusement, gambling and recreation (713) pattern, scaled to the gambling detail industry.</p>}
+      {profiled && <p className="footnote">Gaming supply chains use the pattern of StateIO industry 713 (amusement, gambling and recreation), with ratios for the gambling industry.</p>}
       <IndustriesExplain r={r} model={model} top={top.map((x) => x.i)} />
     </section>
   );
@@ -196,7 +196,7 @@ function Net({ r }: { r: ScenarioResult }) {
   return (
     <section className="card">
       <h3>Net new impact</h3>
-      <p className="card-sub">{pct(r.net.share)} of revenue is new to {r.analysis.state}. Fiscal lines above are gross.</p>
+      <p className="card-sub">{pct(r.net.share)} of revenue is new to {r.analysis.state}. The tax lines above are gross values.</p>
       <div className="mini-stats">
         <Stat label="Net jobs" value={jobs(t.jobs.total)} />
         <Stat label="Net GDP" value={money(t.gdp.total)} />
@@ -214,9 +214,9 @@ function Construction({ r }: { r: ScenarioResult }) {
   return (
     <section className="card">
       <h3>Construction phase (one time)</h3>
-      <p className="card-sub">{money(c.localSpend)} spent in-state of {money(c.cost)} over {c.years} {c.years === 1 ? 'year' : 'years'}. Jobs are job-years.</p>
+      <p className="card-sub">{money(c.localSpend)} spent in the state, of a total of {money(c.cost)}, during {c.years} {c.years === 1 ? 'year' : 'years'}. Jobs are job-years.</p>
       <div className="mini-stats">
-        <Stat label="Job-years" value={jobs(c.impact.jobs.total)} sub={`${jobs(c.annualJobs)} per year`} />
+        <Stat label="Job-years" value={jobs(c.impact.jobs.total)} sub={`${jobs(c.annualJobs)} each year`} />
         <Stat label="GDP" value={money(c.impact.gdp.total)} />
         <Stat label="Labor income" value={money(c.impact.compensation.total)} />
         <Stat label="Tax revenue" value={money(c.fiscal.totals.all.total)} />
@@ -233,7 +233,7 @@ export function ResultsView({ r, model }: { r: ScenarioResult; model: RegionalMo
     <div className="results">
       <div className="results-head">
         <h2>{title}</h2>
-        <p>Annual impact in {a.state}, {r.dollarYear} dollars. Supplier effects are purchases from in-state industries; induced effects are household spending of labor income.</p>
+        <p>Annual impact in {a.state}, in {r.dollarYear} dollars. Supplier effects are purchases from industries in the state. Induced effects are household purchases from labor income.</p>
       </div>
       <Headline r={r} />
       <DefinitionsExplain />

@@ -25,7 +25,7 @@ export function ShareBar({ analysis, onLoad, onCompare }: { analysis: Analysis; 
     setLink(url);
     try {
       await navigator.clipboard.writeText(url);
-      setFlash('Link copied');
+      setFlash('The link is on the clipboard.');
       setOpen(null);
     } catch {
       // Clipboard access can be refused; show the link to copy by hand.
@@ -49,7 +49,7 @@ export function ShareBar({ analysis, onLoad, onCompare }: { analysis: Analysis; 
           e.preventDefault();
           setProjects(saveProject(name, analysis));
           setOpen(null);
-          setFlash('Saved in this browser');
+          setFlash('The project is saved in this browser.');
         }}>
           <label htmlFor="save-name">Project name</label>
           <input id="save-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
@@ -57,7 +57,7 @@ export function ShareBar({ analysis, onLoad, onCompare }: { analysis: Analysis; 
             <button type="submit" className="btn primary">Save</button>
             <button type="button" className="btn" onClick={() => setOpen(null)}>Cancel</button>
           </div>
-          <p className="hint">Projects are stored in this browser only. Use a share link to move an analysis to another device.</p>
+          <p className="hint">Only this browser keeps the projects. To move an analysis to a different device, use a share link.</p>
         </form>
       )}
 
@@ -65,14 +65,14 @@ export function ShareBar({ analysis, onLoad, onCompare }: { analysis: Analysis; 
         <div className="popover">
           <label htmlFor="share-link">Share link</label>
           <input id="share-link" ref={linkRef} readOnly value={link} onFocus={(e) => e.target.select()} />
-          <p className="hint">The link contains every input of the analysis; no data is sent to a server.</p>
+          <p className="hint">The link contains all inputs of the analysis. The app sends no data to a server.</p>
           <div className="popover-actions"><button type="button" className="btn" onClick={() => setOpen(null)}>Close</button></div>
         </div>
       )}
 
       {open === 'projects' && (
         <div className="popover wide">
-          {projects.length === 0 ? <p className="hint">No saved projects in this browser.</p> : (
+          {projects.length === 0 ? <p className="hint">This browser has no saved projects.</p> : (
             <ul className="projects">
               {projects.map((p) => (
                 <li key={p.id}>
@@ -88,7 +88,7 @@ export function ShareBar({ analysis, onLoad, onCompare }: { analysis: Analysis; 
                     </div>
                   )}
                   <div className="project-actions">
-                    <button type="button" className="link" onClick={() => { onLoad(p.analysis); setOpen(null); setFlash(`Loaded ${p.name}`); }}>Load</button>
+                    <button type="button" className="link" onClick={() => { onLoad(p.analysis); setOpen(null); setFlash(`${p.name} is open.`); }}>Load</button>
                     <button type="button" className="link" onClick={() => setRenaming({ id: p.id, name: p.name })}>Rename</button>
                     {confirmDelete === p.id ? (
                       <button type="button" className="link danger" onClick={() => { setProjects(deleteProject(p.id)); setConfirmDelete(null); }}>Confirm delete</button>

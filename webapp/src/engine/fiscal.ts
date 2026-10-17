@@ -83,7 +83,7 @@ export function buildFiscal(input: FiscalInput, data: FiscalData): Fiscal {
   if (tribal) {
     topiDirect -= gamingStreamTopi;
     if (gamingTax) {
-      lines.push(line('gaming', 'Tribal revenue sharing (compact)', 'state_local',
+      lines.push(line('gaming', 'Tribal revenue share (compact)', 'state_local',
         { direct: gamingTax.amount }, `${pct(gamingTax.effectiveRate)} of GGR`));
     }
   } else if (gamingTax) {
@@ -93,7 +93,7 @@ export function buildFiscal(input: FiscalInput, data: FiscalData): Fiscal {
   }
   lines.push(line('topi', gamingTax ? 'Other taxes on production and imports' : 'Taxes on production and imports',
     'state_local', { direct: topiDirect, indirect: input.topi.indirect, induced: input.topi.induced },
-    'Sales, property, excise and license taxes from the I-O model, mostly state and local'));
+    'I-O model values for sales, property, excise and license taxes. Most are state and local taxes.'));
 
   const payroll = {} as Record<Effect, PayrollTax>;
   const income = {} as Record<Effect, IncomeTax>;
@@ -107,7 +107,7 @@ export function buildFiscal(input: FiscalInput, data: FiscalData): Fiscal {
   lines.push(line('payroll_state', 'State payroll taxes (UI, SDI, PFML)', 'state_local', pick(payroll, 'state')));
   if (income.direct.method === 'bea_ratio') {
     lines.push(line('income_combined', 'Household income taxes (BEA ratio)', 'state_local', pick(income, 'total'),
-      'Federal, state and local combined: BEA personal current taxes per dollar of wages'));
+      'Federal, state and local taxes together: the BEA ratio of personal current taxes to wages'));
   } else {
     lines.push(line('income_federal', 'Federal income tax (households)', 'federal', pick(income, 'federal')));
     lines.push(line('income_state_local', 'State and local income tax (households)', 'state_local', pick(income, 'stateLocal')));

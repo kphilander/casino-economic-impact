@@ -11,10 +11,10 @@ import { money, pct } from './format';
 type Update = (f: (a: Analysis) => Analysis) => void;
 
 const DEPARTMENT_HINTS: Record<Department, string> = {
-  gaming: 'Gambling industries (7132); taxed under the state schedule.',
+  gaming: 'Gambling industries (7132). The state gaming tax is on this revenue.',
   food: 'Food services and drinking places (722).',
   lodging: 'Accommodation (721).',
-  other: 'Performing arts, spectator sports, museums (711AS).',
+  other: 'Performing arts, spectator sports and museums (711AS).',
 };
 
 const vertical = (pt: PropertyType): GamingVertical =>
@@ -39,16 +39,16 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
     <div className="inputs">
       <Section title="Property">
         <SelectField label="State" value={a.state} options={STATES.map((s) => ({ value: s.name, label: s.name }))} onChange={(s) => set('state', s)}
-          hint="Selects the state's input-output tables, gaming tax schedule and payroll and income tax rules." />
-        <TextField label="Property name (optional)" value={a.name} onChange={(s) => set('name', s)} placeholder="e.g. Riverside Casino" />
+          hint="The model uses the input-output tables, gaming tax schedule and tax rules of this state." />
+        <TextField label="Property name" value={a.name} onChange={(s) => set('name', s)} placeholder="For example, Riverside Casino" />
         <SelectField
           label="Property type"
           value={a.propertyType}
           options={(Object.keys(PROPERTY_TYPES) as PropertyType[]).map((k) => ({ value: k, label: PROPERTY_TYPES[k].label }))}
           onChange={(pt) => update((x) => ({ ...x, propertyType: pt, inputMode: isOnline(pt) ? 'department' : x.inputMode }))}
           hint={online
-            ? 'Online GGR uses the gambling coefficients with operator ratios and the state’s online tax schedule.'
-            : 'Gaming revenue of every land-based type uses the gambling (7132) coefficients. The type selects the direct-jobs range.'}
+            ? 'For online GGR, the model uses the gambling coefficients with operator ratios. It also uses the online tax schedule of the state.'
+            : 'All land-based types use the gambling (7132) coefficients for gaming revenue. The property type controls the range for direct jobs.'}
         />
         {!online && (
           <Segmented
@@ -59,7 +59,7 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
           />
         )}
         {tribal && (
-          <p className="hint">No state gaming tax and no taxes on production for the gaming enterprise; the compact revenue share is entered below.</p>
+          <p className="hint">Tribal gaming pays no state gaming tax. The model includes no taxes on production for the gaming enterprise. Enter the compact revenue share below.</p>
         )}
       </Section>
 
@@ -78,7 +78,7 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
             onChange={(n) => setRevenue(a.inputMode === 'total' ? 'total' : 'gaming', n)} />
         ) : a.inputMode === 'total' ? (
           <NumberField label="Total operating revenue" unit="$M" min={0} value={a.revenue.total} onChange={(n) => setRevenue('total', n)}
-            hint="All revenue is modeled as gambling industry output. Gaming tax needs GGR: enter revenue by department to compute it." />
+            hint="The model uses the gambling coefficients for all of this revenue and calculates no gaming tax. To get the gaming tax, enter revenue by department." />
         ) : (
           DEPARTMENTS.map((d) => (
             <NumberField key={d} label={DEPARTMENT_LABELS[d]} unit="$M" min={0} value={a.revenue[d]} onChange={(n) => setRevenue(d, n)}
@@ -90,20 +90,20 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
           value={a.dollarYear ?? LATEST_CPI_YEAR}
           options={CPI_YEARS.map((y) => ({ value: y, label: y === LATEST_CPI_YEAR ? `${y} (latest CPI year)` : String(y) }))}
           onChange={(y) => set('dollarYear', y)}
-          hint="Revenue is converted to 2023 dollars (CPI-U) before jobs are estimated."
+          hint="The model changes revenue to 2023 dollars (CPI-U) before it calculates jobs."
         />
       </Section>
 
-      <Section title={tribal ? 'Compact revenue sharing' : 'Gaming tax'}>
+      <Section title={tribal ? 'Compact revenue share' : 'Gaming tax'}>
         {tribal ? (
-          <p className="note">Tribal gaming pays no state gaming tax. Enter the compact&apos;s revenue share of GGR, if any.</p>
+          <p className="note">Tribal gaming pays no state gaming tax. If the compact has a revenue share, enter it as a percentage of GGR.</p>
         ) : hasGamingTax(stateTax, v) && schedule ? (
           <p className="note">{schedule.description ?? 'Statutory schedule.'}</p>
         ) : (
-          <p className="note">{a.state} has no {v === 'land' ? 'commercial casino' : v === 'igaming' ? 'iGaming' : 'sports betting'} tax schedule. Enter a rate to model one.</p>
+          <p className="note">{a.state} has no {v === 'land' ? 'commercial casino' : v === 'igaming' ? 'iGaming' : 'sports betting'} tax schedule. To calculate a tax, enter a rate.</p>
         )}
         {a.inputMode === 'total' && !online && (
-          <p className="note">With total revenue only, no {tribal ? 'revenue share' : 'gaming tax'} is computed. A rate entered here still sets the gaming-tax adjustment of direct labor income.</p>
+          <p className="note">With total revenue only, the model calculates no {tribal ? 'revenue share' : 'gaming tax'}. A rate that you enter here changes only the gaming-tax adjustment of direct labor income.</p>
         )}
         <NumberField
           label={tribal ? 'Revenue share' : 'Custom rate (replaces the schedule)'}
@@ -115,19 +115,19 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
         {split && (
           <NumberField label="Slot share of GGR" unit="%" min={0} max={100} value={a.gamingTax.slotSharePct}
             onChange={(n) => set('gamingTax', { ...a.gamingTax, slotSharePct: n ?? 70 })}
-            hint="Slots and table games are taxed on separate schedules in this state." />
+            hint="This state has separate tax schedules for slots and table games." />
         )}
         {result?.gamingTax && (
-          <p className="computed">{money(result.gamingTax.amount)} a year: {pct(result.gamingTax.effectiveRate)} of {money(result.gamingTax.ggr)} GGR</p>
+          <p className="computed">{money(result.gamingTax.amount)} each year: {pct(result.gamingTax.effectiveRate)} of {money(result.gamingTax.ggr)} GGR</p>
         )}
       </Section>
 
-      <Section title="Observed operating data" collapsible badge={knownCount ? `${knownCount} entered` : undefined}>
+      <Section title="Observed jobs and wages" collapsible badge={knownCount ? `${knownCount} entered` : undefined}>
         <p className="note">
-          Observed direct jobs and cash wages (W-2 payroll) replace the model&apos;s direct values. Supplier jobs are unchanged; induced effects follow the change in labor income.
-          {a.inputMode === 'total' && !online ? ' With total revenue, entries are summed across departments.' : ''}
+          Observed direct jobs and cash wages (W-2 payroll) replace the direct values of the model. Supplier jobs do not change. Induced effects change with labor income.
+          {a.inputMode === 'total' && !online ? ' With total revenue, the model adds the values for all departments.' : ''}
         </p>
-        <p className="hint">Jobs: annual average filled jobs. Cash wages: payroll wages, the QCEW basis; they are divided by the industry&apos;s QCEW-to-BEA wage ratio to give labor income.</p>
+        <p className="hint">Jobs: annual average filled jobs. Cash wages: payroll wages, as in QCEW. The model divides cash wages by the QCEW-to-BEA wage ratio of the industry to get labor income.</p>
         {departments.map((d) => (
           <div className="pair" key={d}>
             <span className="pair-label">{online ? 'Operations' : DEPARTMENT_LABELS[d]}</span>
@@ -138,29 +138,32 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
       </Section>
 
       <Section title="Net new impact" collapsible badge={a.netImpact.enabled ? 'on' : undefined}>
-        <Toggle label="Report net new impact" checked={a.netImpact.enabled} onChange={(e) => set('netImpact', { ...a.netImpact, enabled: e })} />
-        <p className="note">Net impact counts revenue from visitors and resident play that would otherwise leave the state. The rest displaces in-state spending.</p>
+        <Toggle label="Show net new impact" checked={a.netImpact.enabled} onChange={(e) => set('netImpact', { ...a.netImpact, enabled: e })} />
+        <p className="note">
+          Net impact counts only revenue that is new to the state. New revenue is revenue from visitors, plus resident play that moves back from casinos in other states.
+          All other resident revenue moves from businesses in the state.
+        </p>
         {a.netImpact.enabled && (
           <>
-            <NumberField label="Out-of-state visitors' share of revenue" unit="%" min={0} max={100} value={a.netImpact.nonResidentShare}
+            <NumberField label="Visitors' share of revenue" unit="%" min={0} max={100} value={a.netImpact.nonResidentShare}
               onChange={(n) => set('netImpact', { ...a.netImpact, nonResidentShare: n })} />
-            <NumberField label="Resident play recaptured from other states" unit="%" min={0} max={100} value={a.netImpact.recaptureShare}
+            <NumberField label="Resident play that moves back from other states" unit="%" min={0} max={100} value={a.netImpact.recaptureShare}
               onChange={(n) => set('netImpact', { ...a.netImpact, recaptureShare: n ?? 0 })} />
           </>
         )}
       </Section>
 
       <Section title="Construction phase" collapsible badge={a.construction.enabled ? 'on' : undefined}>
-        <Toggle label="Include a one-time construction phase" checked={a.construction.enabled} onChange={(e) => set('construction', { ...a.construction, enabled: e })} />
+        <Toggle label="Include a construction phase (one time)" checked={a.construction.enabled} onChange={(e) => set('construction', { ...a.construction, enabled: e })} />
         {a.construction.enabled && (
           <>
             <NumberField label="Construction cost" unit="$M" min={0} value={a.construction.cost} onChange={(n) => set('construction', { ...a.construction, cost: n })} />
             <NumberField label="Spent with in-state firms" unit="%" min={0} max={100} value={a.construction.localShare}
               onChange={(n) => set('construction', { ...a.construction, localShare: n ?? 0 })}
-              hint="Exclude land, gaming equipment and purchases from out-of-state firms. Only this share enters the model." />
+              hint="Do not include land, gaming equipment or purchases from firms in other states. The model uses only this share." />
             <NumberField label="Build period" unit="years" min={1} step={1} value={a.construction.years}
               onChange={(n) => set('construction', { ...a.construction, years: n ?? 1 })}
-              hint="Job-years are divided by the build period to give jobs a year." />
+              hint="The model divides job-years by the build period to get jobs for each year." />
           </>
         )}
       </Section>

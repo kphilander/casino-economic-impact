@@ -45,14 +45,14 @@ export function App() {
   };
 
   let body;
-  if (error) body = <p className="empty error">The model data could not be loaded: {error}</p>;
-  else if (!model) body = <p className="empty">Loading the {analysis.state} input-output tables…</p>;
+  if (error) body = <p className="empty error">The app cannot load the model data: {error}</p>;
+  else if (!model) body = <p className="empty">Wait. The app loads the input-output tables for {analysis.state}.</p>;
   else if (tab === 'method') body = <MethodView model={model} />;
   else if (tab === 'compare') {
     body = <CompareView scenarios={scenarios} onAdd={addScenario}
       onRemove={(id) => setScenarios((p) => p.filter((s) => s.id !== id))}
       onLoad={(a) => { setAnalysis(structuredClone(a)); setTab('results'); }} />;
-  } else if (!result) body = <p className="empty">Enter annual revenue to estimate the economic impact.</p>;
+  } else if (!result) body = <p className="empty">To see the economic impact, enter annual revenue.</p>;
   else if (tab === 'sensitivity') body = <SensitivityView analysis={analysis} model={model} result={result} />;
   else body = <ResultsView r={result} model={model} />;
 
@@ -62,8 +62,8 @@ export function App() {
         <p className="eyebrow">{BRAND.publisher} · Economic analysis</p>
         <h1>{PRODUCT_NAME_VERSIONED}: {BRAND.productFullName}</h1>
         <p className="lede">
-          Direct, supplier and household-spending impacts of casino and online gaming operations in each U.S. state, from a
-          regional input-output model built in your browser from EPA StateIO tables and BLS employment data.
+          This calculator gives the direct, supplier and induced effects of casino and online gaming operations in each U.S. state. Your
+          browser makes a regional input-output model from EPA StateIO tables and BLS employment data.
         </p>
       </header>
 
@@ -73,8 +73,8 @@ export function App() {
 
       {fromForecaster && (
         <p className="banner" role="status">
-          Revenue imported from the <a href="https://gamblingpolicy.com/tools/revenue-forecaster/">Casino Revenue Forecaster</a>. Review the inputs before use.
-          <button type="button" className="link" onClick={() => setFromForecaster(false)}>Dismiss</button>
+          The revenue values come from the <a href="https://gamblingpolicy.com/tools/revenue-forecaster/">Casino Revenue Forecaster</a>. Examine the inputs before you use the results.
+          <button type="button" className="link" onClick={() => setFromForecaster(false)}>Close</button>
         </p>
       )}
 

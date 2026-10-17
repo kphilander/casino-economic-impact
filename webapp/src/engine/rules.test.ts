@@ -167,7 +167,7 @@ describe('fiscal lines', () => {
     const data = fiscalDataFor('Oklahoma');
     const f = buildFiscal({ ...input, gamingTax: { amount: 6, effectiveRate: 0.06 }, gamingStreamTopi: 5, tribal: true }, data);
     expect(f.lines.find((l) => l.key === 'topi')!.direct).toBeCloseTo(0, 12);
-    expect(f.lines.find((l) => l.key === 'gaming')!.label).toBe('Tribal revenue sharing (compact)');
+    expect(f.lines.find((l) => l.key === 'gaming')!.label).toBe('Tribal revenue share (compact)');
     const none = buildFiscal({ ...input, gamingStreamTopi: 5, tribal: true }, data);
     expect(none.lines.some((l) => l.key === 'gaming')).toBe(false);
   });

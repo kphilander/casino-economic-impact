@@ -39,17 +39,8 @@ export function reportFiscal(results, { fiscal } = {}) {
   return fiscal;
 }
 
-/**
- * Whether the tribal treatment actually removed the gaming stream's direct
- * TOPI, read from the bundle's own output. It does not when revenue was
- * entered in total, because the gaming stream cannot be separated.
- */
-export function tribalTopiRemoved(results, fiscal) {
-  const topi = fiscal.lines.find(l => l.key === 'topi');
-  return !!topi && results.totals.tax.direct - topi.direct > 1e-9;
-}
-
-export const TRIBAL_UNADJUSTED_NOTE = 'Tribal ownership, but revenue was entered in total, so the gaming stream cannot be separated: no compact revenue share is estimated and production taxes are not adjusted for trust-land exemptions, so they may overstate state and local taxes. Enter revenue by department to apply the tribal treatment.';
+/** One-line note on the direct-jobs range, shared by the exporters. */
+export const JOBS_RANGE_NOTE = 'Direct jobs use the I-O coefficient. Compared state by state with the 2022 Economic Census, the coefficient\'s jobs per dollar of revenue show no bias at casinos; the 90% range reflects the variation across states. Supplier and induced jobs are as modeled.';
 
 /** "40% non-resident + 60% resident x 20% recaptured = 52.0%" for net-impact notes. */
 export function describeNetShare(netImpact, share, times = '×') {
@@ -86,17 +77,13 @@ export function buildResultsCSV(results, context = {}) {
       typeof mult === 'number' ? round(mult, 2) : '',
     ]);
   }
-  // Direct-jobs basis and the 90% predictive interval from the QCEW validation
-  const emp = results.totals.employment;
-  if (emp.detail) {
-    const d = emp.detail;
-    rows.push(['Employment basis', emp.basis === 'calibrated'
-      ? 'Direct jobs calibrated to observed QCEW casino labor intensity; supplier and induced jobs as modeled'
-      : 'Direct jobs from the I-O coefficient (not calibrated); supplier and induced jobs as modeled']);
-    rows.push(['Jobs, 90% predictive interval', 'Low', 'High', 'I-O coefficient', 'Calibrated to QCEW']);
-    rows.push(['Direct jobs', round(d.range.direct[0], 0), round(d.range.direct[1], 0), round(d.model.direct, 0), round(d.calibrated.direct, 0)]);
-    rows.push(['Total jobs', round(d.range.total[0], 0), round(d.range.total[1], 0), round(d.model.total, 0), round(d.calibrated.total, 0)]);
-    rows.push(['Interval from a 50-state validation of direct jobs against BLS QCEW (2023)']);
+  // 90% range for direct and total jobs (land-based commercial casinos only)
+  const jobsRange = results.totals.employment.detail?.range;
+  if (jobsRange) {
+    rows.push(['Jobs, 90% range', 'Low', 'High']);
+    rows.push(['Direct jobs', round(jobsRange.direct[0], 0), round(jobsRange.direct[1], 0)]);
+    rows.push(['Total jobs', round(jobsRange.total[0], 0), round(jobsRange.total[1], 0)]);
+    rows.push([JOBS_RANGE_NOTE]);
   }
   rows.push([]);
 
@@ -113,9 +100,7 @@ export function buildResultsCSV(results, context = {}) {
   if (tribal) {
     rows.push([fiscal.lines.some(l => l.key === 'gaming')
       ? 'Tribal gaming on trust land pays compact revenue sharing instead of state gaming, sales and property taxes: the revenue share replaces the gaming stream\'s direct TOPI, so every line is additive'
-      : tribalTopiRemoved(results, fiscal)
-        ? 'Tribal gaming on trust land pays no state gaming, sales or property taxes: the gaming stream\'s direct TOPI is excluded and no compact revenue share was entered'
-        : TRIBAL_UNADJUSTED_NOTE]);
+      : 'Tribal gaming on trust land pays no state gaming, sales or property taxes: the gaming stream\'s direct TOPI is excluded and no compact revenue share is estimated']);
   } else if (fiscal.lines.some(l => l.key === 'gaming')) {
     rows.push(['The statutory gaming tax replaces the gaming share of direct TOPI, so every line is additive']);
   }

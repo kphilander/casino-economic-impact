@@ -107,32 +107,37 @@ The IO tables contain only the blended sector 713 (Amusement, Gambling, and Recr
 
 These ratios adapt StateIO 713 direct and incremental Type I effects. Because USEEIO is an open Type I model, the same documented supplier-side ratios scale the StateIO induced increments. Supplier and induced job intensity is not multiplied by the casino operator's direct labor ratio. The former competing legacy calibration has been removed.
 
-### 2.6 Validation Calibration of Direct Jobs
+### 2.6 Validation of Direct Jobs and Predictive Ranges
 
-Direct jobs are the one employment quantity with an observed, non-circular benchmark: QCEW reports jobs and wages for casino establishments (NAICS 713210, 713290, 721120) in each state. A 50-state comparison of the gambling coefficient's implied jobs per wage dollar with that benchmark (2023, cells with at least 50 jobs) found that the coefficient under-predicts casino labor intensity: geometric-mean ratios of 0.71 for stand-alone casinos, 0.84 for casino hotels, and 0.90 for slot parlors (not significant). The unadjusted 713/721 parent sectors over-predict (1.14, 1.10, 1.43). The national `713200/US` detail ratio lowers jobs per output by 46% but compensation per output by only 14%, moving the coefficient the right way but overshooting for stand-alone casinos.
+Direct jobs are the one employment quantity with an observed, non-circular benchmark. Two benchmarks were used, each compared state by state with the gambling coefficient for casino property types (NAICS 713210, 713290, 721120):
 
-The comparison converts model compensation to QCEW-comparable wages by industry (Section 3.3). Without that conversion, the measured shortfall roughly doubles.
+1. **QCEW, jobs per wage dollar** (2023, all states, cells with at least 50 jobs). The coefficient appears short: geometric-mean ratios of 0.71 for stand-alone casinos, 0.84 for casino hotels and 0.90 for slot parlors. This requires converting model compensation to QCEW-comparable wages by industry (Section 3.3); without the conversion the shortfall roughly doubles.
+2. **2022 Economic Census, jobs and payroll per revenue dollar.** Unlike QCEW, the Census observes receipts, so it can separate jobs per dollar of output from compensation per dollar of output.
+   - **Jobs per revenue dollar show no bias:** ratios of 0.94, 1.06 and 0.96, with p > 0.5.
+   - **The payroll share of revenue is 18–53% too high**, and the observed share falls as the state's effective gaming tax rises. StateIO gives every state the national value-added composition, so the coefficient cannot reflect that gaming taxes take a large share of revenue in high-tax states.
+   - The jobs-per-wage shortfall in the QCEW test is therefore a compensation overstatement, not a shortage of jobs.
 
-GEMS therefore reports, by default, **calibrated direct jobs** = I-O direct jobs × property-type factor (`webapp/src/data/laborCalibration.json`), and shows the uncalibrated I-O value alongside. Each factor carries a 90% predictive interval from the cross-state dispersion of the residuals, which the dashboard and reports show as a range for direct and total jobs.
+GEMS therefore applies **no adjustment to direct jobs**. For land-based commercial casinos it reports a **90% predictive range** for direct and total jobs (`webapp/src/data/jobsRange.json`). The range is the 5th–95th percentile of a lognormal fitted to the cross-state dispersion of the Census residuals:
 
-| Property type | Cells | Factor | 90% interval |
+| Property type | Cells | Model / Census jobs per revenue $ | 90% range (× coefficient) |
 |---|---:|---:|---|
-| Stand-alone casino (713210) | 20 | 1.40 | 0.89–2.21 |
-| Slot parlor / other gambling (713290) | 30 | 1.11 | 0.54–2.31 |
-| Casino hotel (721120) | 18 | 1.19 | 0.69–2.06 |
-| Stand-alone casino, tribal | 17 | 1.21 | 0.64–2.26 |
-| Casino hotel, tribal | 11 | 1.13 | 0.68–1.88 |
+| Stand-alone casino (713210) | 15 | 0.94 (p = 0.56) | 0.56–2.01 |
+| Slot parlor / other gambling (713290) | 22 | 1.06 (p = 0.65) | 0.33–2.70 |
+| Casino hotel (721120) | 19 | 0.96 (p = 0.60) | 0.59–1.83 |
 
 Scope and assumptions:
 
-- In total mode, the selected property type's factor applies. In department mode, only the gaming stream is calibrated, using the stand-alone-casino factor as the gaming-floor proxy (the slot-parlor factor for slot parlors). Lodging, food and other revenue use parent-sector coefficients, which are not adjusted.
-- **Tribal properties** (Inputs → Analysis settings → Ownership) use factors estimated against tribal-government casinos (QCEW own_code 3). BEA records tribal gaming as a state/local government enterprise, outside the private 713 industry the coefficients come from, and tribal casinos sit close to the coefficient. Tribal slot parlors (5 cells) are not calibrated.
-- Bars/restaurants with slots are not calibrated: the only QCEW benchmark, NAICS 722410, covers all drinking places. Online operations are not covered. User-entered jobs are never adjusted.
-- Supplier and induced jobs have no observed benchmark and are not adjusted.
-- The benchmark identifies jobs per *wage* dollar; casino output is not observed by state. The factor corrects jobs and holds the compensation-per-output coefficient fixed.
-- A factor calibrated on 2023 removes the bias in 2024 (corrected ratio 1.00); calibrated on 2019 it overshoots 2023 by 13%. Factors should be re-estimated with each QCEW vintage.
+- In total mode, the selected property type's range applies. In department mode, only the gaming stream carries a range, using the stand-alone-casino range as the gaming-floor proxy (the slot-parlor range for slot parlors).
+- No range is shown in these cases:
+  - Bars/restaurants with slots: there is no gaming-tavern benchmark.
+  - Tribal properties: the Economic Census excludes most tribal casinos, and BEA records tribal gaming as a government enterprise.
+  - Online operations.
+  - User-entered jobs.
+- Supplier and induced jobs have no observed benchmark and enter the range as modeled.
+- Census receipts include non-gaming revenue, consistent with the total-revenue input; Census employment is the mid-March pay period. Census and QCEW agree on jobs per payroll dollar within 2–4% for casinos and casino hotels.
+- The overstated compensation share means direct payroll-based taxes are probably overstated at casinos in high-tax states; a gaming-tax-dependent payroll adjustment is a candidate refinement, not yet applied.
 
-Users can switch to the uncalibrated I-O coefficient (Inputs → Analysis settings → Direct jobs estimate). Replication: `kphilander/casino-io-validation` (`analysis_output/correction_factors.csv`, `correction_factors_tribal.csv`; private until publication).
+Replication: `kphilander/casino-io-validation`, scripts 15 (QCEW) and 19 (Economic Census); private until publication.
 
 ### 2.7 Optional Modules
 
@@ -215,7 +220,7 @@ This replaces the earlier national NIPA wage share (0.814), which removes supple
 | BEA NIPA Tables 6.2D/6.3D (via FRED) and QCEW 2023 private wages | 2023 | Compensation-to-wage conversion by industry |
 | BEA 2017 detail supply-use table (via `useeior`) | 2017 | Non-gaming share of gambling TOPI |
 | IRS Rev. Proc. 2024-40, P.L. 119-21, state 2025 tax instructions and statutes | 2025 | Household income tax tables |
-| Validation of direct jobs against QCEW (Philander, under review) | 2023 | Direct-jobs calibration factors |
+| U.S. Census Bureau 2022 Economic Census (EC2271BASIC, EC2272BASIC) and QCEW 2023 | 2022–2023 | Validation of direct jobs; predictive ranges |
 
 ## 5. Sector and Property-Type Mapping
 
@@ -243,7 +248,7 @@ Legacy land-based total operating revenue is not treated as GGR for the statutor
 - State-level analysis captures only impacts within the state boundary; spending that leaks to other states is excluded.
 - The model is appropriate for policy analysis, planning, and comparative assessment. It is **not** appropriate for precise forecasting, investment decisions without professional advice, or legal proceedings.
 - IO models assume fixed production technology and no supply constraints; very large projects may alter local economic structure in ways the model does not capture.
-- Indirect and induced effects cannot be validated against observation without circularity: no agency measures them, and published "total impact" figures are themselves model output. Only the direct jobs coefficient is calibrated to observed data (Section 2.6).
+- Indirect and induced effects cannot be validated against observation without circularity: no agency measures them, and published "total impact" figures are themselves model output. Only the direct jobs coefficient is checked against observed data (Section 2.6).
 - The direct value-added, compensation and TOPI coefficients in the StateIO summary tables are national constants within each sector; state variation in modeled labor intensity comes from jobs per output.
 
 ## 7. Versioning
@@ -255,7 +260,7 @@ The model version is the release edition year (e.g., GEMS 2026). When a new edit
 | Version | Released | Notes |
 |---------|----------|-------|
 | GEMS 2026 | 2026 | Initial release. 2019 EPA StateIO multipliers, 2023 QCEW employment, USEEIOv2.0.1-411 gambling adjustments. |
-| GEMS 2026 (methodology update) | October 2026 | Direct jobs calibrated to QCEW with predictive ranges; tribal ownership option; statutory gaming tax replaces the gaming share of direct TOPI; 28 states' gaming taxes re-verified; per-worker 2025 income taxes; industry wage basis; payroll taxes by level of government; revenue dollar-year input; net-impact and construction-phase modules. |
+| GEMS 2026 (methodology update) | October 2026 | Direct jobs validated against the Economic Census, with predictive ranges; tribal ownership option; statutory gaming tax replaces the gaming share of direct TOPI; 28 states' gaming taxes re-verified; per-worker 2025 income taxes; industry wage basis; payroll taxes by level of government; revenue dollar-year input; net-impact and construction-phase modules. |
 
 ## 8. Key References
 

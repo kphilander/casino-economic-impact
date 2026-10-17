@@ -6,13 +6,12 @@ import { CPI_YEARS, DEFAULT_ANALYSIS_YEAR } from '../../utils/calculations';
  * Inputs-drawer section for analysis settings and optional modules:
  *   - dollar year of the revenue inputs (CPI-U deflation of the 2023-dollar
  *     employment coefficients)
- *   - direct-jobs basis (QCEW-calibrated vs. I-O coefficient)
+ *   - ownership (commercial or tribal)
  *   - net new impact (visitor share, recapture of out-of-state play)
  *   - one-time construction phase
  */
 export default function AnalysisOptions({
   analysisYear, setAnalysisYear,
-  employmentBasis, setEmploymentBasis,
   netImpact, setNetImpact,
   construction, setConstruction,
   ownership, setOwnership, stateHasTribal,
@@ -47,27 +46,9 @@ export default function AnalysisOptions({
           />
           <p className="text-xs text-text-muted leading-relaxed">
             Tribal: no state gaming tax (enter the compact revenue share as a custom gaming tax rate), no
-            state and local production taxes on the gaming operation, and jobs calibrated to tribal casinos.
+            state and local production taxes on the gaming operation, and no jobs range (tribal casinos are
+            not in the Economic Census benchmark).
             {stateHasTribal ? '' : ' This state has no tribal gaming on record.'}
-          </p>
-        </div>
-      )}
-
-      {!isOnline && (
-        <div className="space-y-1.5">
-          <span className="block text-sm font-medium text-text-secondary">Direct jobs estimate</span>
-          <SegmentedToggle
-            options={[
-              { value: 'calibrated', label: 'Calibrated to QCEW' },
-              { value: 'model', label: 'I-O coefficient' },
-            ]}
-            value={employmentBasis}
-            onChange={setEmploymentBasis}
-          />
-          <p className="text-xs text-text-muted leading-relaxed">
-            Calibrated (recommended) scales the gambling coefficient to the labor intensity observed at
-            casinos in BLS QCEW data, by property type and ownership. Not applied to bars with slots,
-            tribal slot parlors, online operators, or user-entered jobs.
           </p>
         </div>
       )}

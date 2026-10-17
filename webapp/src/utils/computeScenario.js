@@ -9,7 +9,7 @@ import multiplierData from '../data/multipliers.json';
 import gamingTaxRatesData from '../data/gamingTaxRates.json';
 import employmentTaxRatesData from '../data/employmentTaxRates.json';
 import incomeTaxData from '../data/incomeTaxRates.json';
-import laborCalibration from '../data/laborCalibration.json';
+import jobsRanges from '../data/jobsRange.json';
 import fiscalAssumptions from '../data/fiscalAssumptions.json';
 import wageBasis from '../data/wageBasis.json';
 import {
@@ -38,7 +38,6 @@ export function computeScenario(analysis) {
     gamingTaxCustomRate, slotRevenuePct,
   } = analysis;
   const analysisYear = analysis.analysisYear ?? DEFAULT_ANALYSIS_YEAR;
-  const employmentBasis = analysis.employmentBasis || 'calibrated';
   const tribal = analysis.ownership === 'tribal' && !isOnlinePropertyType(analysis.propertyType);
 
   const isOnline = isOnlinePropertyType(propertyType);
@@ -55,7 +54,7 @@ export function computeScenario(analysis) {
     multiplierData.propertyTypes || null,
     inputMode,
     multiplierData.onlineGaming || null,
-    { analysisYear, laborCalibration, employmentBasis, wageBasis, ownership: tribal ? 'tribal' : 'commercial' },
+    { analysisYear, jobsRanges, wageBasis, ownership: tribal ? 'tribal' : 'commercial' },
   );
 
   // Gaming tax (on GGR)
@@ -107,7 +106,7 @@ export function computeScenario(analysis) {
 
   return {
     results, fiscal, gamingTaxResult, payrollTaxResult, householdTaxResult,
-    totalTax, stateTaxConfig, net, construction, analysisYear, employmentBasis,
+    totalTax, stateTaxConfig, net, construction, analysisYear,
     ownership: tribal ? 'tribal' : 'commercial',
   };
 }

@@ -62,7 +62,7 @@ The statutory gaming tax therefore **replaces** the gaming share of the gaming s
 
 ## Tribal casinos
 
-BEA records gaming administered by tribal governments as a state and local government enterprise (GSLE), not as part of the private gambling industry; QCEW codes tribal casinos as local government (own_code 3). StateIO's 713 output therefore excludes tribal gaming, and the employment satellite correctly keeps the private-only filter: adding tribal jobs would place them over an output base that does not contain them. A **tribal ownership** option instead applies direct-jobs calibration factors estimated against tribal casinos, omits the state gaming tax, and replaces the gaming stream's direct TOPI with the compact revenue share.
+BEA records gaming administered by tribal governments as a state and local government enterprise (GSLE), not as part of the private gambling industry; QCEW codes tribal casinos as local government (own_code 3). StateIO's 713 output therefore excludes tribal gaming, and the employment satellite correctly keeps the private-only filter: adding tribal jobs would place them over an output base that does not contain them. A **tribal ownership** option instead omits the state gaming tax, replaces the gaming stream's direct TOPI with the compact revenue share, and shows no direct-jobs range (the Economic Census benchmark excludes most tribal casinos).
 
 ## Wage basis and household taxes
 

@@ -66,9 +66,9 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
     return null;
   }
   const DEFLATOR = options.deflator ?? getDeflator(DEFAULT_ANALYSIS_YEAR);
-  // Validation-calibrated direct-jobs factor { factor, p05, p95 } or null.
-  const labor = options.laborFactor || null;
-  const useCalibrated = labor && options.employmentBasis !== 'model';
+  // 90% predictive range for direct jobs { p05, p95 } relative to the
+  // coefficient (jobsRange.json), or null where no benchmark exists.
+  const jobsRange = options.jobsRange || null;
   // Share of compensation that is QCEW-comparable (taxable, payroll-reported)
   // wages: the stream's own sector for direct effects, all-private for ripple.
   const cashShare = options.cashWageShare || { direct: WAGE_SHARE_OF_COMPENSATION, ripple: WAGE_SHARE_OF_COMPENSATION };
@@ -161,21 +161,15 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   // 2019 interindustry relationships but does not mix 2023 jobs with 2019
   // dollar denominators.
   let empDirect, empSource;
-  let modelEmpDirect = null;
   if (knownEmployment && knownEmployment > 0) {
     empDirect = knownEmployment;
     empSource = 'user';
   } else {
     // Deflate direct output to 2023 dollars before applying the coefficient.
-    modelEmpDirect = directJobsPerOutput != null
+    empDirect = directJobsPerOutput != null
       ? (revenue * DEFLATOR) * directJobsPerOutput
       : (gdpDirect * DEFLATOR) * empCoef;
-    // Direct jobs are the one employment quantity with an observed benchmark
-    // (QCEW jobs per wage dollar by state and property type). Where a
-    // validation-calibrated factor exists, the calibrated estimate is the
-    // default and the I-O coefficient is retained as `model`.
-    empDirect = useCalibrated ? modelEmpDirect * labor.factor : modelEmpDirect;
-    empSource = useCalibrated ? 'calibrated' : 'calculated';
+    empSource = 'calculated';
   }
 
   // Use industry-weighted employment coefficients for indirect/induced
@@ -186,23 +180,16 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   const empInduced = (gdpInduced * DEFLATOR) * inducedEmpCoef;
   const empTotal = empDirect + empIndirect + empInduced;
 
-  // Model vs. calibrated direct jobs, and the 90% predictive interval for
-  // direct jobs implied by the validation residuals. Supplier and induced
-  // jobs have no observed benchmark and enter the interval unchanged.
+  // 90% predictive interval for direct jobs from the 50-state comparison of
+  // the coefficient with Economic Census jobs per revenue dollar. Supplier and
+  // induced jobs have no observed benchmark and enter the interval unchanged.
   const ripple = empIndirect + empInduced;
-  let employmentDetail = null;
-  if (labor && modelEmpDirect != null) {
-    const calibratedDirect = modelEmpDirect * labor.factor;
-    employmentDetail = {
-      model: { direct: modelEmpDirect, total: modelEmpDirect + ripple },
-      calibrated: { direct: calibratedDirect, total: calibratedDirect + ripple },
-      range: {
-        direct: [modelEmpDirect * labor.p05, modelEmpDirect * labor.p95],
-        total: [modelEmpDirect * labor.p05 + ripple, modelEmpDirect * labor.p95 + ripple],
-      },
-      factor: labor.factor,
-    };
-  }
+  const employmentDetail = jobsRange && empSource === 'calculated' ? {
+    range: {
+      direct: [empDirect * jobsRange.p05, empDirect * jobsRange.p95],
+      total: [empDirect * jobsRange.p05 + ripple, empDirect * jobsRange.p95 + ripple],
+    },
+  } : null;
 
   // Estimated FTE impacts use a separate BEA industry satellite. Direct FTEs
   // use the direct industry's ratio; supplier and induced FTE coefficients
@@ -211,7 +198,7 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   // direct industry's documented ratio rather than silently treated as FTEs.
   const fteDirect = empSource === 'user'
     ? empDirect * ftePerJob
-    : (revenue * DEFLATOR) * directFtePerOutput * (useCalibrated ? labor.factor : 1);
+    : (revenue * DEFLATOR) * directFtePerOutput;
   const fteIndirect = (gdpIndirect * DEFLATOR) * indirectFteCoef;
   const fteInduced = (gdpInduced * DEFLATOR) * inducedFteCoef;
   const fteTotal = fteDirect + fteIndirect + fteInduced;
@@ -292,10 +279,9 @@ export function getPropertyTypeData(propertyType, state, propertyTypesData) {
  * @param {object|null} propertyTypesData - Property type multipliers from JSON
  * @param {string} inputMode - 'department' (default) or 'total'
  * @param {array|null} onlineGamingData - Array of online gambling multipliers (from multipliers.json onlineGaming section)
- * @param {object} options - { analysisYear, laborCalibration, employmentBasis, wageBasis, ownership }
+ * @param {object} options - { analysisYear, jobsRanges, wageBasis, ownership }
  *   analysisYear: dollar year of the revenue inputs (CPI-U deflation to 2023$)
- *   laborCalibration: laborCalibration.json contents (validation factors)
- *   employmentBasis: 'calibrated' (default when factors exist) or 'model'
+ *   jobsRanges: jobsRange.json contents (direct-jobs predictive ranges)
  *   wageBasis: wageBasis.json contents (compensation -> QCEW-comparable wages)
  *   ownership: 'commercial' (default) or 'tribal'
  */
@@ -314,15 +300,14 @@ export function calculateCombinedImpact(
   options = {}
 ) {
   const deflator = getDeflator(options.analysisYear ?? DEFAULT_ANALYSIS_YEAR);
-  const employmentBasis = options.employmentBasis || 'calibrated';
-  const laborFactorFor = (stream) => laborFactorForStream(options.laborCalibration, propertyType, inputMode, stream, options.ownership);
+  const jobsRangeFor = (stream) => jobsRangeForStream(options.jobsRanges, propertyType, inputMode, stream, options.ownership);
   const wb = options.wageBasis;
   const cashWageShareFor = (stateData) => wb ? {
     direct: isOnlinePropertyType(propertyType) ? wb.private : (wb.sectors[String(stateData.Sector)] ?? wb.private),
     ripple: wb.private,
   } : undefined;
   const impactOptions = (stream, stateData) => ({
-    deflator, employmentBasis, laborFactor: laborFactorFor(stream), cashWageShare: cashWageShareFor(stateData),
+    deflator, jobsRange: jobsRangeFor(stream), cashWageShare: cashWageShareFor(stateData),
   });
   // Handle legacy single-value parameters (backward compatibility)
   // If knownData is a number, treat it as legacy knownEmployment
@@ -521,25 +506,16 @@ export function calculateCombinedImpact(
     }
   }
 
-  // Model vs. calibrated direct jobs and the direct-jobs predictive interval,
-  // summed across streams (streams without a factor contribute their point).
+  // Direct-jobs predictive interval summed across streams (streams without a
+  // range contribute their point estimate).
   const anyDetail = results.some(r => r.employment.detail);
-  const employmentDetail = anyDetail ? results.reduce((acc, r) => {
+  totals.employment.detail = anyDetail ? results.reduce((acc, r) => {
     const e = r.employment;
-    const d = e.detail || {
-      model: { direct: e.direct, total: e.total },
-      calibrated: { direct: e.direct, total: e.total },
-      range: { direct: [e.direct, e.direct], total: [e.total, e.total] },
-    };
-    acc.model.direct += d.model.direct; acc.model.total += d.model.total;
-    acc.calibrated.direct += d.calibrated.direct; acc.calibrated.total += d.calibrated.total;
-    acc.range.direct[0] += d.range.direct[0]; acc.range.direct[1] += d.range.direct[1];
-    acc.range.total[0] += d.range.total[0]; acc.range.total[1] += d.range.total[1];
+    const range = e.detail?.range || { direct: [e.direct, e.direct], total: [e.total, e.total] };
+    acc.range.direct[0] += range.direct[0]; acc.range.direct[1] += range.direct[1];
+    acc.range.total[0] += range.total[0]; acc.range.total[1] += range.total[1];
     return acc;
-  }, { model: { direct: 0, total: 0 }, calibrated: { direct: 0, total: 0 },
-       range: { direct: [0, 0], total: [0, 0] } }) : null;
-  totals.employment.detail = employmentDetail;
-  totals.employment.basis = anyDetail ? employmentBasis : 'model';
+  }, { range: { direct: [0, 0], total: [0, 0] } }) : null;
 
   // Calculate weighted average multipliers
   const multipliers = {
@@ -560,27 +536,22 @@ export function calculateCombinedImpact(
 }
 
 /**
- * Which validation factor applies to a revenue stream.
+ * Which direct-jobs predictive range applies to a revenue stream.
  *
- * The factors come from the 50-state comparison of the calculator's direct
- * jobs coefficient with QCEW jobs per wage dollar, by property type
- * (laborCalibration.json). In total mode the selected property type's factor
- * applies to the whole input. In department mode only the gaming stream is
- * calibrated, with the stand-alone-casino factor as the gaming-floor proxy
- * (or the slot-parlor factor for slot parlors); lodging, food and other
- * revenue use parent-sector coefficients, which are not adjusted.
- * Tribal properties use factors estimated against tribal-government casinos.
- * Online operations are not covered by the validation.
+ * The ranges come from the 50-state comparison of the calculator's direct
+ * jobs coefficient with 2022 Economic Census jobs per revenue dollar, by
+ * property type (jobsRange.json). In total mode the selected property type's
+ * range applies. In department mode only the gaming stream has one, using the
+ * stand-alone-casino range as the gaming-floor proxy (the slot-parlor range for
+ * slot parlors). No range exists for bars with slots, tribal properties (the
+ * Economic Census excludes most tribal casinos) or online operations.
  */
-export function laborFactorForStream(calibration, propertyType, inputMode, stream, ownership = 'commercial') {
-  if (!calibration || !calibration.propertyTypes || isOnlinePropertyType(propertyType)) return null;
-  const types = (ownership === 'tribal' ? calibration.tribalPropertyTypes : calibration.propertyTypes) || {};
-  if (inputMode === 'total' && stream === 'total') {
-    return types[propertyType] || null;
-  }
+export function jobsRangeForStream(ranges, propertyType, inputMode, stream, ownership = 'commercial') {
+  if (!ranges?.propertyTypes || ownership === 'tribal' || isOnlinePropertyType(propertyType)) return null;
+  const types = ranges.propertyTypes;
+  if (inputMode === 'total' && stream === 'total') return types[propertyType] || null;
   if (stream === 'gaming') {
-    const key = propertyType === '713290' ? '713290' : (calibration.gamingDepartmentProxy || '713210');
-    return types[key] || null;
+    return types[propertyType === '713290' ? '713290' : (ranges.gamingDepartmentProxy || '713210')] || null;
   }
   return null;
 }

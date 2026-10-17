@@ -10,13 +10,13 @@ import {
   calculatePayrollTaxDetail,
   calculateSingleImpact,
   getDeflator,
-  laborFactorForStream,
+  jobsRangeForStream,
   taxAtWage,
 } from './calculations.js';
 import { buildFiscal, computeConstructionImpact, netShare, scaleTotals } from './fiscal.js';
 
 const readJSON = (p) => JSON.parse(fs.readFileSync(new URL(p, import.meta.url), 'utf8'));
-const calibration = readJSON('../data/laborCalibration.json');
+const jobsRanges = readJSON('../data/jobsRange.json');
 const employmentTaxRates = readJSON('../data/employmentTaxRates.json');
 
 const closeTo = (actual, expected, tolerance = 1e-9) => {
@@ -31,7 +31,7 @@ const row = {
   Type_I_Output: 1.4, Type_II_Output: 1.7, Type_I_VA: 0.65, Type_II_VA: 0.8,
   Type_I_Wage: 0.3, Type_II_Wage: 0.38, Type_I_Tax: 0.07, Type_II_Tax: 0.09,
 };
-const factor = { factor: 1.5, p05: 1.1, p95: 2.2 };
+const range = { p05: 0.6, p95: 2.0 };
 
 test('deflator follows the selected dollar year, not the browser clock', () => {
   closeTo(getDeflator(2024), 304.702 / 313.689);
@@ -41,58 +41,52 @@ test('deflator follows the selected dollar year, not the browser clock', () => {
   closeTo(y2024.employment.direct, 100 * (304.702 / 313.689) * 5);
 });
 
-test('calibrated direct jobs scale only the direct coefficient and carry a predictive range', () => {
-  const d = 1;
-  const r = calculateSingleImpact(100, row, null, null, { deflator: d, laborFactor: factor });
-  closeTo(r.employment.direct, 100 * 5 * 1.5);
-  closeTo(r.employment.indirect, 15 * 8);           // supplier jobs as modeled
-  closeTo(r.employment.induced, 15 * 6);            // induced jobs as modeled
-  closeTo(r.fte.direct, 100 * 4 * 1.5);
-  assert.equal(r.employment.source, 'calibrated');
-  closeTo(r.employment.detail.model.direct, 500);
-  closeTo(r.employment.detail.range.direct[0], 550);
-  closeTo(r.employment.detail.range.direct[1], 1100);
-  closeTo(r.employment.detail.range.total[1], 1100 + 120 + 90);
-
-  const asModel = calculateSingleImpact(100, row, null, null, { deflator: d, laborFactor: factor, employmentBasis: 'model' });
-  closeTo(asModel.employment.direct, 500);
-  closeTo(asModel.employment.detail.calibrated.direct, 750);
-  assert.equal(asModel.employment.source, 'calculated');
+test('direct jobs stay at the coefficient and carry a predictive range', () => {
+  const r = calculateSingleImpact(100, row, null, null, { deflator: 1, jobsRange: range });
+  closeTo(r.employment.direct, 100 * 5);
+  closeTo(r.employment.indirect, 15 * 8);            // supplier jobs as modeled
+  closeTo(r.employment.induced, 15 * 6);             // induced jobs as modeled
+  closeTo(r.fte.direct, 100 * 4);
+  assert.equal(r.employment.source, 'calculated');
+  closeTo(r.employment.detail.range.direct[0], 300);
+  closeTo(r.employment.detail.range.direct[1], 1000);
+  closeTo(r.employment.detail.range.total[1], 1000 + 120 + 90);
+  assert.equal(calculateSingleImpact(100, row, null, null, { deflator: 1 }).employment.detail, null);
 });
 
-test('user-entered jobs are never calibrated', () => {
-  const r = calculateSingleImpact(100, row, 420, null, { deflator: 1, laborFactor: factor });
+test('user-entered jobs carry no model range', () => {
+  const r = calculateSingleImpact(100, row, 420, null, { deflator: 1, jobsRange: range });
   assert.equal(r.employment.direct, 420);
   assert.equal(r.employment.detail, null);
 });
 
-test('calibration factors map to streams by property type and mode', () => {
-  assert.equal(laborFactorForStream(calibration, '721120', 'total', 'total').factor, calibration.propertyTypes['721120'].factor);
-  assert.equal(laborFactorForStream(calibration, '722410', 'total', 'total'), null);       // bars: no benchmark
-  assert.equal(laborFactorForStream(calibration, '721120', 'department', 'gaming').factor, calibration.propertyTypes['713210'].factor);
-  assert.equal(laborFactorForStream(calibration, '713290', 'department', 'gaming').factor, calibration.propertyTypes['713290'].factor);
-  assert.equal(laborFactorForStream(calibration, '721120', 'department', 'lodging'), null);
-  assert.equal(laborFactorForStream(calibration, 'ONLINE_CASINO', 'total', 'total'), null);
-  for (const f of Object.values(calibration.propertyTypes)) {
-    assert.ok(f.p05 < f.factor && f.factor < f.p95 && f.n >= 10);
+test('jobs ranges map to streams by property type, mode and ownership', () => {
+  const t = jobsRanges.propertyTypes;
+  assert.equal(jobsRangeForStream(jobsRanges, '721120', 'total', 'total'), t['721120']);
+  assert.equal(jobsRangeForStream(jobsRanges, '722410', 'total', 'total'), null);          // bars: no benchmark
+  assert.equal(jobsRangeForStream(jobsRanges, '721120', 'department', 'gaming'), t['713210']);
+  assert.equal(jobsRangeForStream(jobsRanges, '713290', 'department', 'gaming'), t['713290']);
+  assert.equal(jobsRangeForStream(jobsRanges, '721120', 'department', 'lodging'), null);
+  assert.equal(jobsRangeForStream(jobsRanges, 'ONLINE_CASINO', 'total', 'total'), null);
+  assert.equal(jobsRangeForStream(jobsRanges, '713210', 'total', 'total', 'tribal'), null);
+  for (const v of Object.values(t)) {
+    assert.ok(v.p05 < 1 && v.p95 > 1 && v.n >= 10 && v.pValueNoBias > 0.05);
   }
 });
 
-test('combined impact sums model, calibrated and range across streams', () => {
+test('combined impact keeps coefficient jobs and sums ranges across streams', () => {
   const multipliers = [
     { ...row, Sector: '722' }, { ...row, Sector: '721' }, { ...row, Sector: '711AS' },
   ];
   const res = calculateCombinedImpact(
     { gaming: 100, food: 20, lodging: 0, other: 0 }, multipliers, [row], 'Nevada', true, {}, null,
-    '721120', null, 'department', null, { analysisYear: 2023, laborCalibration: calibration },
+    '721120', null, 'department', null, { analysisYear: 2023, jobsRanges },
   );
-  const f = calibration.propertyTypes['713210'];
+  const g = jobsRanges.propertyTypes['713210'];
   const e = res.totals.employment;
-  closeTo(e.detail.model.direct, 500 + 100);                    // gaming + food (uncalibrated)
-  closeTo(e.detail.calibrated.direct, 500 * f.factor + 100);
-  closeTo(e.direct, e.detail.calibrated.direct);
-  closeTo(e.detail.range.direct[0], 500 * f.p05 + 100);
-  assert.equal(e.basis, 'calibrated');
+  closeTo(e.direct, 500 + 100);                                   // gaming + food, both at coefficient
+  closeTo(e.detail.range.direct[0], 500 * g.p05 + 100);           // only gaming carries a range
+  closeTo(e.detail.range.direct[1], 500 * g.p95 + 100);
 });
 
 test('payroll detail splits federal and state and matches the legacy total', () => {
@@ -211,9 +205,7 @@ test('cash wages use the QCEW-comparable share of each sector; ripple uses all-p
   assert.ok(wb.sectors['713'] < wb.private && wb.private < 0.85);
 });
 
-test('tribal properties use tribal factors and the revenue share replaces gaming TOPI', () => {
-  assert.equal(laborFactorForStream(calibration, '713210', 'total', 'total', 'tribal').factor, calibration.tribalPropertyTypes['713210'].factor);
-  assert.equal(laborFactorForStream(calibration, '713290', 'total', 'total', 'tribal'), null);
+test('tribal properties: the compact revenue share replaces gaming TOPI', () => {
   const impact = calculateSingleImpact(100, row, null, null, { deflator: 1 });
   const data = { stateEmp: employmentTaxRates.states.Oklahoma, federalPayroll: employmentTaxRates.federal, incomeTax: null, stateName: 'Oklahoma', nonGamingShare: 0.346 };
   const share = { amount: 6, effectiveRate: 0.06, ggr: 100 };

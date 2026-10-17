@@ -59,7 +59,9 @@ export default function FiscalTable({ fiscal, gamingTaxLabel = null, localTaxNot
         and imports (TOPI), so every line above is additive; for a tribal property the compact revenue
         share replaces the gaming stream's direct TOPI entirely. Supplier and induced TOPI come from the
         I-O model. Payroll and household income taxes are estimated on QCEW-comparable wages (BEA
-        compensation converted by industry) and filled jobs.{' '}
+        compensation converted by industry) and filled jobs. At casinos the model's payroll share of revenue
+        is likely too high, especially in high-gaming-tax states, so these lines may be overstated; enter known
+        wages where available.{' '}
         {fiscal.incomeTaxMethod === 'per_worker'
           ? 'Household income taxes apply 2025 federal and state schedules to the average wage per job, for a single filer with no dependents.'
           : 'Household taxes use the BEA ratio of personal current taxes to wages (no state schedule available).'}

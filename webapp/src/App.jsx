@@ -41,7 +41,7 @@ import {
 import { computeScenario } from './utils/computeScenario';
 import { buildTaxConfig } from './utils/taxConfig';
 import FiscalTable from './components/dashboard/FiscalTable';
-import EmploymentCalibrationNote from './components/dashboard/EmploymentCalibrationNote';
+import EmploymentRangeNote from './components/dashboard/EmploymentRangeNote';
 import NetImpactCard from './components/dashboard/NetImpactCard';
 import ConstructionCard from './components/dashboard/ConstructionCard';
 import AnalysisOptions from './components/dashboard/AnalysisOptions';
@@ -310,7 +310,6 @@ export default function App() {
 
   // Analysis settings and optional modules
   const [analysisYear, setAnalysisYear] = useState(null); // dollar year of revenue inputs (null = latest CPI year)
-  const [employmentBasis, setEmploymentBasis] = useState('calibrated'); // 'calibrated' | 'model'
   const [netImpact, setNetImpact] = useState(DEFAULT_NET_IMPACT);
   const [construction, setConstruction] = useState(DEFAULT_CONSTRUCTION);
   const [ownership, setOwnership] = useState('commercial'); // 'commercial' | 'tribal'
@@ -512,7 +511,7 @@ export default function App() {
       applyAnalysis(shared, {
         setState, setCasinoName, setPropertyType, setInputMode,
         setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
-        setAnalysisYear, setEmploymentBasis, setNetImpact, setConstruction, setOwnership,
+        setAnalysisYear, setNetImpact, setConstruction, setOwnership,
       });
       setWizardComplete(true);
       clearURLParam();
@@ -525,9 +524,9 @@ export default function App() {
   const liveAnalysis = useMemo(() => buildAnalysis({
     state, casinoName, propertyType, inputMode, revenues, knownData,
     gamingTaxCustomRate, slotRevenuePct,
-    analysisYear, employmentBasis, netImpact, construction, ownership,
+    analysisYear, netImpact, construction, ownership,
   }), [state, casinoName, propertyType, inputMode, revenues, knownData, gamingTaxCustomRate, slotRevenuePct,
-       analysisYear, employmentBasis, netImpact, construction, ownership]);
+       analysisYear, netImpact, construction, ownership]);
   const bundle = useMemo(() => computeScenario(liveAnalysis), [liveAnalysis]);
   const {
     results, fiscal, net, gamingTaxResult, payrollTaxResult, householdTaxResult,
@@ -675,8 +674,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
           net,
           netImpact,
           constructionResult,
-          analysisYear: bundle.analysisYear,
-          employmentBasis
+          analysisYear: bundle.analysisYear
         },
         authorInfo
       );
@@ -709,7 +707,6 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
     netImpact,
     constructionResult,
     analysisYear: bundle.analysisYear,
-    employmentBasis,
     ownership: bundle.ownership,
   });
 
@@ -820,7 +817,6 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
           householdTaxResult: sample.householdTaxResult,
           fiscal: sample.fiscal,
           analysisYear: sample.analysisYear,
-          employmentBasis: sample.employmentBasis,
           isSample: true
         },
         authorInfo
@@ -855,13 +851,13 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
   const currentAnalysis = () => buildAnalysis({
     state, casinoName, propertyType, inputMode, revenues, knownData,
     gamingTaxCustomRate, slotRevenuePct,
-    analysisYear, employmentBasis, netImpact, construction, ownership,
+    analysisYear, netImpact, construction, ownership,
   });
 
   const restoreAnalysis = (analysis) => applyAnalysis(analysis, {
     setState, setCasinoName, setPropertyType, setInputMode,
     setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
-    setAnalysisYear, setEmploymentBasis, setNetImpact, setConstruction, setOwnership,
+    setAnalysisYear, setNetImpact, setConstruction, setOwnership,
   });
 
   const handleSaveProject = (name) => {
@@ -895,7 +891,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
     state, casinoName,
     propertyTypeLabel: PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || null,
     gamingTaxResult, payrollTaxResult, householdTaxResult,
-    fiscal, net, netImpact, constructionResult, analysisYear: bundle.analysisYear, employmentBasis,
+    fiscal, net, netImpact, constructionResult, analysisYear: bundle.analysisYear,
     ownership: bundle.ownership,
   });
 
@@ -1628,7 +1624,6 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
             {/* Analysis settings and optional modules */}
             <AnalysisOptions
               analysisYear={analysisYear} setAnalysisYear={setAnalysisYear}
-              employmentBasis={employmentBasis} setEmploymentBasis={setEmploymentBasis}
               netImpact={netImpact} setNetImpact={setNetImpact}
               construction={construction} setConstruction={setConstruction}
               ownership={ownership} setOwnership={setOwnership}
@@ -1692,10 +1687,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                 <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '75ms' }}>
                   <SectionHeader>Economic Impact Summary</SectionHeader>
                   <DashboardResultsTable results={results} termDefs={getTermDefinitions(isOnline)} />
-                  <EmploymentCalibrationNote
-                    results={results}
-                    onToggleBasis={() => setEmploymentBasis(b => (b === 'calibrated' ? 'model' : 'calibrated'))}
-                  />
+                  <EmploymentRangeNote results={results} />
                   {results.hasUserData && (
                     <p className="text-xs text-gray-500 mt-3 italic">
                       Note: Direct jobs and/or cash wages use user-provided values. Known wages also rebase the induced household-spending effects.

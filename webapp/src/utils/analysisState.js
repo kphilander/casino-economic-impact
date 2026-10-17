@@ -20,16 +20,15 @@ export const DEFAULT_CONSTRUCTION = { enabled: false, cost: null, localShare: 60
 
 /**
  * The fields that fully define an analysis (mirrors App input state).
- * v2 adds: analysisYear (dollar year of revenue inputs), employmentBasis
- * ('calibrated' | 'model'), ownership ('commercial' | 'tribal'), netImpact and
- * construction modules. v1 analyses load with defaults (latest CPI year,
- * calibrated, commercial, modules off).
+ * v2 adds: analysisYear (dollar year of revenue inputs), ownership
+ * ('commercial' | 'tribal'), netImpact and construction modules. v1 analyses
+ * load with defaults (latest CPI year, commercial, modules off).
  */
 export function buildAnalysis(input) {
   const {
     state, casinoName, propertyType, inputMode,
     revenues, knownData, gamingTaxCustomRate, slotRevenuePct,
-    analysisYear, employmentBasis, netImpact, construction, ownership,
+    analysisYear, netImpact, construction, ownership,
   } = input;
   return {
     v: ANALYSIS_VERSION,
@@ -42,7 +41,6 @@ export function buildAnalysis(input) {
     gamingTaxCustomRate: gamingTaxCustomRate ?? null,
     slotRevenuePct: slotRevenuePct ?? 70,
     analysisYear: analysisYear ?? null,
-    employmentBasis: employmentBasis || 'calibrated',
     ownership: ownership === 'tribal' ? 'tribal' : 'commercial',
     netImpact: { ...DEFAULT_NET_IMPACT, ...(netImpact || {}) },
     construction: { ...DEFAULT_CONSTRUCTION, ...(construction || {}) },
@@ -64,7 +62,7 @@ export function applyAnalysis(analysis, setters) {
   const {
     setState, setCasinoName, setPropertyType, setInputMode,
     setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
-    setAnalysisYear, setEmploymentBasis, setNetImpact, setConstruction, setOwnership,
+    setAnalysisYear, setNetImpact, setConstruction, setOwnership,
   } = setters;
   if (analysis.state) setState(analysis.state);
   setCasinoName(analysis.casinoName || '');
@@ -76,7 +74,6 @@ export function applyAnalysis(analysis, setters) {
   setSlotRevenuePct(analysis.slotRevenuePct ?? 70);
   // v2 fields; absent in v1 links and saved projects
   if (setAnalysisYear) setAnalysisYear(analysis.analysisYear ?? null);
-  if (setEmploymentBasis) setEmploymentBasis(analysis.employmentBasis || 'calibrated');
   if (setOwnership) setOwnership(analysis.ownership === 'tribal' ? 'tribal' : 'commercial');
   if (setNetImpact) setNetImpact({ ...DEFAULT_NET_IMPACT, ...(analysis.netImpact || {}) });
   if (setConstruction) setConstruction({ ...DEFAULT_CONSTRUCTION, ...(analysis.construction || {}) });

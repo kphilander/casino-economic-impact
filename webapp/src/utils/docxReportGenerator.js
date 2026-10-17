@@ -22,7 +22,7 @@ import {
   FootnoteReferenceRun, LevelFormat,
 } from 'docx';
 import { formatNumber, formatCurrency, formatJobs } from './calculations';
-import { reportFiscal, LEVEL_LABEL, describeNetShare, tribalTopiRemoved, TRIBAL_UNADJUSTED_NOTE } from './exporters';
+import { reportFiscal, LEVEL_LABEL, describeNetShare } from './exporters';
 import { BRAND, PRODUCT_NAME_VERSIONED, getSuggestedCitation } from '../brand';
 
 // ---- palette --------------------------------------------------------------
@@ -213,8 +213,10 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
   const fiscal = reportFiscal(results, inputs);
   const tribal = inputs.ownership === 'tribal';
   const gamingRevName = tribal ? 'compact revenue sharing' : 'statutory gaming tax';
-  // In total-revenue mode the tribal treatment cannot separate the gaming stream.
-  const tribalUnadjusted = tribal && !tribalTopiRemoved(results, fiscal);
+  // Why a tribal analysis may have no revenue-sharing line
+  const noShareReason = inputMode === 'total'
+    ? 'total-revenue mode does not identify gaming revenue, so no compact revenue share can be computed'
+    : 'no compact revenue share was entered';
   const fiscalLine = (key) => fiscal.lines.find((l) => l.key === key) || null;
   const lineTotal = (key) => fiscalLine(key)?.total || 0;
   const gamingLine = fiscalLine('gaming');
@@ -230,12 +232,12 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
 
   const indOut = t.output.indirect + t.output.induced; // ripple output
 
-  // Direct-jobs basis and the 90% predictive interval from the QCEW validation
-  const empDetail = t.employment.detail || null;
-  const empCalibrated = !!empDetail && t.employment.basis === 'calibrated';
+  // 90% range for direct jobs from the state-by-state 2022 Economic Census
+  // comparison (land-based commercial casinos only). Jobs use the I-O coefficient.
+  const empRange = t.employment.detail?.range || null;
   const jobsRange = ([lo, hi]) => `${j(lo)}–${j(hi)}`;
-  // In department mode only the gaming stream carries a calibration factor.
-  const deptCalibration = inputMode !== 'total' && byRevenue.length > 1;
+  // In department mode only the gaming stream has a range.
+  const deptRange = inputMode !== 'total' && byRevenue.length > 1;
 
   // Section 6 subsection numbers for the optional modules (6.8 is the revenue-stream table)
   let s6 = byRevenue.length > 1 ? 9 : 8;
@@ -352,7 +354,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     H2('Key findings'),
     bullet([r(`Total economic output of `, {}), r(`${m$(t.output.total)}`, { bold: true, color: C.ink }), r(`. For every dollar of output generated directly at ${op}, an additional ${formatNumber(mlt.output - 1, 2)} dollars of output is generated elsewhere in the ${stateName} economy, for a total output multiplier of ${formatNumber(mlt.output, 2)}.`)]),
     bullet([r(`A contribution of `, {}), r(`${m$(t.gdp.total)}`, { bold: true, color: C.ink }), r(` to gross state product (value added) — the most directly comparable measure to a state's GDP, representing the net new value created.`)]),
-    bullet([r(`Support for `, {}), r(`${j(t.employment.total)} full- and part-time jobs`, { bold: true, color: C.ink }), r(` (${j(t.fte.total)} estimated FTEs), of which ${j(t.employment.direct)} jobs are at the operation itself and ${j(t.employment.indirect + t.employment.induced)} are sustained across suppliers and the broader community.${empDetail ? ` ${deptCalibration ? 'Direct gaming jobs are' : 'Direct jobs are'} ${empCalibrated ? 'calibrated to observed QCEW casino labor intensity' : 'based on the I-O coefficient'}; the 90% range for total jobs is ${jobsRange(empDetail.range.total)}.` : ''}`)]),
+    bullet([r(`Support for `, {}), r(`${j(t.employment.total)} full- and part-time jobs`, { bold: true, color: C.ink }), r(` (${j(t.fte.total)} estimated FTEs), of which ${j(t.employment.direct)} jobs are at the operation itself and ${j(t.employment.indirect + t.employment.induced)} are sustained across suppliers and the broader community.${empRange ? ` Reflecting state-to-state variation in direct jobs, the 90% range for total jobs is ${jobsRange(empRange.total)}.` : ''}`)]),
     bullet([r(`${m$(t.wages.total)} in employee compensation`, { bold: true, color: C.ink }), r(` — cash wages plus employer-paid benefits and social-insurance contributions across all three layers of impact.`)]),
     bullet([r(`Approximately `, {}), r(`${m$(totalTax)} in annual tax revenue`, { bold: true, color: C.ink }),
       r(`: ${levelSplit(fiscal)}${gamingLine ? `. State and local revenue includes ${m$(gamingLine.total)} in ${gamingRevName}` : ''}.${combinedIncomeNote(fiscal)}`)]),
@@ -456,7 +458,8 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     H2('5.1   Data sources'),
     P(`The model is built entirely on official, publicly documented federal data, which supports transparency and replicability:`),
     bullet([rs('State input-output multipliers. ', { bold: true, color: C.navy, font: SERIF }), r(`Regional multipliers are derived from the U.S. Environmental Protection Agency's state input-output models (the stateior dataset), which provide state-specific accounts of inter-industry relationships.`), fnref(5)]),
-    bullet([rs('Employment and wages. ', { bold: true, color: C.navy, font: SERIF }), r(`Industry-level employment and wage data are drawn from the U.S. Bureau of Labor Statistics Quarterly Census of Employment and Wages (QCEW), which provides a near-complete census of covered employment by state and industry.${empDetail ? ' QCEW casino employment is also the benchmark used to calibrate direct jobs (Section 6.4).' : ''}`)]),
+    bullet([rs('Employment and wages. ', { bold: true, color: C.navy, font: SERIF }), r(`Industry-level employment and wage data are drawn from the U.S. Bureau of Labor Statistics Quarterly Census of Employment and Wages (QCEW), which provides a near-complete census of covered employment by state and industry.`)]),
+    ...(empRange ? [bullet([rs('Casino receipts and employment. ', { bold: true, color: C.navy, font: SERIF }), r(`The U.S. Census Bureau's 2022 Economic Census, which reports casino receipts and employees by state, is used to test the direct-jobs coefficient and to set the 90% range for direct jobs (Section 5.4).`)])] : []),
     bullet([rs('Detailed industry accounts. ', { bold: true, color: C.navy, font: SERIF }), r(`The U.S. Bureau of Economic Analysis detail-level input-output accounts are used to isolate gambling-specific production and consumption patterns from the broader sectors in which they are otherwise embedded.`)]),
     bullet([rs('Price adjustments. ', { bold: true, color: C.navy, font: SERIF }), r(analysisYear
       ? `Revenue inputs and all dollar results are in ${analysisYear} dollars. Because the employment coefficients are measured in 2023 dollars, revenue is deflated to 2023 dollars with the Consumer Price Index (CPI-U, annual average) before jobs and FTEs are estimated.`
@@ -472,13 +475,12 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       ? P(`Online gaming operations differ from land-based casinos in ways that materially affect their economic footprint. They employ on the order of one worker per million dollars of revenue, compared with roughly five for a typical land-based casino, and their workforces are concentrated in higher-paid technology, product, marketing, and compliance roles. Their supply chains are also more geographically dispersed and less locally embedded. The model reflects these features through online-specific coefficients. A particularly important implication is geographic: the direct, indirect, and induced effects estimated here accrue to the state in which the operator's workforce is located. Where an operator is headquartered outside ${stateName}, most of the economic impact other than gaming-tax revenue would accrue to that other state. For this reason, online estimates are most accurate when operation-specific in-state employment and wage data are supplied.`)
       : P(`The property label identifies the kind of operation for reporting but does not claim a separate estimated production function. Gaming uses the canonical gambling coefficients in every land-based case. When revenue is entered by department, lodging, food and beverage, and other activity use their own sector structures. When only total revenue is entered, the full amount uses the gambling structure and should be interpreted as an approximation if ancillary revenue is substantial.`),
     H2('5.4   Revenue inputs and the demand shock'),
-    P(`The analysis takes ${m$(totalRevenue)} of ${isOnline ? 'gross gaming revenue' : 'operating revenue'}${analysisYear ? `, in ${analysisYear} dollars,` : ''} as the final-demand shock applied to the input-output system. ${inputMode === 'total' ? 'Revenue is modeled in aggregate with the canonical gambling structure.' : 'Where revenue is resolved into its component streams, each stream is mapped to the appropriate production structure so that the composition of the operation’s activity is reflected in the direct effects.'} ${results.hasUserData ? 'Operation-supplied job counts and cash-wage figures were incorporated for the direct effects; known cash wages also rebase the household-induced effects.' : 'Direct jobs and employee compensation were estimated from the applicable gambling or department coefficients.'}${empDetail ? (empCalibrated ? ` ${deptCalibration ? 'Direct gaming jobs' : 'Direct jobs'} were then calibrated to observed QCEW casino labor intensity (Section 6.4).` : ' Direct jobs use the I-O coefficient; Section 6.4 reports the QCEW-calibrated alternative.') : ''} The model then computes indirect and induced effects via the Type II multipliers described in Section 4.`),
+    P(`The analysis takes ${m$(totalRevenue)} of ${isOnline ? 'gross gaming revenue' : 'operating revenue'}${analysisYear ? `, in ${analysisYear} dollars,` : ''} as the final-demand shock applied to the input-output system. ${inputMode === 'total' ? 'Revenue is modeled in aggregate with the canonical gambling structure.' : 'Where revenue is resolved into its component streams, each stream is mapped to the appropriate production structure so that the composition of the operation’s activity is reflected in the direct effects.'} ${results.hasUserData ? 'Operation-supplied job counts and cash-wage figures were incorporated for the direct effects; known cash wages also rebase the household-induced effects.' : 'Direct jobs and employee compensation were estimated from the applicable gambling or department coefficients.'}The model then computes indirect and induced effects via the Type II multipliers described in Section 4.`),
+    ...(empRange ? [P(`The direct-jobs coefficient for land-based casinos was tested against two benchmarks. BLS QCEW data on jobs per wage dollar suggest the coefficient is short, but the 2022 Economic Census, which observes revenue, shows that the gap comes from the model's compensation per revenue dollar being too high (the observed ratio falls as the state gaming tax rises), not from too few jobs: the coefficient's jobs per revenue dollar show no bias. No jobs adjustment is therefore applied, and only the 90% range across states is reported (Section 6.4).`)] : []),
     H2('5.5   Estimating fiscal impacts'),
     P(`Public revenue is estimated from four distinct sources, reflecting the different ways gaming activity generates tax. Each is described in Section 7 and summarized here:`),
     tribal
-      ? bullet([r('Tribal revenue sharing', { bold: true, color: C.navy }), r(tribalUnadjusted
-        ? ` — payments to the state under the tribal-state compact, entered as a share of gross gaming revenue. Tribal gaming on trust land is largely exempt from state gaming, sales, and property taxes, but this treatment needs gaming revenue entered separately, which it was not here (see Section 7);`
-        : ` — payments to the state under the tribal-state compact, entered as a share of gross gaming revenue${gamingLine ? '' : ' (none was entered for this analysis)'}. Tribal gaming on trust land is largely exempt from state gaming, sales, and property taxes, so the gaming stream's direct production taxes from the input-output model are removed and replaced by the revenue share;`)])
+      ? bullet([r('Tribal revenue sharing', { bold: true, color: C.navy }), r(` — payments to the state under the tribal-state compact, entered as a share of gross gaming revenue${gamingLine ? '' : ` (none here: ${noShareReason})`}. Tribal gaming on trust land is largely exempt from state gaming, sales, and property taxes, so the gaming stream's direct production taxes from the input-output model are removed and replaced by the revenue share;`)])
       : bullet([r('Gaming taxes', { bold: true, color: C.navy }), r(` levied on gross gaming revenue at the rate set by ${stateName} statute or compact. The statutory tax replaces the gaming share of the direct production taxes estimated by the input-output model, so it adds to the other lines rather than overlapping them;`)]),
     bullet([r('Taxes on production and imports (TOPI)', { bold: true, color: C.navy }), r(` — sales, excise, and property taxes and business fees arising across the supply chain, estimated within the input-output model;`)]),
     bullet([r('Payroll taxes', { bold: true, color: C.navy }), r(` — employer-side contributions applied to estimated cash wages and filled jobs by effect type: federal (Social Security and Medicare under FICA, and FUTA) and state (unemployment insurance, plus disability and paid-leave contributions where they exist);`)]),
@@ -517,10 +519,8 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     P(`Value added — output net of the cost of intermediate inputs — is estimated at ${m$(t.gdp.total)}, comprising ${m$(t.gdp.direct)} directly, ${m$(t.gdp.indirect)} indirectly, and ${m$(t.gdp.induced)} through induced effects. Because it avoids the double-counting inherent in output, value added is the measure most directly comparable to ${stateName}'s gross domestic product and is the preferred headline indicator of the operation's net economic contribution. The value-added multiplier of ${formatNumber(mlt.gdp, 2)} reflects the share of each round of activity that represents genuine new value rather than the pass-through of intermediate purchases.`),
     H2('6.4   Employment'),
     P(`The activity is estimated to support ${j(t.employment.total)} full- and part-time jobs across ${stateName}. Of these, ${j(t.employment.direct)} are at the operation itself, ${j(t.employment.indirect)} are sustained among suppliers, and ${j(t.employment.induced)} arise in the broader economy as workers spend their earnings. The employment multiplier of ${formatNumber(mlt.employment, 2)} means that every job at the operation is associated with ${formatNumber(mlt.employment - 1, 2)} additional jobs elsewhere in the state. QCEW counts filled jobs rather than FTEs. Applying a separate 2023 BEA industry satellite yields ${j(t.fte.total)} estimated FTEs: ${j(t.fte.direct)} direct, ${j(t.fte.indirect)} indirect, and ${j(t.fte.induced)} induced. These are estimates, not establishment-reported hours.`),
-    // Direct-jobs basis: calibrated to QCEW where a validation factor exists
-    ...(empDetail ? [P(empCalibrated
-      ? `${deptCalibration ? 'Direct jobs in the gaming department are' : 'Direct jobs are'} calibrated to observed casino labor intensity from a 50-state comparison of the model with BLS QCEW data (2023). The I-O coefficient alone gives ${j(empDetail.model.direct)} direct jobs in total, against ${j(empDetail.calibrated.direct)} calibrated; the 90% predictive interval from the comparison is ${jobsRange(empDetail.range.direct)} direct jobs (${jobsRange(empDetail.range.total)} in total). Supplier and induced jobs have no observed benchmark and are reported as modeled.`
-      : `Direct jobs are based on the I-O employment coefficient. Calibrated to observed casino labor intensity from a 50-state comparison with BLS QCEW data (2023), direct jobs would be ${j(empDetail.calibrated.direct)}, with a 90% predictive interval of ${jobsRange(empDetail.range.direct)} (${jobsRange(empDetail.range.total)} in total). Supplier and induced jobs are reported as modeled.`)]
+    // Direct jobs always use the I-O coefficient; the range covers land-based commercial casinos.
+    ...(empRange ? [P(`${deptRange ? 'Direct jobs in the gaming department use' : 'Direct jobs use'} the I-O coefficient. Compared state by state with the 2022 Economic Census, the coefficient's jobs per dollar of revenue show no bias at casinos; the 90% range, which reflects the variation across states, is ${jobsRange(empRange.direct)} direct jobs (${jobsRange(empRange.total)} in total). Supplier and induced jobs are as modeled.`)]
       : results.hasUserData ? [] : [P(`Direct jobs are based on the I-O employment coefficient.`)]),
     fig('Employment supported, by effect'),
     stackedBar(t.employment),
@@ -588,9 +588,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     P(`Beyond its effects on output and employment, ${op} generates public revenue through several channels. Total tax revenue is estimated at approximately ${m$(totalTax)} per year: ${levelSplit(fiscal)}. ${tribal
       ? (gamingLine
         ? 'Compact revenue sharing replaces the gaming stream\'s direct taxes on production and imports, which tribal gaming on trust land does not pay, so the tax lines reported below are additive.'
-        : tribalUnadjusted
-          ? `The tax lines reported below are additive. ${TRIBAL_UNADJUSTED_NOTE.replace(/^Tribal ownership, but revenue/, 'This operation is tribally owned, but revenue')}`
-          : 'The gaming stream\'s direct taxes on production and imports are excluded because tribal gaming on trust land does not pay them, and no compact revenue share was entered; the tax lines reported below are additive.')
+        : `The gaming stream's direct taxes on production and imports are excluded because tribal gaming on trust land does not pay them, and ${noShareReason}; the tax lines reported below are additive.`)
       : gamingLine
         ? 'The statutory gaming tax replaces the gaming share of direct taxes on production and imports, so the tax lines reported below are additive.'
         : 'The tax lines reported below are additive.'}${combinedIncomeNote(fiscal)}`),
@@ -608,7 +606,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
   }
   sec(
     H7(gamingLine ? 'Other taxes on production and imports' : 'Taxes on production and imports'),
-    P(`Taxes on production and imports (TOPI) comprise sales taxes, excise taxes, property taxes, and assorted business fees levied across the operation and its supply chain, most of them by state and local governments. Estimated within the input-output model${tribal ? (tribalUnadjusted ? '' : ', and excluding the gaming stream\'s direct TOPI, which tribal gaming on trust land does not pay') : gamingLine ? ', and net of the gaming share of direct TOPI that the statutory gaming tax replaces' : ''}, these taxes amount to ${m$(topiLine.total)}, of which ${m$(topiLine.direct)} arises directly and ${m$(topiLine.indirect + topiLine.induced)} across the supply chain and induced activity.`),
+    P(`Taxes on production and imports (TOPI) comprise sales taxes, excise taxes, property taxes, and assorted business fees levied across the operation and its supply chain, most of them by state and local governments. Estimated within the input-output model${tribal ? ', and excluding the gaming stream\'s direct TOPI, which tribal gaming on trust land does not pay' : gamingLine ? ', and net of the gaming share of direct TOPI that the statutory gaming tax replaces' : ''}, these taxes amount to ${m$(topiLine.total)}, of which ${m$(topiLine.direct)} arises directly and ${m$(topiLine.indirect + topiLine.induced)} across the supply chain and induced activity.`),
     H7('Payroll taxes'),
     P(payrollTotal <= 0
       ? `Employer-side payroll taxes are levied on cash wages generated by the activity; none is estimated for this analysis.`
@@ -627,8 +625,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       `${PRODUCT_NAME_VERSIONED} model estimates${analysisYear ? `, ${analysisYear} dollars` : ''}.`,
       tribal
         ? (gamingLine ? 'Revenue sharing reflects the entered compact rate and replaces the gaming stream\'s direct TOPI.'
-          : tribalUnadjusted ? 'Production taxes are not adjusted for tribal trust-land exemptions (revenue entered in total).'
-            : 'The gaming stream\'s direct TOPI is excluded (tribal trust land).')
+          : 'The gaming stream\'s direct TOPI is excluded (tribal trust land).')
         : gamingLine ? `Gaming tax reflects the ${stateName} statutory schedule and replaces the gaming share of direct TOPI.` : '',
       'Payroll and household taxes use an estimated cash-wage base.',
     ].filter(Boolean).join(' ')),
@@ -680,7 +677,8 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     numItem(`The results are gross rather than net. They do not subtract substitution or displacement of activity that might otherwise have occurred within the state (Section 8.2).${net ? ` The net-new estimate in Section ${netSec} rests on assumed visitor and recapture shares.` : ''}`, 'limitations'),
     numItem(`The estimates are confined to the State of ${stateName}. Activity that leaks to other states is excluded, which is conservative for the in-state estimate but means the figures are not a measure of national impact.`, 'limitations'),
     numItem(`Catalytic and other long-term dynamic effects are not quantified (Section 8.3).`, 'limitations'),
-    numItem(`Results depend on the accuracy of the revenue input and, where applicable, operation-supplied data. ${results.hasUserData ? 'Operation-specific employment and wage figures were used for the direct effects where provided.' : 'In the absence of operation-specific data, direct effects rely on property-type coefficients and may differ from the operation’s actual staffing.'}${empDetail ? ` The QCEW validation implies a 90% predictive interval of ${jobsRange(empDetail.range.direct)} direct jobs.` : ''}`, 'limitations'),
+    ...(isOnline ? [] : [numItem(`Direct employee compensation, and the payroll and income taxes estimated from it, are probably overstated for casinos, more so where gaming taxes are high. Compared with the 2022 Economic Census, the model's payroll share of casino revenue is 18 to 53% too high, and the observed share falls as the state's effective gaming tax rises, because the input-output tables give every state the national value-added mix for the sector. Operation-supplied payroll, entered as known wages, replaces the modeled figure.`, 'limitations')]),
+    numItem(`Results depend on the accuracy of the revenue input and, where applicable, operation-supplied data. ${results.hasUserData ? 'Operation-specific employment and wage figures were used for the direct effects where provided.' : 'In the absence of operation-specific data, direct effects rely on property-type coefficients and may differ from the operation’s actual staffing.'}${empRange ? ` Across states, the 90% range for direct jobs is ${jobsRange(empRange.direct)}.` : ''}`, 'limitations'),
     P([r('Not professional advice.  ', { bold: true, color: C.navy }), r(`This report is provided for informational purposes only and does not constitute investment, legal, tax, or other professional advice. While prepared with reasonable care, no warranty is made as to the completeness or reliability of the estimates, and the authors accept no liability for decisions taken in reliance on them.`)]),
   );
 
@@ -742,9 +740,8 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       dataRow(['Operation type', typeLabel]),
       dataRow(['Revenue analyzed', m$(totalRevenue)]),
       ...(analysisYear ? [dataRow(['Dollar year of inputs and results', `${analysisYear} (CPI-U deflated to 2023 for jobs)`])] : []),
-      dataRow(['Direct-effect basis', results.hasUserData ? 'Operation-supplied jobs/cash wages'
-        : empCalibrated ? 'Property-type coefficients; direct jobs calibrated to QCEW' : 'Property-type coefficients']),
-      ...(empDetail ? [dataRow(['Direct jobs, 90% predictive interval', jobsRange(empDetail.range.direct)])] : []),
+      dataRow(['Direct-effect basis', results.hasUserData ? 'Operation-supplied jobs/cash wages' : 'Property-type coefficients']),
+      ...(empRange ? [dataRow(['Direct jobs, 90% range (2022 Economic Census)', jobsRange(empRange.direct)])] : []),
       dataRow(['Household income-tax method', fiscal.incomeTaxMethod === 'per_worker' ? 'Per worker, 2025 schedules, single filer'
         : fiscal.incomeTaxMethod === 'bea_ratio' ? 'BEA ratio of personal current taxes to wages'
         : fiscal.incomeTaxMethod === 'none' ? 'Not estimated' : 'Not reported']),
@@ -755,7 +752,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       dataRow(['Employment multiplier (Type II)', x(mlt.employment)]),
       dataRow(['Employee-compensation multiplier (Type II)', x(mlt.wages)]),
       dataRow(['Avg. employee compensation per job (total)', usd0(compPerJobTotal)]),
-      ...(tribal ? [dataRow(['Ownership', tribalUnadjusted ? 'Tribal (exemptions not applied: revenue entered in total)' : 'Tribal (compact revenue sharing; trust-land tax exemptions)'])] : []),
+      ...(tribal ? [dataRow(['Ownership', 'Tribal (compact revenue sharing; trust-land tax exemptions)'])] : []),
       ...(gaming ? [dataRow([tribal ? 'Compact revenue-sharing rate' : 'Effective gaming-tax rate', gaming.effectiveRate ? `${formatNumber(gaming.effectiveRate * 100, 1)}%` : '—'])] : []),
       dataRow(['Geographic scope', `State of ${stateName} (in-state activity only)`]),
       dataRow(['Model', `${PRODUCT_NAME_VERSIONED} — ${BRAND.productFullName}`]),
@@ -860,6 +857,7 @@ function references() {
     'U.S. Bureau of Economic Analysis. Input-Output Accounts Data (detailed make and use tables). Washington, DC.',
     'U.S. Bureau of Economic Analysis. NIPA Tables 6.4D and 6.5D, Full-Time and Part-Time Employees and Full-Time Equivalent Employees by Industry. Washington, DC.',
     'U.S. Bureau of Labor Statistics. Quarterly Census of Employment and Wages (QCEW). Washington, DC.',
+    'U.S. Census Bureau. 2022 Economic Census, Accommodation and Food Services and Arts, Entertainment, and Recreation (EC2271BASIC, EC2272BASIC). Washington, DC.',
     'U.S. Environmental Protection Agency. USEEIO and stateior models. Washington, DC.',
   ];
 }

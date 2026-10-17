@@ -25,7 +25,7 @@
  */
 
 import { formatNumber, formatCurrency, formatJobs } from './calculations';
-import { reportFiscal, LEVEL_LABEL, describeNetShare, tribalTopiRemoved } from './exporters';
+import { reportFiscal, LEVEL_LABEL, describeNetShare } from './exporters';
 
 // pptxgenjs is loaded at runtime as its self-contained standalone build
 // (public/vendor/pptxgen.min.js, which exposes the global `PptxGenJS` and
@@ -150,12 +150,12 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
         .reduce((sum, [, v]) => sum + (v || 0), 0);
   const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Direct-jobs basis. When a validation-calibrated factor applies, job figures
-  // carry the 90% predictive interval from the 50-state QCEW comparison.
-  const empDetail = results.totals.employment.detail || null;
-  const empCalibrated = !!empDetail && results.totals.employment.basis === 'calibrated';
+  // 90% range for direct jobs from the state-by-state 2022 Economic Census
+  // comparison (land-based commercial casinos only; null otherwise). Jobs
+  // themselves always use the I-O coefficient.
+  const empRange = results.totals.employment.detail?.range || null;
   const jobsRange = ([lo, hi]) => `${formatJobs(lo)}–${formatJobs(hi)}`;
-  // In department mode only the gaming stream carries a calibration factor.
+  // In department mode only the gaming stream has a range.
   const empScope = inputMode !== 'total' && (results.byRevenue || []).filter(r => (r.revenue || 0) > 0).length > 1
     ? 'Direct gaming jobs' : 'Direct jobs';
 
@@ -421,7 +421,7 @@ This includes not just casino employees, but workers throughout the supply chain
   const metrics = [
     { value: formatCurrency(results.totals.output.total), label: 'Total Economic Output', isJobs: false },
     { value: formatJobs(results.totals.employment.total), label: `Jobs · ${formatJobs(results.totals.fte.total)} est. FTEs`, isJobs: true,
-      range: empDetail ? `90% range ${jobsRange(empDetail.range.total)} jobs` : null },
+      range: empRange ? `90% range ${jobsRange(empRange.total)} jobs` : null },
     { value: formatCurrency(results.totals.gdp.total), label: 'GDP Contribution', isJobs: false },
     { value: formatCurrency(results.totals.wages.total), label: 'Employee Compensation', isJobs: false }
   ];
@@ -459,8 +459,8 @@ This includes not just casino employees, but workers throughout the supply chain
 
   const impactTypes = [
     { title: 'At the Casino', jobs: results.totals.employment.direct, fte: results.totals.fte.direct,
-      desc: empDetail
-        ? `Direct employees; ${empCalibrated ? 'calibrated to QCEW' : 'I-O coefficient'} (90% range ${jobsRange(empDetail.range.direct)})`
+      desc: empRange
+        ? `Direct employees (90% range ${jobsRange(empRange.direct)} across states)`
         : 'Direct employees and on-site spending' },
     { title: 'Through Suppliers', jobs: results.totals.employment.indirect, fte: results.totals.fte.indirect, desc: 'Vendors, distributors, service providers' },
     { title: 'In the Community', jobs: results.totals.employment.induced, fte: results.totals.fte.induced, desc: 'Local businesses where workers shop' }
@@ -513,8 +513,8 @@ This includes not just casino employees, but workers throughout the supply chain
       amount: formatCurrency(results.totals.output.direct),
       jobs: formatJobs(results.totals.employment.direct),
       color: COLORS.primary,
-      explanation: empDetail
-        ? `The casino's own employees and operating spending. ${empScope} are ${empCalibrated ? 'calibrated to observed QCEW casino labor intensity' : 'from the I-O coefficient'} (90% range ${jobsRange(empDetail.range.direct)}).`
+      explanation: empRange
+        ? `The casino's own employees and operating spending. ${empScope} use the I-O coefficient; the 90% range across states is ${jobsRange(empRange.direct)}.`
         : 'The casino pays employees, purchases supplies, and covers operating costs. These are jobs and spending that happen at the casino itself.'
     },
     {
@@ -600,11 +600,11 @@ This includes not just casino employees, but workers throughout the supply chain
     fontSize: 24, fontFace: 'Helvetica', bold: true, color: COLORS.accentLight
   });
   slide3.addText(`${formatJobs(results.totals.employment.total)} total jobs supported across ${inputs.state}`, {
-    x: colStartX + 3.5, y: empDetail ? 4.24 : 4.38, w: totalColumnsWidth - 3.7, h: empDetail ? 0.34 : 0.4,
+    x: colStartX + 3.5, y: empRange ? 4.24 : 4.38, w: totalColumnsWidth - 3.7, h: empRange ? 0.34 : 0.4,
     fontSize: FONT.section + 2, fontFace: 'Helvetica', color: COLORS.white, align: 'right'
   });
-  if (empDetail) {
-    slide3.addText(`90% range ${jobsRange(empDetail.range.total)} jobs · ${empScope.toLowerCase()} ${empCalibrated ? 'calibrated to QCEW' : 'from the I-O coefficient'}`, {
+  if (empRange) {
+    slide3.addText(`90% range ${jobsRange(empRange.total)} jobs (state-to-state variation in direct jobs)`, {
       x: colStartX + 3.5, y: 4.58, w: totalColumnsWidth - 3.7, h: 0.26,
       fontSize: FONT.body, fontFace: 'Helvetica', color: COLORS.white, align: 'right'
     });
@@ -650,7 +650,7 @@ This includes not just casino employees, but workers throughout the supply chain
 
   // Rows tighten slightly to make room for the jobs-range note under the table;
   // the label column is wide enough that no label wraps and grows its row.
-  const detailRowH = empDetail ? 0.31 : 0.35;
+  const detailRowH = empRange ? 0.31 : 0.35;
   slide4.addTable(tableData, {
     x: MARGIN, y: 1.15, w: 9.2, h: detailRowH * tableData.length,
     fontFace: 'Helvetica', fontSize: FONT.body + 1, color: COLORS.text,
@@ -661,8 +661,8 @@ This includes not just casino employees, but workers throughout the supply chain
     align: 'center', valign: 'middle'
   });
 
-  if (empDetail) {
-    slide4.addText(`${empScope} ${empCalibrated ? 'calibrated to QCEW casino labor intensity' : 'from the I-O coefficient'} (90% range: ${jobsRange(empDetail.range.direct)} direct, ${jobsRange(empDetail.range.total)} total). Supplier and induced jobs as modeled.`, {
+  if (empRange) {
+    slide4.addText(`90% range: ${jobsRange(empRange.direct)} direct, ${jobsRange(empRange.total)} total jobs (state variation; no bias vs. 2022 Economic Census). Supplier and induced jobs as modeled.`, {
       x: MARGIN, y: 1.15 + detailRowH * tableData.length - 0.01, w: 9.2, h: 0.24,
       fontSize: FONT.caption, fontFace: 'Helvetica', italic: true, color: COLORS.grayText
     });
@@ -759,9 +759,7 @@ This includes not just casino employees, but workers throughout the supply chain
   if (tribal) {
     taxTerms.push(hasGamingLine
       ? { term: 'Revenue sharing', def: 'Compact payment on GGR. Tribal gaming on trust land pays no state gaming, sales or property tax, so it replaces the gaming stream\'s direct TOPI.' }
-      : tribalTopiRemoved(results, fiscal)
-        ? { term: 'Tribal gaming', def: 'Trust-land gaming pays no state gaming, sales or property tax, so the gaming stream\'s direct TOPI is excluded. No compact share entered.' }
-        : { term: 'Tribal gaming', def: 'Revenue entered in total: no compact share and no trust-land TOPI adjustment, so production taxes may be overstated.' });
+      : { term: 'Tribal gaming', def: `Trust-land gaming pays no state gaming, sales or property tax, so the gaming stream's direct TOPI is excluded. ${inputMode === 'total' ? 'No compact share: total mode does not identify GGR.' : 'No compact share entered.'}` });
   } else if (hasGamingLine) {
     taxTerms.push({ term: 'Gaming tax', def: 'Statutory tax on gross gaming revenue. It replaces the gaming share of direct TOPI, so all lines are additive.' });
   }
@@ -937,7 +935,7 @@ For technical details, see the appendix.`;
 
   const dataSources = [
     { name: 'EPA State IO Tables', desc: 'Regional economic multipliers' },
-    { name: 'BLS QCEW', desc: empDetail ? 'State employment and wages; direct-jobs calibration' : 'State employment and wage data' },
+    { name: 'BLS QCEW', desc: 'State employment and wage data' },
     { name: 'BEA National Tables', desc: 'Gambling-specific adjustments' },
     { name: 'Consumer Price Index (CPI)', desc: inputs.analysisYear
       ? `Revenue in ${inputs.analysisYear} dollars; deflated to 2023 for job estimates`
@@ -1245,7 +1243,7 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
     ['EPA State IO', '2019', 'Multipliers'],
     ['BLS QCEW', '2023', 'Employment/wages'],
     ['BEA IO Tables', '2017', 'Gambling coefficients'],
-    ...(empDetail ? [['BLS QCEW validation', '2023', 'Direct-jobs calibration']] : [])
+    ...(empRange ? [['Economic Census', '2022', 'Direct-jobs range']] : [])
   ];
 
   appendixB.addTable(vintageTable, {
@@ -1312,10 +1310,10 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
     fontSize: FONT.section, fontFace: 'Helvetica', bold: true, color: COLORS.primary
   });
 
-  appendixC.addText(empDetail
-    ? `${empScope} are checked against a 50-state comparison of the model's direct-jobs coefficient with BLS QCEW casino employment (2023). For this analysis the I-O coefficient gives ${formatJobs(empDetail.model.direct)} direct jobs and the QCEW-calibrated estimate is ${formatJobs(empDetail.calibrated.direct)}; the 90% predictive interval from the comparison is ${jobsRange(empDetail.range.direct)} direct jobs. The report uses the ${empCalibrated ? 'calibrated estimate' : 'I-O coefficient'}. Supplier and induced jobs have no observed benchmark and are shown as modeled. Users can enter known employment to replace the estimate.`
+  appendixC.addText(empRange
+    ? `${empScope} use the I-O coefficient, tested against two benchmarks. BLS QCEW jobs per wage dollar suggest the coefficient is short, but the 2022 Economic Census, which observes revenue, shows the gap comes from the model's compensation per revenue dollar being too high (the observed ratio falls as the state gaming tax rises), not from too few jobs: jobs per revenue dollar show no bias. No jobs adjustment is applied; the 90% range across states is ${jobsRange(empRange.direct)} direct jobs. Supplier and induced jobs have no observed benchmark and are shown as modeled.`
     : `Results are validated against published industry benchmarks and cross-checked with BLS employment data. Sensitivity analysis shows that results are most sensitive to direct employment assumptions. Users can input known employment figures to improve accuracy for specific operations.`, {
-    x: MARGIN, y: 3.9, w: 9.2, h: empDetail ? 0.8 : 0.55,
+    x: MARGIN, y: 3.9, w: 9.2, h: empRange ? 0.8 : 0.55,
     fontSize: FONT.caption, fontFace: 'Helvetica', color: COLORS.text
   });
 
@@ -1346,8 +1344,8 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
       explanation: 'The model assumes unlimited supply capacity. During periods of full employment or resource scarcity, multiplier effects may be constrained by labor or material shortages.'
     },
     {
-      limitation: 'Static Coefficients',
-      explanation: 'Technical coefficients are derived from historical data and may not reflect current production technologies or supply chain relationships.'
+      limitation: 'Static, National Coefficients',
+      explanation: 'Coefficients come from historical data, and every state gets its sector\'s national value-added mix. Labor\'s share of casino revenue, and the payroll and income taxes built on it, are therefore probably overstated where gaming taxes are high.'
     },
     {
       limitation: 'Gross vs. Net Impacts',

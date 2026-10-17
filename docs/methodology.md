@@ -6,7 +6,7 @@
 **Model version:** 2026 (release edition)
 **Publisher:** GP Consulting
 **Live calculator:** https://gamblingpolicy.com/tools/economic-impact/
-**White paper (PDF):** https://gamblingpolicy.com/tools/economic-impact/GEMS-2026-Methodology.pdf — generated from [`generate_whitepaper.py`](generate_whitepaper.py); regenerate after content changes with `python3 docs/generate_whitepaper.py` (requires `pip install reportlab`)
+**White paper (PDF):** https://gamblingpolicy.com/tools/economic-impact/GEMS-2026-Methodology.pdf — generated from [`generate_whitepaper.py`](generate_whitepaper.py); regenerate after content changes with `python3 docs/generate_whitepaper.py` (requires `pip install reportlab`). The PDF describes the initial 2026 release; where they differ, this document applies.
 
 ### Suggested Citation
 
@@ -41,6 +41,8 @@ GEMS uses the Industry Technology Assumption framework from Input-Output (IO) ec
 
 **Step 3 — Type II Augmentation:** The A matrix is augmented with a household row (labor income coefficients) and household column (consumer spending patterns). The augmented Leontief inverse yields Type II multipliers that additionally capture induced effects from household spending.
 
+**Computation.** The calculator does these steps in the browser. `scripts/export_state_io.R` writes the in-state block of each state's StateIO tables to `webapp/src/data/io/{state}.json`: the Make and domestic Use tables, industry and commodity output, the value-added components V001–V003, in-state personal consumption (F010) and the 2023 jobs satellite. The export contains no derived quantities. The engine (`webapp/src/engine/io.ts`) forms D, B, A, the Type I and Type II inverses and all coefficients, as `08_state_multipliers_2023.R` does. Its tests reproduce every value in `employment_multipliers_2023.csv`, `construction_multipliers_2023.csv`, `gambling_multipliers_2023.csv` and `online_gambling_multipliers_2023.csv` to the rounding of those files, so the R pipeline remains the reference and the browser model cannot drift from it.
+
 ### 2.2 Effect Decomposition
 
 | Effect | Source |
@@ -54,18 +56,17 @@ GEMS uses the Industry Technology Assumption framework from Input-Output (IO) ec
 - Induced output = revenue × (Type II multiplier − Type I multiplier)
 - Total output = revenue × Type II multiplier
 
-The same decomposition applies to GDP, employee compensation, and TOPI using their respective multiplier pairs.
+The same decomposition applies to GDP, employee compensation, and TOPI using their respective multiplier pairs. The engine keeps each effect by the industry in which it occurs; the calculator reports supplier and induced jobs by industry.
 
 ### 2.3 Employment Coefficients
 
 Employment uses a consistent-2023 satellite rather than a simple output multiplier:
 
 ```
-Direct jobs = Direct output × Direct jobs/output coefficient
-Supplier or induced jobs = GDP effect × Effect-specific jobs/GDP coefficient
+Jobs in industry i = jobs per $1M of output in industry i × output of industry i in each round
 ```
 
-QCEW jobs are divided by 2023 StateIO output and value added. Jobs/output is propagated through the Leontief output-requirements matrix; the resulting supplier and induced jobs totals are divided by the corresponding GDP effects to produce `Indirect_Emp_Coef` and `Induced_Emp_Coef`. `Emp_Coef` retains the direct jobs/value-added diagnostic, while `Direct_Jobs_Per_1M_Output` drives calculated direct jobs in the application.
+QCEW jobs are divided by 2023 StateIO output for each of the 71 industries. The direct round is the revenue entered; the supplier and induced rounds are the output requirements from the Type I and Type II inverses. The R pipeline summarizes the same quantities as `Indirect_Emp_Coef` and `Induced_Emp_Coef` (jobs per dollar of supplier or induced GDP); `Emp_Coef` retains the direct jobs/value-added diagnostic.
 
 The QCEW employment input counts filled jobs, including full-time, part-time, temporary, and permanent positions. It does not contain hours or an FTE conversion, and a person holding multiple jobs may be counted more than once. GEMS therefore reports **jobs** as its primary employment measure. See the [BLS QCEW definition](https://www.bls.gov/cew/questions-and-answers.htm#Q18).
 
@@ -84,7 +85,7 @@ Jobs = (Output_or_GDP_in_analysis_year_dollars × Deflator) × Employment_Coeffi
 
 This conversion affects the employment estimate only; it does not change any displayed dollar figure.
 
-The **analysis year** is the dollar year of the revenue inputs and is an explicit input (Inputs → Analysis settings), defaulting to the latest year with a complete BLS CPI-U annual average (currently 2025). It is not taken from the browser clock, so a 2024 revenue figure entered in 2026 is deflated from 2024 dollars. The CPI table uses official BLS calendar-year annual averages.
+The **analysis year** is the dollar year of the revenue inputs and is an explicit input (Annual revenue → Dollar year of revenue), defaulting to the latest year with a complete BLS CPI-U annual average (currently 2025). It is not taken from the browser clock, so a 2024 revenue figure entered in 2026 is deflated from 2024 dollars. The CPI table uses official BLS calendar-year annual averages.
 
 The production structure remains a deliberate hybrid: the make/use matrices and household closure use 2019 relationships to avoid pandemic distortion, while the employment satellite uses internally consistent 2023 numerator and denominator data. This preserves the stated COVID rationale without interpreting nominal industry growth as a change in labor intensity.
 
@@ -106,6 +107,8 @@ The IO tables contain only the blended sector 713 (Amusement, Gambling, and Recr
 | Supplier TOPI increment | 0.940 |
 
 These ratios adapt StateIO 713 direct and incremental Type I effects. Because USEEIO is an open Type I model, the same documented supplier-side ratios scale the StateIO induced increments. Supplier and induced job intensity is not multiplied by the casino operator's direct labor ratio. The former competing legacy calibration has been removed.
+
+In the engine, the gambling activity is the state's 713 response with each metric's direct effect and supplier and induced increments scaled by these ratios (`webapp/src/engine/profiles.ts`). Supplier and induced jobs scale with value added, because jobs per dollar of supplier or induced GDP stay at the 713 values. The industry distribution of gambling supplier and induced effects is therefore that of 713.
 
 ### 2.6 Validation of Direct Jobs and Predictive Ranges
 
@@ -135,11 +138,37 @@ Scope and assumptions:
   - User-entered jobs.
 - Supplier and induced jobs have no observed benchmark and enter the range as modeled.
 - Census receipts include non-gaming revenue, consistent with the total-revenue input; Census employment is the mid-March pay period. Census and QCEW agree on jobs per payroll dollar within 2–4% for casinos and casino hotels.
-- The overstated compensation share means direct payroll-based taxes are probably overstated at casinos in high-tax states; a gaming-tax-dependent payroll adjustment is a candidate refinement, not yet applied.
+- The overstated compensation share is corrected by the gaming-tax adjustment of Section 2.7.
 
 Replication: `kphilander/casino-io-validation`, scripts 15 (QCEW) and 19 (Economic Census); private until publication.
 
-### 2.7 Optional Modules
+### 2.7 Gaming-Tax Adjustment of Direct Compensation
+
+The Census comparison shows that the model's payroll share of casino revenue is too high, and more so where the gaming tax is high. Casino revenue includes the gaming tax, and a higher tax leaves a smaller share of revenue for labor. StateIO gives every state the national value-added composition of the sector, so the unadjusted coefficient cannot show this.
+
+GEMS adjusts the direct compensation of land-based gaming revenue for the effective gaming tax rate τ:
+
+```
+adjusted direct compensation = model direct compensation × exp(−b τ)
+```
+
+- b = 0.916 (SE 0.333; 95% CI 0.22–1.61; p = 0.012) is the slope of a regression of log(model / observed payroll share of revenue) on τ.
+- The sample is 23 Economic Census cells of stand-alone casinos and casino hotels in states with commercial casinos, each with at least 50 employees.
+- The intercept (−0.024, p = 0.81) is not different from zero. The adjustment is therefore anchored at τ = 0, where the coefficient is unbiased.
+- In leave-one-out prediction, the mean absolute log error of the payroll share falls from 0.26 to 0.147.
+- Values: `webapp/src/data/payrollAdjustment.json`.
+
+Application:
+
+- τ is the effective rate the analysis applies to gaming revenue: the computed statutory or custom rate when GGR is entered, otherwise the state's blended effective rate. Tribal compact revenue shares are treated the same way, although tribal casinos are outside the estimation sample.
+- Direct jobs and direct value added do not change.
+- Lower direct compensation lowers cash wages and the payroll and income taxes based on them.
+- Induced effects scale with the change in direct plus supplier compensation. This is exact in the Type II model, where household spending is proportional to labor income.
+- User-entered wages replace the adjusted value. The adjustment does not apply to online operators or to lodging, food and other revenue.
+
+Replication: `kphilander/casino-io-validation`, script 19 (`analysis_output/output_side_payroll_adjustment.csv`).
+
+### 2.8 Optional Modules
 
 **Net new impact.** The headline results are a gross *economic contribution*. When enabled, GEMS also reports net new impact:
 
@@ -149,7 +178,7 @@ net share = non-resident revenue share + resident share × recapture share
 
 The recapture share is the part of residents' gaming spending that would otherwise have left the state (for example, play at casinos across the border). The rest of resident spending is treated as displaced from other local businesses. Output, GDP, jobs and compensation are scaled by the net share, which is exact under the linear I-O model. Fiscal estimates remain gross. Neither figure accounts for social costs.
 
-**Construction phase.** A one-time impact of building or expanding a property, using StateIO construction (sector 23) multipliers for the state. Inputs are construction cost, the share spent in state (excluding land, gaming equipment and out-of-state purchases), and the build period. Jobs are **job-years** over the build period; the module also reports average annual jobs. Construction impacts are temporary and are reported separately from operating impacts.
+**Construction phase.** A one-time impact of building or expanding a property, using the state's StateIO construction (sector 23) response. Inputs are construction cost, the share spent in state (excluding land, gaming equipment and out-of-state purchases), and the build period. Jobs are **job-years** over the build period; the module also reports average annual jobs. Construction impacts are temporary and are reported separately from operating impacts.
 
 ## 3. Tax Estimates
 
@@ -231,7 +260,7 @@ This replaces the earlier national NIPA wage share (0.814), which removes supple
 | 721 | 721 | Lodging |
 | 722 | 722 | Food & Beverage |
 
-Construction-phase estimates use StateIO sector 23 (Construction), exported as `construction_multipliers_2023.csv` and the `construction` array of `multipliers.json`.
+Construction-phase estimates use StateIO sector 23 (Construction). `construction_multipliers_2023.csv` is the R reference for these multipliers.
 
 Property types: Casino Hotel (721120), Stand-alone Casino (713210), Slot Parlor (713290), Bar/Restaurant Gaming (722410), plus online casino and sports betting variants. All four land-based labels use the same canonical gambling production function. In department mode, separately entered lodging, food, and other revenue use StateIO 721, 722, and 711AS. In total mode, the full amount uses the gambling function and should be treated as an approximation when non-gaming revenue is material.
 
@@ -240,9 +269,9 @@ Legacy land-based total operating revenue is not treated as GGR for the statutor
 ## 6. Limitations and Appropriate Use
 
 - Results are **estimates** based on average inter-industry relationships; they should be interpreted as indicative rather than definitive.
-- The deployed multiplier data cover 50 states and 200 state-sector rows, not the District of Columbia.
+- The deployed model covers the 50 states, with 71 industries each, not the District of Columbia.
 - Employment uses 2023 jobs/output and jobs/value-added satellites with a retained 2019 interindustry structure; it is a deliberate structural hybrid, not a mixed numerator/denominator coefficient.
-- The national gambling ratios, employment coefficients, property assembler, deployed JSON, and offline integrity tests are versioned and reproducible. Script 08a downloads or reads the official BLS 2023 annual singlefile through `GEMS_QCEW_SINGLEFILE_ZIP` and uses exact, versioned StateIO mappings.
+- The national gambling ratios, employment coefficients, exported state tables, and offline integrity tests are versioned and reproducible. Script 08a downloads or reads the official BLS 2023 annual singlefile through `GEMS_QCEW_SINGLEFILE_ZIP` and uses exact, versioned StateIO mappings.
 - QCEW has no compatible employment measure for StateIO's synthetic owner-occupied housing and government-enterprise sectors. `HS`, `GFE`, and `GSLE` therefore use explicit zero satellite coefficients rather than average-sector imputations; public-administration sectors use disclosed ownership proxies.
 - Online multipliers are approximations. Direct online labor intensity may be adjusted from operator data, but supplier and induced job intensities should reflect the industries where those effects occur rather than inherit the direct operator ratio.
 - State-level analysis captures only impacts within the state boundary; spending that leaks to other states is excluded.
@@ -253,7 +282,7 @@ Legacy land-based total operating revenue is not treated as GGR for the statutor
 
 ## 7. Versioning
 
-The model version is the release edition year (e.g., GEMS 2026). When a new edition is published — whether from regenerated datasets or methodology updates — the version is bumped and this document is updated. Reports generated by the calculator embed the model version and the data vintages used (see Data Sources above) so results remain traceable.
+The model version is the release edition year (e.g., GEMS 2026). When a new edition is published — whether from regenerated datasets or methodology updates — the version is bumped and this document is updated. The calculator's Method view lists the data files behind every result, with checksums, and a share link records every input of an analysis, so results remain traceable.
 
 ### Version History
 
@@ -261,6 +290,7 @@ The model version is the release edition year (e.g., GEMS 2026). When a new edit
 |---------|----------|-------|
 | GEMS 2026 | 2026 | Initial release. 2019 EPA StateIO multipliers, 2023 QCEW employment, USEEIOv2.0.1-411 gambling adjustments. |
 | GEMS 2026 (methodology update) | October 2026 | Direct jobs validated against the Economic Census, with predictive ranges; tribal ownership option; statutory gaming tax replaces the gaming share of direct TOPI; 28 states' gaming taxes re-verified; per-worker 2025 income taxes; industry wage basis; payroll taxes by level of government; revenue dollar-year input; net-impact and construction-phase modules. |
+| GEMS 2026 (calculator rebuild) | October 2026 | Calculator rebuilt in TypeScript; the regional model is computed in the browser from the StateIO tables and tested against the R pipeline; gaming-tax adjustment of direct compensation; supplier and induced jobs by industry; report exports and licensing removed. |
 
 ## 8. Key References
 

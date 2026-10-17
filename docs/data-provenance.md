@@ -68,6 +68,15 @@ BEA records gaming administered by tribal governments as a state and local gover
 
 Model compensation (StateIO V001 = BEA compensation) is converted to QCEW-comparable wages by industry for payroll and income-tax bases and for user-entered payroll: national 2023 QCEW private wages ÷ BEA NIPA Table 6.2D compensation (`webapp/src/data/wageBasis.json`). Household income taxes use wage-level tables for 2025 built by `scripts/build_income_tax_tables.py` from `data/income_tax_parameters_2025.json`. Each state's parameters were verified against official 2025 instructions, schedules or statutes, and the build asserts 1,337 reference and hand-checked values.
 
+## State tables for the browser engine
+
+`scripts/export_state_io.R` writes one file per state, `webapp/src/data/io/{AB}.json`, and `webapp/src/data/io/national.json`.
+
+- Each state file holds the in-state block of the StateIO 2019 two-region summary tables: Make (71 industries × 73 commodities), domestic Use (73 × 71), industry and commodity output, V001–V003, and F010 personal consumption. It also holds the 2023 satellite: QCEW jobs and StateIO 2023 industry output and value added. Values are in dollars, to 12 significant digits.
+- `national.json` holds the sector list, the BEA FTE/job ratios, the USEEIO gambling ratios from `national_naics_ratios.csv`, the online scenario ratios of script 14, and the file names and MD5 checksums of the StateIO data files.
+
+The exporter derives nothing; the engine computes every multiplier. `webapp/src/engine/io.test.ts` checks the engine against the R CSVs at their stated rounding: 4 decimals for multipliers, 6 for coefficients and jobs. Rerun the exporter after any rerun of scripts 08a–09 or 13; the test fails if the tables and the CSVs diverge. The exporter reads `employment_all_sectors_2023.csv` from script 08a, which is not committed; `GEMS_QCEW_ALL_SECTORS_FILE` sets its path.
+
 ## Verification
 
 ```bash
@@ -76,4 +85,4 @@ Rscript tests/test_multiplier_integrity.R
 cd webapp && npm test
 ```
 
-The offline tests independently recalculate the national parent benchmarks and ratios, verify the 2023 employment denominators, confirm all 50 states and 200 sector rows, and confirm that every land-based property label uses the canonical gambling coefficients.
+The offline R tests independently recalculate the national parent benchmarks and ratios, verify the 2023 employment denominators, confirm all 50 states and 200 sector rows, and confirm that every land-based property label uses the canonical gambling coefficients. The webapp tests reproduce the R multipliers from the exported tables, compare 65 complete analyses with the calculator before the rebuild (`webapp/src/engine/__fixtures__/legacy-scenarios.json`), and test the tax, fiscal and module rules.

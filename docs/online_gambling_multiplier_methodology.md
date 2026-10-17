@@ -114,6 +114,6 @@ For the most accurate results when modeling online gambling operations:
 |---|---|
 | `14_online_gambling_multipliers.R` | Applies adjustment factors to 7132 base multipliers |
 | `online_gambling_multipliers_2023.csv` | 50-state online-adjusted multiplier dataset |
-| `webapp/src/data/multipliers.json` | Frontend data (`onlineGaming` section) |
-| `webapp/src/utils/calculations.js` | Online multiplier lookup and GGR-only revenue handling |
-| `webapp/src/App.jsx` | Conditional UI for online property types |
+| `webapp/src/data/io/national.json` | The same adjustment factors for the browser engine (`online`) |
+| `webapp/src/engine/profiles.ts` | Applies the factors to the gambling response (reproduces the CSV in tests) |
+| `webapp/src/engine/scenario.ts`, `webapp/src/ui/InputsPanel.tsx` | GGR-only revenue handling and online inputs |

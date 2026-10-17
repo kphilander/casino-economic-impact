@@ -226,3 +226,25 @@ test('tribal total-mode input removes the direct TOPI of the whole gaming enterp
   closeTo(f.lines.find(l => l.key === 'topi').direct, 0);
   closeTo(f.lines.find(l => l.key === 'topi').indirect, impact.tax.indirect);
 });
+
+test('gaming-tax payroll adjustment lowers direct compensation and rebases induced effects', async () => {
+  const { payrollFactorForStream } = await import('./calculations.js');
+  const adj = readJSON('../data/payrollAdjustment.json');
+  closeTo(payrollFactorForStream(adj, 0.4, '713210', 'total', 'total'), Math.exp(-adj.slope * 0.4));
+  assert.equal(payrollFactorForStream(adj, 0, '713210', 'total', 'total'), 1);              // no tax: unbiased
+  assert.equal(payrollFactorForStream(adj, 0.4, '721120', 'department', 'lodging'), 1);    // gaming stream only
+  assert.equal(payrollFactorForStream(adj, 0.2, 'ONLINE_CASINO', 'total', 'total'), 1);
+  const f = 0.7;
+  const base = calculateSingleImpact(100, row, null, null, { deflator: 1 });
+  const r = calculateSingleImpact(100, row, null, null, { deflator: 1, compensationFactor: f });
+  closeTo(r.wages.direct, base.wages.direct * f);
+  closeTo(r.wages.indirect, base.wages.indirect);
+  const scale = (base.wages.direct * f + base.wages.indirect) / (base.wages.direct + base.wages.indirect);
+  closeTo(r.gdp.induced, base.gdp.induced * scale);
+  closeTo(r.employment.induced, base.employment.induced * scale);
+  closeTo(r.gdp.direct, base.gdp.direct);
+  closeTo(r.employment.direct, base.employment.direct);
+  assert.equal(r.wages.source, 'adjusted');
+  const known = calculateSingleImpact(100, row, null, 14, { deflator: 1, compensationFactor: f });
+  assert.equal(known.wages.source, 'user');                                                // known wages win
+});

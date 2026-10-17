@@ -12,6 +12,7 @@ import incomeTaxData from '../data/incomeTaxRates.json';
 import jobsRanges from '../data/jobsRange.json';
 import fiscalAssumptions from '../data/fiscalAssumptions.json';
 import wageBasis from '../data/wageBasis.json';
+import payrollAdjustment from '../data/payrollAdjustment.json';
 import {
   calculateCombinedImpact, calculateGamingTax, getTaxableGgr,
   isOnlinePropertyType, getDeflator, DEFAULT_ANALYSIS_YEAR,
@@ -42,21 +43,6 @@ export function computeScenario(analysis) {
 
   const isOnline = isOnlinePropertyType(propertyType);
 
-  const results = calculateCombinedImpact(
-    revenues,
-    multiplierData.multipliers,
-    multiplierData.gambling,
-    state,
-    true,
-    knownData || {},
-    null,
-    propertyType || null,
-    multiplierData.propertyTypes || null,
-    inputMode,
-    multiplierData.onlineGaming || null,
-    { analysisYear, jobsRanges, wageBasis, ownership: tribal ? 'tribal' : 'commercial' },
-  );
-
   // Gaming tax (on GGR)
   const stateTaxConfig = gamingTaxRatesData.rates[state];
   let gamingTaxResult = null;
@@ -72,6 +58,30 @@ export function computeScenario(analysis) {
     const amount = calculateGamingTax(ggr, taxConfig);
     gamingTaxResult = { amount, effectiveRate: ggr > 0 ? amount / ggr : 0, ggr };
   }
+
+  // Effective rate on gaming revenue for the payroll adjustment: the computed
+  // statutory, custom or compact rate where gaming revenue is known; otherwise
+  // (land-based total revenue) the custom rate or the state's blended rate.
+  const gamingTaxRate = gamingTaxResult
+    ? gamingTaxResult.effectiveRate
+    : (hasCustom ? Number(gamingTaxCustomRate)
+      : (!isOnline && !tribal && stateTaxConfig?.hasCommercial ? (stateTaxConfig.effectiveRate || 0) : 0));
+
+  const results = calculateCombinedImpact(
+    revenues,
+    multiplierData.multipliers,
+    multiplierData.gambling,
+    state,
+    true,
+    knownData || {},
+    null,
+    propertyType || null,
+    multiplierData.propertyTypes || null,
+    inputMode,
+    multiplierData.onlineGaming || null,
+    { analysisYear, jobsRanges, wageBasis, ownership: tribal ? 'tribal' : 'commercial',
+      payrollAdjustment, gamingTaxRate },
+  );
 
   // Direct TOPI of the revenue stream that the statutory tax applies to. For a
   // tribal property entered as total revenue, the whole input is the tribal

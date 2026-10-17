@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "description": "Adjustment of the gambling coefficient's direct employee compensation for the gaming tax carried in casino revenue.",
+    "method": "Regression of log(model / observed payroll share of revenue) on the state's effective gaming tax rate, using 2022 Economic Census stand-alone casinos and casino hotels in states with commercial casinos (cells with at least 50 employees). The intercept is not significantly different from zero, so the coefficient is unbiased where there is no gaming tax, and the adjustment is anchored there: adjusted compensation = model compensation x exp(-slope x rate).",
+    "rationale": "Casino revenue includes the gaming tax. A higher tax leaves a smaller share of revenue for labor. The StateIO tables give every state the national value-added composition of the sector, so the unadjusted coefficient cannot show this.",
+    "rate": "The effective rate the analysis applies to gaming revenue: the computed statutory or custom rate when gaming revenue is entered, otherwise the state's blended effective rate. Tribal compact revenue shares are treated the same way; tribal casinos are outside the estimation sample.",
+    "consequences": "Lower direct compensation lowers cash wages and the payroll and income taxes based on them, and lowers induced effects in proportion to the change in direct plus supplier compensation. Direct value added and jobs are unchanged. User-entered wages replace the adjusted figure.",
+    "scope": "Land-based gaming streams only. Not applied to online operations.",
+    "source": "Philander, 'Multipliers for sectors that are not casinos' (in preparation); replication repository kphilander/casino-io-validation (commit 10e0348), script 19, analysis_output/output_side_payroll_adjustment.csv; private until publication."
+  },
+  "slope": 0.916,
+  "slopeSE": 0.3333,
+  "slopeCI95": [
+    0.2228,
+    1.6091
+  ],
+  "slopeP": 0.0121,
+  "intercept": -0.0237,
+  "interceptP": 0.809,
+  "n": 23,
+  "leaveOneOutMAE": {
+    "before": 0.26,
+    "after": 0.147
+  },
+  "byPropertyType": {
+    "713210": {
+      "label": "Stand-alone Casino",
+      "n": 8,
+      "biasBefore": 1.394,
+      "biasAfter": 1.081
+    },
+    "713290": {
+      "label": "Slot Parlors / Bingo Halls",
+      "n": 10,
+      "biasBefore": 1.621,
+      "biasAfter": 1.256
+    },
+    "721120": {
+      "label": "Resort with Hotel & Casino",
+      "n": 15,
+      "biasBefore": 1.173,
+      "biasAfter": 0.925
+    }
+  }
+}

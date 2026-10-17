@@ -1,33 +1,26 @@
 {
-  "name": "casino-impact-calculator",
-  "version": "1.0.0",
+  "name": "gems-economic-impact",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --test src/utils/*.test.js"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "docx": "^8.5.0",
-    "docxtemplater": "^3.67.6",
-    "file-saver": "^2.0.5",
-    "lucide-react": "^0.294.0",
-    "pizzip": "^3.2.0",
-    "pptxgenjs": "^4.0.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "recharts": "^2.10.0",
-    "stripe": "^14.25.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@vitejs/plugin-react": "^4.2.0",
-    "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.32",
-    "tailwindcss": "^3.3.6",
-    "vite": "^5.0.0"
+    "@types/node": "^22.20.5",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "~5.6.3",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
   }
 }

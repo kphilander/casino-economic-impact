@@ -31,13 +31,15 @@ io_year <- 2019
 employment_year <- 2023
 fte_ratio_year <- 2023
 
-# Target casino-related sectors
-target_sectors <- c("711AS", "713", "721", "722")
+# Target casino-related sectors, plus construction (23) for one-time
+# construction-phase impacts of new or expanded properties
+target_sectors <- c("711AS", "713", "721", "722", "23")
 sector_names <- c(
   "711AS" = "Arts, Entertainment, Recreation",
   "713" = "Amusement, Gambling, Recreation",
   "721" = "Accommodation",
-  "722" = "Food Services & Drinking Places"
+  "722" = "Food Services & Drinking Places",
+  "23" = "Construction"
 )
 
 # All 50 states

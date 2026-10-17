@@ -73,7 +73,10 @@ export function App() {
 
       {fromForecaster && (
         <p className="banner" role="status">
-          The revenue values come from the <a href="https://gamblingpolicy.com/tools/revenue-forecaster/">Casino Revenue Forecaster</a>. Examine the inputs before you use the results.
+          {/* One span, so the flex gap does not separate the link from the text. */}
+          <span>
+            The revenue values come from the <a href="https://gamblingpolicy.com/tools/revenue-forecaster/">Casino Revenue Forecaster</a>. Examine the inputs before you use the results.
+          </span>
           <button type="button" className="link" onClick={() => setFromForecaster(false)}>Close</button>
         </p>
       )}

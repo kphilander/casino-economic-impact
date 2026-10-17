@@ -1,5 +1,5 @@
 # ============================================================================
-# EXPORT THE VERSIONED MULTIPLIER DATA TO THE WEB APPLICATION
+# EXPORT THE VERSIONED MULTIPLIER CSVs AS ONE JSON FILE
 # ============================================================================
 
 library(tidyverse)
@@ -123,6 +123,7 @@ output <- list(
 
 json_output <- toJSON(output, pretty = TRUE, auto_unbox = TRUE, digits = 10,
                       na = "null")
-writeLines(json_output, "webapp/src/data/multipliers.json")
+# The web application computes its model from the state tables written by
+# scripts/export_state_io.R; this JSON is a convenience export of the CSVs.
 writeLines(json_output, "multipliers_with_tax.json")
-message("Exported webapp/src/data/multipliers.json and multipliers_with_tax.json")
+message("Exported multipliers_with_tax.json")

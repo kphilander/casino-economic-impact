@@ -4,6 +4,9 @@ import type { Effects } from '../engine/impact';
 import type { Fiscal } from '../engine/fiscal';
 import { NON_GAMING_TOPI_SHARE, PROPERTY_TYPES, isOnline, type ScenarioResult } from '../engine/scenario';
 import { jobs, money, pct, ratio } from './format';
+import {
+  ConstructionExplain, DefinitionsExplain, FiscalExplain, ImpactExplain, IndustriesExplain, NetExplain,
+} from './Explain';
 
 const EFFECT_HEADS = ['Direct', 'Supplier', 'Induced', 'Total'] as const;
 
@@ -163,7 +166,7 @@ function Industries({ r, model }: { r: ScenarioResult; model: RegionalModel }) {
   const v = r.totals.rippleJobsByIndustry;
   const total = v.reduce((s, x) => s + x, 0);
   if (!(total > 0)) return null;
-  const top = Array.from(v, (jobsN, i) => ({ jobsN, name: model.industries[i].name, code: model.industries[i].code }))
+  const top = Array.from(v, (jobsN, i) => ({ i, jobsN, name: model.industries[i].name, code: model.industries[i].code }))
     .sort((x, y) => y.jobsN - x.jobsN)
     .slice(0, 10);
   const max = top[0].jobsN;
@@ -182,6 +185,7 @@ function Industries({ r, model }: { r: ScenarioResult; model: RegionalModel }) {
         ))}
       </ol>
       {profiled && <p className="footnote">Gaming supply chains follow the StateIO amusement, gambling and recreation (713) pattern, scaled to the gambling detail industry.</p>}
+      <IndustriesExplain r={r} model={model} top={top.map((x) => x.i)} />
     </section>
   );
 }
@@ -199,6 +203,7 @@ function Net({ r }: { r: ScenarioResult }) {
         <Stat label="Net labor income" value={money(t.compensation.total)} />
         <Stat label="Net output" value={money(t.output.total)} />
       </div>
+      <NetExplain r={r} />
     </section>
   );
 }
@@ -216,6 +221,7 @@ function Construction({ r }: { r: ScenarioResult }) {
         <Stat label="Labor income" value={money(c.impact.compensation.total)} />
         <Stat label="Tax revenue" value={money(c.fiscal.totals.all.total)} />
       </div>
+      <ConstructionExplain r={r} />
     </section>
   );
 }
@@ -230,15 +236,18 @@ export function ResultsView({ r, model }: { r: ScenarioResult; model: RegionalMo
         <p>Annual impact in {a.state}, {r.dollarYear} dollars. Supplier effects are purchases from in-state industries; induced effects are household spending of labor income.</p>
       </div>
       <Headline r={r} />
+      <DefinitionsExplain />
       <Notes r={r} />
       <section className="card">
         <h3>Economic impact</h3>
         <ImpactTable t={r.totals} />
+        <ImpactExplain r={r} />
       </section>
       <Streams r={r} />
       <section className="card">
         <h3>Tax revenue</h3>
         <FiscalTable fiscal={r.fiscal} showGamingNote={!!r.gamingTax && !r.gamingTax.tribal} />
+        <FiscalExplain r={r} />
       </section>
       <Industries r={r} model={model} />
       <Net r={r} />

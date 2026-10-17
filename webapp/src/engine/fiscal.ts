@@ -17,7 +17,7 @@ import { EFFECTS, type Effect } from './io';
 import type { Effects } from './impact';
 import {
   incomeTax, payrollTax, type FederalPayroll, type IncomeTax, type IncomeTaxTables,
-  type LevelSplit, type StatePayroll,
+  type PayrollTax, type StatePayroll,
 } from './tax';
 
 export type Level = 'federal' | 'state_local';
@@ -33,6 +33,13 @@ export interface Fiscal {
   lines: FiscalLine[];
   totals: { all: Effects; federal: Effects; stateLocal: Effects };
   incomeTaxMethod: IncomeTax['method'];
+  /** What the lines were computed from, for display of the computation. */
+  basis: {
+    effects: Record<Effect, { cashWages: number; jobs: number; payroll: PayrollTax; income: IncomeTax }>;
+    topi: { modeledDirect: number; gamingStreamTopi: number; removed: number; retainedShare: number; tribal: boolean; replaced: boolean };
+    statePayroll: StatePayroll | undefined;
+    federalPayroll: FederalPayroll;
+  };
 }
 
 export interface FiscalData {
@@ -88,7 +95,7 @@ export function buildFiscal(input: FiscalInput, data: FiscalData): Fiscal {
     'state_local', { direct: topiDirect, indirect: input.topi.indirect, induced: input.topi.induced },
     'Sales, property, excise and license taxes from the I-O model, mostly state and local'));
 
-  const payroll = {} as Record<Effect, LevelSplit>;
+  const payroll = {} as Record<Effect, PayrollTax>;
   const income = {} as Record<Effect, IncomeTax>;
   for (const e of EFFECTS) {
     payroll[e] = payrollTax(input.cashWages[e], input.jobs[e], data.statePayroll, data.federalPayroll);
@@ -115,5 +122,16 @@ export function buildFiscal(input: FiscalInput, data: FiscalData): Fiscal {
       stateLocal: sumLines(kept.filter((l) => l.level === 'state_local')),
     },
     incomeTaxMethod: income.direct.method,
+    basis: {
+      effects: Object.fromEntries(EFFECTS.map((e) => [e, {
+        cashWages: input.cashWages[e], jobs: input.jobs[e], payroll: payroll[e], income: income[e],
+      }])) as Fiscal['basis']['effects'],
+      topi: {
+        modeledDirect: input.topi.direct, gamingStreamTopi, removed: input.topi.direct - topiDirect,
+        retainedShare: tribal ? 0 : data.nonGamingShare, tribal, replaced: tribal || !!gamingTax,
+      },
+      statePayroll: data.statePayroll,
+      federalPayroll: data.federalPayroll,
+    },
   };
 }

@@ -31,3 +31,15 @@ export function signedPct(x: number | null | undefined): string {
   const s = pct(Math.abs(x), 1);
   return x > 0.0005 ? `+${s}` : x < -0.0005 ? `−${s}` : '0.0%';
 }
+
+/** Whole dollars, e.g. a wage or a tax per worker. */
+export function usd(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return '–';
+  return `${n < 0 ? '−' : ''}$${nf(0).format(Math.abs(n))}`;
+}
+
+/** A coefficient with a fixed number of decimals. */
+export function coef(x: number | null | undefined, digits = 3): string {
+  if (x == null || !Number.isFinite(x)) return '–';
+  return nf(digits).format(x);
+}

@@ -44,7 +44,10 @@ export function CompareView(props: {
       <div className="view-head">
         <div>
           <h2>Compare scenarios</h2>
-          <p>Add up to {MAX} versions of the analysis, for example different states, tax rates or revenue. The first is the baseline.</p>
+          <p>
+            Add up to {MAX} versions of the analysis, for example different states, tax rates or revenue. The first is the baseline. Each scenario is
+            recomputed with its own state&apos;s model; the percentage under a value is its change from the baseline.
+          </p>
         </div>
         <button type="button" className="btn primary" onClick={props.onAdd} disabled={scenarios.length >= MAX}>Add current analysis</button>
       </div>

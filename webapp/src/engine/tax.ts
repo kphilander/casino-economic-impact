@@ -42,7 +42,7 @@ export type GamingVertical = 'land' | 'igaming' | 'sports';
 /** A schedule reduced to what the calculation needs. */
 export type TaxRule =
   | { kind: 'custom'; rate: number }
-  | { kind: 'flat'; rate: number; addOn: number }
+  | { kind: 'flat'; rate: number; addOn: number; source: 'flat' | 'handle' | 'effective'; handleRate?: number; hold?: number }
   | { kind: 'tiered'; tiers: Tier[]; addOn: number }
   | { kind: 'splitTiered'; slotTiers: Tier[]; tableTiers: Tier[]; slotShare: number; addOn: number }
   | { kind: 'splitFlat'; slotsRate: number; tableRate: number; slotShare: number; addOn: number }
@@ -78,39 +78,59 @@ export function taxRule(s: GamingTaxSchedule | undefined, customRate: number | n
   if ((s.rateStructure === 'split_game_type' || s.slotTableSplit) && s.slotsRate != null && s.tableRate != null) {
     return { kind: 'splitFlat', slotsRate: s.slotsRate, tableRate: s.tableRate, slotShare, addOn };
   }
-  if (s.flatRate != null) return { kind: 'flat', rate: s.flatRate, addOn };
-  if (s.handleRate != null && s.assumedHold) return { kind: 'flat', rate: s.handleRate / s.assumedHold, addOn };
-  if (s.effectiveRate != null) return { kind: 'flat', rate: s.effectiveRate, addOn };
+  if (s.flatRate != null) return { kind: 'flat', rate: s.flatRate, addOn, source: 'flat' };
+  if (s.handleRate != null && s.assumedHold) {
+    return { kind: 'flat', rate: s.handleRate / s.assumedHold, addOn, source: 'handle', handleRate: s.handleRate, hold: s.assumedHold };
+  }
+  if (s.effectiveRate != null) return { kind: 'flat', rate: s.effectiveRate, addOn, source: 'effective' };
   return { kind: 'none' };
 }
 
+/** One band or component of a gaming tax computation ($M). */
+export interface TaxStep {
+  part: 'all' | 'slots' | 'tables' | 'addOn';
+  /** Band limits on the part's revenue; to = null for the top band. */
+  from: number;
+  to: number | null;
+  base: number;
+  rate: number;
+  tax: number;
+}
+
 /** Graduated tax: each rate applies to revenue between its threshold and the next ($M). */
-export function tieredTax(amount: number, tiers: Tier[]): number {
-  if (!(amount > 0) || tiers.length === 0) return 0;
+function tierSteps(amount: number, tiers: Tier[], part: TaxStep['part']): TaxStep[] {
+  if (!(amount > 0) || tiers.length === 0) return [];
   const sorted = [...tiers].sort((a, b) => a.threshold - b.threshold);
-  let tax = 0;
+  const steps: TaxStep[] = [];
   for (let i = 0; i < sorted.length; i++) {
-    const start = sorted[i].threshold;
-    const end = i < sorted.length - 1 ? sorted[i + 1].threshold : Infinity;
-    if (amount <= start) break;
-    tax += (Math.min(amount, end) - start) * sorted[i].rate;
+    const from = sorted[i].threshold;
+    const to = i < sorted.length - 1 ? sorted[i + 1].threshold : null;
+    if (amount <= from) break;
+    const base = Math.min(amount, to ?? Infinity) - from;
+    steps.push({ part, from, to, base, rate: sorted[i].rate, tax: base * sorted[i].rate });
   }
-  return tax;
+  return steps;
+}
+
+/** The computation of the gaming tax on GGR ($M), step by step; the tax is their sum. */
+export function gamingTaxSteps(ggr: number, rule: TaxRule): TaxStep[] {
+  if (!(ggr > 0) || rule.kind === 'none') return [];
+  const flat = (part: TaxStep['part'], base: number, rate: number): TaxStep => ({ part, from: 0, to: null, base, rate, tax: base * rate });
+  const addOn = rule.kind !== 'custom' && rule.addOn ? [flat('addOn', ggr, rule.addOn)] : [];
+  switch (rule.kind) {
+    case 'custom': return [flat('all', ggr, rule.rate)];
+    case 'flat': return [flat('all', ggr, rule.rate), ...addOn];
+    case 'tiered': return [...tierSteps(ggr, rule.tiers, 'all'), ...addOn];
+    case 'splitTiered':
+      return [...tierSteps(ggr * rule.slotShare, rule.slotTiers, 'slots'),
+        ...tierSteps(ggr * (1 - rule.slotShare), rule.tableTiers, 'tables'), ...addOn];
+    case 'splitFlat':
+      return [flat('slots', ggr * rule.slotShare, rule.slotsRate), flat('tables', ggr * (1 - rule.slotShare), rule.tableRate), ...addOn];
+  }
 }
 
 export function gamingTax(ggr: number, rule: TaxRule): number {
-  if (!(ggr > 0)) return 0;
-  switch (rule.kind) {
-    case 'custom': return ggr * rule.rate;
-    case 'flat': return ggr * (rule.rate + rule.addOn);
-    case 'tiered': return tieredTax(ggr, rule.tiers) + ggr * rule.addOn;
-    case 'splitTiered':
-      return tieredTax(ggr * rule.slotShare, rule.slotTiers)
-        + tieredTax(ggr * (1 - rule.slotShare), rule.tableTiers) + ggr * rule.addOn;
-    case 'splitFlat':
-      return ggr * (rule.slotShare * rule.slotsRate + (1 - rule.slotShare) * rule.tableRate + rule.addOn);
-    case 'none': return 0;
-  }
+  return gamingTaxSteps(ggr, rule).reduce((s, x) => s + x.tax, 0);
 }
 
 // ------------------------------------------------------------ payroll taxes
@@ -133,14 +153,23 @@ export interface StatePayroll {
 
 export interface LevelSplit { federal: number; state: number; total: number }
 
+export interface PayrollTax extends LevelSplit {
+  /** Average cash wage per job, dollars. */
+  avgWage: number;
+  /** Components, $M. */
+  parts: { socialSecurity: number; medicare: number; futa: number; suta: number; sdi: number; pfml: number };
+}
+
 /**
  * Employer payroll taxes on cash wages ($M) paid to a number of filled jobs,
  * each at the average wage. Federal: Social Security (to the wage cap),
  * Medicare, FUTA. State: unemployment insurance (to the state wage base) and
  * employer SDI and paid-leave contributions.
  */
-export function payrollTax(wages: number, jobs: number, st: StatePayroll | undefined, fed: FederalPayroll): LevelSplit {
-  if (!(wages > 0) || !(jobs > 0) || !st) return { federal: 0, state: 0, total: 0 };
+export function payrollTax(wages: number, jobs: number, st: StatePayroll | undefined, fed: FederalPayroll): PayrollTax {
+  if (!(wages > 0) || !(jobs > 0) || !st) {
+    return { federal: 0, state: 0, total: 0, avgWage: 0, parts: { socialSecurity: 0, medicare: 0, futa: 0, suta: 0, sdi: 0, pfml: 0 } };
+  }
   const dollars = wages * 1e6;
   const avg = dollars / jobs;
   const ss = Math.min(avg, fed.fica_ss_wage_cap) * fed.fica_ss_rate * jobs;
@@ -151,7 +180,10 @@ export function payrollTax(wages: number, jobs: number, st: StatePayroll | undef
   const pfml = st.pfml_employer_rate && st.pfml_employer_rate > 0 ? dollars * st.pfml_employer_rate : 0;
   const federal = (ss + medicare + futa) / 1e6;
   const state = (suta + sdi + pfml) / 1e6;
-  return { federal, state, total: federal + state };
+  return {
+    federal, state, total: federal + state, avgWage: avg,
+    parts: { socialSecurity: ss / 1e6, medicare: medicare / 1e6, futa: futa / 1e6, suta: suta / 1e6, sdi: sdi / 1e6, pfml: pfml / 1e6 },
+  };
 }
 
 // ------------------------------------------------------------ income taxes
@@ -181,6 +213,9 @@ export interface IncomeTax {
   stateLocal: number;
   total: number;
   method: 'per_worker' | 'bea_ratio' | 'none';
+  /** Average cash wage per job and tax per worker at that wage, dollars (per-worker method). */
+  avgWage: number;
+  perWorker: { federal: number; state: number; local: number };
 }
 
 /**
@@ -190,7 +225,9 @@ export interface IncomeTax {
  * personal current taxes to wages applies to the total.
  */
 export function incomeTax(wages: number, jobs: number, tables: IncomeTaxTables, stateName: string, fallback?: StatePayroll): IncomeTax {
-  const none: IncomeTax = { federal: 0, state: 0, local: 0, stateLocal: 0, total: 0, method: 'none' };
+  const none: IncomeTax = {
+    federal: 0, state: 0, local: 0, stateLocal: 0, total: 0, method: 'none', avgWage: 0, perWorker: { federal: 0, state: 0, local: 0 },
+  };
   if (!(wages > 0)) return none;
   const st = tables.states[stateName];
   if (!st || !(jobs > 0)) {
@@ -198,9 +235,14 @@ export function incomeTax(wages: number, jobs: number, tables: IncomeTaxTables, 
     return ratio ? { ...none, total: wages * ratio, method: 'bea_ratio' } : none;
   }
   const w = (wages * 1e6) / jobs;
+  const perWorker = {
+    federal: taxAtWage(tables.federal.tax, tables.wageGrid, w),
+    state: taxAtWage(st.state, tables.wageGrid, w),
+    local: taxAtWage(st.local, tables.wageGrid, w),
+  };
   const toM = (perJob: number) => (perJob * jobs) / 1e6;
-  const federal = toM(taxAtWage(tables.federal.tax, tables.wageGrid, w));
-  const state = toM(taxAtWage(st.state, tables.wageGrid, w));
-  const local = toM(taxAtWage(st.local, tables.wageGrid, w));
-  return { federal, state, local, stateLocal: state + local, total: federal + state + local, method: 'per_worker' };
+  const federal = toM(perWorker.federal);
+  const state = toM(perWorker.state);
+  const local = toM(perWorker.local);
+  return { federal, state, local, stateLocal: state + local, total: federal + state + local, method: 'per_worker', avgWage: w, perWorker };
 }

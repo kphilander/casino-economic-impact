@@ -16,9 +16,9 @@ import { ACTIVITIES, activityResponse, directFtePerJob, type ActivityKey } from 
 import { addImpacts, scaleImpact, streamImpact, type Effects, type Impact, type ImpactMetric, type JobsRange } from './impact';
 import { buildFiscal, type Fiscal, type FiscalData } from './fiscal';
 import {
-  gamingTax as computeGamingTax, hasGamingTax, taxRule, verticalSchedule,
+  gamingTaxSteps, hasGamingTax, taxRule, verticalSchedule,
   type FederalPayroll, type GamingVertical, type IncomeTaxTables, type StateGamingTax,
-  type StatePayroll, type TaxRule,
+  type StatePayroll, type TaxRule, type TaxStep,
 } from './tax';
 import { deflator as deflatorFor, LATEST_CPI_YEAR } from './prices';
 
@@ -163,13 +163,15 @@ export interface Stream {
   impact: Impact;
 }
 
-export type Totals = Record<ImpactMetric, Effects> & { jobsRange: JobsRange | null; rippleJobsByIndustry: Float64Array };
+export type Totals = Record<ImpactMetric, Effects> & { jobsRange: JobsRange | null; rippleJobsByIndustry: Float64Array; rippleOutputByIndustry: Float64Array };
 
 export interface GamingTaxResult {
   amount: number;
   effectiveRate: number;
   ggr: number;
   rule: TaxRule;
+  /** The computation, band by band; amount is their sum. */
+  steps: TaxStep[];
   tribal: boolean;
 }
 
@@ -189,8 +191,8 @@ export interface ScenarioResult {
   streams: Stream[];
   totals: Totals;
   gamingTax: GamingTaxResult | null;
-  /** Rate used by the payroll adjustment and the change in direct compensation. */
-  payrollAdjustment: { rate: number; factor: number; directChange: number } | null;
+  /** Rate used by the payroll adjustment, where it comes from, and the change in direct compensation. */
+  payrollAdjustment: { rate: number; rateSource: 'computed' | 'custom' | 'blended'; factor: number; directChange: number } | null;
   fiscal: Fiscal;
   net: { share: number; totals: Record<ImpactMetric, Effects> } | null;
   construction: ConstructionResult | null;
@@ -220,9 +222,11 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
   let gamingTax: GamingTaxResult | null = null;
   if ((tribal ? custom != null : hasGamingTax(stateTax, v) || custom != null) && ggr > 0) {
     const rule = taxRule(verticalSchedule(stateTax, v), custom, a.gamingTax.slotSharePct);
-    const amount = computeGamingTax(ggr, rule);
-    gamingTax = { amount, effectiveRate: amount / ggr, ggr, rule, tribal };
+    const steps = gamingTaxSteps(ggr, rule);
+    const amount = steps.reduce((s, x) => s + x.tax, 0);
+    gamingTax = { amount, effectiveRate: amount / ggr, ggr, rule, steps, tribal };
   }
+  const rateSource = gamingTax ? 'computed' : custom != null ? 'custom' : 'blended';
   const taxRate = gamingTax ? gamingTax.effectiveRate
     : custom != null ? custom
       : !online && !tribal && stateTax?.hasCommercial ? stateTax.effectiveRate ?? 0 : 0;
@@ -268,6 +272,7 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
   const adjusted = streams.filter((s) => s.impact.compensationAdjustment);
   const payrollAdjustment = adjusted.length ? {
     rate: taxRate,
+    rateSource: rateSource as 'computed' | 'custom' | 'blended',
     factor: adjusted[0].impact.compensationAdjustment!.factor,
     directChange: adjusted.reduce((s, x) => s + x.impact.compensation.direct - x.impact.compensationAdjustment!.modelDirect, 0),
   } : null;

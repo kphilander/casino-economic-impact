@@ -3,7 +3,7 @@
  * revenue, with the optional replacement of modeled labor by observed data and
  * the gaming-tax adjustment of direct compensation.
  */
-import { EFFECTS, METRICS, type Effect, type Response } from './io';
+import { EFFECTS, METRICS, type Effect, type Metric, type Response } from './io';
 
 export interface Effects { direct: number; indirect: number; induced: number; total: number }
 
@@ -17,6 +17,20 @@ export type ImpactMetric = (typeof IMPACT_METRICS)[number];
 
 export interface JobsRange { direct: [number, number]; total: [number, number] }
 
+/** What a stream impact was computed from, for display of the computation. */
+export interface ImpactBasis {
+  revenue: number;
+  deflator: number;
+  /** Response totals per $1M of revenue, before labor-data replacement and rescaling. */
+  perMillion: Record<Metric, Record<Effect, number>>;
+  cashShare: { direct: number; ripple: number };
+  compensationFactor: number;
+  jobsRangeRatios: { p05: number; p95: number } | null;
+  directFtePerJob: number;
+  knownJobs: number | null;
+  knownWages: number | null;
+}
+
 export interface Impact extends Record<ImpactMetric, Effects> {
   sources: { jobs: 'model' | 'user'; compensation: 'model' | 'user' | 'adjusted' };
   /** Direct compensation before the gaming-tax adjustment, where one applies. */
@@ -27,6 +41,9 @@ export interface Impact extends Record<ImpactMetric, Effects> {
   inducedScale: number;
   /** Supplier plus induced jobs by industry where they occur. */
   rippleJobsByIndustry: Float64Array;
+  /** Supplier plus induced output ($M) by industry. */
+  rippleOutputByIndustry: Float64Array;
+  basis: ImpactBasis;
 }
 
 export interface StreamOptions {
@@ -50,8 +67,8 @@ export function streamImpact(response: Response, revenue: number, o: StreamOptio
   if (!(revenue > 0)) return null;
   const t = Object.fromEntries(METRICS.map((m) => [m, Object.fromEntries(
     EFFECTS.map((e) => [e, response[m][e].reduce((s, v) => s + v, 0)]),
-  ) as Record<Effect, number>])) as Record<(typeof METRICS)[number], Record<Effect, number>>;
-  const per = (m: (typeof METRICS)[number], e: Effect) => revenue * t[m][e];
+  ) as Record<Effect, number>])) as Record<Metric, Record<Effect, number>>;
+  const per = (m: Metric, e: Effect) => revenue * t[m][e];
   const jobsDollars = revenue * o.deflator;
 
   // Direct compensation: observed cash wages grossed up to compensation, or
@@ -91,6 +108,9 @@ export function streamImpact(response: Response, revenue: number, o: StreamOptio
   const rippleJobsByIndustry = response.jobs.indirect.map(
     (v, i) => jobsDollars * (v + response.jobs.induced[i] * inducedScale),
   );
+  const rippleOutputByIndustry = response.output.indirect.map(
+    (v, i) => revenue * (v + response.output.induced[i] * inducedScale),
+  );
 
   return {
     output: effects(revenue, per('output', 'indirect'), per('output', 'induced') * inducedScale),
@@ -113,11 +133,17 @@ export function streamImpact(response: Response, revenue: number, o: StreamOptio
     jobsRange,
     inducedScale,
     rippleJobsByIndustry,
+    rippleOutputByIndustry,
+    basis: {
+      revenue, deflator: o.deflator, perMillion: t, cashShare: o.cashShare, compensationFactor: factor,
+      jobsRangeRatios: o.jobsRange ?? null, directFtePerJob: o.directFtePerJob,
+      knownJobs: userJobs ? o.knownJobs! : null, knownWages: compSource === 'user' ? o.knownWages! : null,
+    },
   };
 }
 
 /** Sum impacts metric by metric. Ranges add, using point values where a stream has none. */
-export function addImpacts(list: Impact[]): Omit<Impact, 'sources' | 'compensationAdjustment' | 'inducedScale'> {
+export function addImpacts(list: Impact[]): Omit<Impact, 'sources' | 'compensationAdjustment' | 'inducedScale' | 'basis'> {
   const out = Object.fromEntries(IMPACT_METRICS.map((m) => [m, zeroEffects()])) as Record<ImpactMetric, Effects>;
   for (const imp of list) {
     for (const m of IMPACT_METRICS) for (const e of [...EFFECTS, 'total'] as const) out[m][e] += imp[m][e];
@@ -132,8 +158,12 @@ export function addImpacts(list: Impact[]): Omit<Impact, 'sources' | 'compensati
   }, { direct: [0, 0], total: [0, 0] }) : null;
   const n = list[0]?.rippleJobsByIndustry.length ?? 0;
   const rippleJobsByIndustry = new Float64Array(n);
-  for (const imp of list) imp.rippleJobsByIndustry.forEach((v, i) => { rippleJobsByIndustry[i] += v; });
-  return { ...out, jobsRange, rippleJobsByIndustry };
+  const rippleOutputByIndustry = new Float64Array(n);
+  for (const imp of list) {
+    imp.rippleJobsByIndustry.forEach((v, i) => { rippleJobsByIndustry[i] += v; });
+    imp.rippleOutputByIndustry.forEach((v, i) => { rippleOutputByIndustry[i] += v; });
+  }
+  return { ...out, jobsRange, rippleJobsByIndustry, rippleOutputByIndustry };
 }
 
 /** Scale every additive metric by a share (net-impact module). */

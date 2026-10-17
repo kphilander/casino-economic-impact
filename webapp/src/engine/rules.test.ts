@@ -13,7 +13,7 @@ import {
   GAMING_TAX, PAYROLL_ADJUSTMENT, WAGE_BASIS, computeScenario, defaultAnalysis, fiscalDataFor,
   jobsRangeFor, netShare, payrollFactor, type Analysis,
 } from './scenario';
-import { gamingTax, taxAtWage, incomeTax, taxRule, verticalSchedule, type GamingVertical } from './tax';
+import { gamingTax, gamingTaxSteps, payrollTax, taxAtWage, incomeTax, taxRule, verticalSchedule, type GamingVertical } from './tax';
 import { buildFiscal } from './fiscal';
 import { analysisFromForecaster, analysisFromUrl, decodeAnalysis, encodeAnalysis, migrate, shareUrl } from './share';
 
@@ -231,5 +231,58 @@ describe('save and share', () => {
     });
     expect(a.known.gaming).toEqual({ jobs: 500, wages: 18 });
     expect(a.known.lodging).toEqual({ jobs: null, wages: null });
+  });
+});
+
+describe('computation basis shown in the interface', () => {
+  test('gaming tax steps are the computation: bands of a graduated schedule sum to the tax', () => {
+    const rule = taxRule(GAMING_TAX.rates.Nevada, null, 70);
+    const steps = gamingTaxSteps(250, rule);
+    expect(steps.map((x) => x.rate)).toEqual([0.035, 0.045, 0.0675]);
+    expect(steps.reduce((s, x) => s + x.base, 0)).toBeCloseTo(250, 12);
+    expect(steps.reduce((s, x) => s + x.tax, 0)).toBeCloseTo(gamingTax(250, rule), 12);
+    const il = gamingTaxSteps(100, taxRule(GAMING_TAX.rates.Illinois, null, 80));
+    expect(il.filter((x) => x.part === 'slots').reduce((s, x) => s + x.base, 0)).toBeCloseTo(80, 12);
+    expect(gamingTaxSteps(100, taxRule(GAMING_TAX.rates.Tennessee.sportsBetting, null, 70))[0].rate).toBeCloseTo(0.0185 / 0.095, 12);
+  });
+
+  test('payroll components and income tax per worker add up to the lines', () => {
+    const data = fiscalDataFor('California');
+    const p = payrollTax(30, 600, data.statePayroll, data.federalPayroll);
+    const parts = Object.values(p.parts).reduce((s, x) => s + x, 0);
+    expect(parts).toBeCloseTo(p.total, 12);
+    expect(p.avgWage).toBeCloseTo(50000, 9);
+    const t = incomeTax(30, 600, data.incomeTax, 'California');
+    expect(t.perWorker.federal * 600 / 1e6).toBeCloseTo(t.federal, 12);
+    expect((t.perWorker.state + t.perWorker.local) * 600 / 1e6).toBeCloseTo(t.stateLocal, 12);
+  });
+
+  test('stream basis reproduces the displayed figures', async () => {
+    const model = await nv();
+    const r = computeScenario({ ...defaultAnalysis(), known: { ...defaultAnalysis().known, food: { jobs: null, wages: 9 } } }, model)!;
+    for (const s of r.streams) {
+      const b = s.impact.basis;
+      expect(b.revenue * b.perMillion.va.direct).toBeCloseTo(s.impact.gdp.direct, 9);
+      expect(b.revenue * b.perMillion.va.induced * s.impact.inducedScale).toBeCloseTo(s.impact.gdp.induced, 9);
+      expect(b.revenue * b.deflator * b.perMillion.jobs.indirect).toBeCloseTo(s.impact.jobs.indirect, 9);
+    }
+    const gaming = r.streams.find((s) => s.key === 'gaming')!;
+    expect(gaming.impact.basis.revenue * gaming.impact.basis.perMillion.compensation.direct * gaming.impact.basis.compensationFactor)
+      .toBeCloseTo(gaming.impact.compensation.direct, 9);
+    const food = r.streams.find((s) => s.key === 'food')!;
+    expect(food.impact.basis.knownWages! / food.impact.basis.cashShare.direct).toBeCloseTo(food.impact.compensation.direct, 12);
+    // Industry trace: for a StateIO industry, jobs = output required x deflator x jobs per $1M.
+    const lodging = r.streams.find((s) => s.key === 'lodging')!.impact;
+    lodging.rippleJobsByIndustry.forEach((j, i) => {
+      expect(j).toBeCloseTo(lodging.rippleOutputByIndustry[i] * lodging.basis.deflator * model.coefficients.jobs[i], 9);
+    });
+  });
+
+  test('fiscal basis: TOPI removed equals the replaced gaming share', async () => {
+    const r = computeScenario(defaultAnalysis(), await nv())!;
+    const t = r.fiscal.basis.topi;
+    expect(t.removed).toBeCloseTo((1 - t.retainedShare) * t.gamingStreamTopi, 12);
+    expect(r.fiscal.lines.find((l) => l.key === 'topi')!.direct).toBeCloseTo(t.modeledDirect - t.removed, 12);
+    expect(r.fiscal.basis.effects.direct.payroll.federal).toBeCloseTo(r.fiscal.lines.find((l) => l.key === 'payroll_federal')!.direct, 12);
   });
 });

@@ -353,6 +353,8 @@ Each row contains: state identifiers, QCEW employment and wage data, direct coef
 
 A React, Vite and TypeScript single-page application in `webapp/`. It has no server component: the model, the tax calculations and saved analyses all run in the browser.
 
+Each results table has a "How this is computed" panel. It shows the coefficients, CPI deflator, wage ratios, adjustment factors and gaming-tax bands used for the current analysis, read from the record the engine keeps of each computation, so the explanation cannot differ from the result. The Method tab lists the computation steps and every industry's coefficients for the selected state.
+
 ```
 webapp/
 ├── src/

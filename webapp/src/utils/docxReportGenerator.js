@@ -22,6 +22,7 @@ import {
   FootnoteReferenceRun, LevelFormat,
 } from 'docx';
 import { formatNumber, formatCurrency, formatJobs } from './calculations';
+import { reportFiscal, LEVEL_LABEL, describeNetShare, tribalTopiRemoved, TRIBAL_UNADJUSTED_NOTE } from './exporters';
 import { BRAND, PRODUCT_NAME_VERSIONED, getSuggestedCitation } from '../brand';
 
 // ---- palette --------------------------------------------------------------
@@ -202,12 +203,44 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
   const mlt = results.multipliers;
   const byRevenue = Array.isArray(results.byRevenue) ? results.byRevenue.filter((b) => (b.revenue || 0) > 0) : [];
   const gaming = inputs.gamingTaxResult;
-  const payroll = inputs.payrollTaxResult;
-  const household = inputs.householdTaxResult;
+  const analysisYear = inputs.analysisYear || null;
+  const net = inputs.net || null;
+  const construction = inputs.constructionResult || null;
+
+  // Fiscal lines from computeScenario's `fiscal` bundle. The gaming line (the
+  // statutory gaming tax, or compact revenue sharing for a tribal operation)
+  // replaces the gaming stream's TOPI it overlaps, so every line is additive.
+  const fiscal = reportFiscal(results, inputs);
+  const tribal = inputs.ownership === 'tribal';
+  const gamingRevName = tribal ? 'compact revenue sharing' : 'statutory gaming tax';
+  // In total-revenue mode the tribal treatment cannot separate the gaming stream.
+  const tribalUnadjusted = tribal && !tribalTopiRemoved(results, fiscal);
+  const fiscalLine = (key) => fiscal.lines.find((l) => l.key === key) || null;
+  const lineTotal = (key) => fiscalLine(key)?.total || 0;
+  const gamingLine = fiscalLine('gaming');
+  const topiLine = fiscalLine('topi');
+  const payrollTotal = fiscal.lines.filter((l) => l.key.startsWith('payroll')).reduce((s, l) => s + l.total, 0);
+  const incomeTotal = fiscal.lines.filter((l) => l.key.startsWith('income')).reduce((s, l) => s + l.total, 0);
+  const totalTax = fiscal.totals.all.total;
+  // "$X to state and local governments and $Y to the federal government"
+  const levelSplit = (f) => `${m$(f.totals.stateLocal.total)} to state and local governments and ${m$(f.totals.federal.total)} to the federal government`;
+  // The BEA-ratio household line has no federal/state split and sits in the state & local subtotal.
+  const combinedIncomeNote = (f) => (f.lines.some((l) => l.key === 'income_combined')
+    ? ' Household income taxes estimated with the BEA ratio are not split by level of government and are counted with state and local taxes, so the federal figure excludes federal income tax.' : '');
 
   const indOut = t.output.indirect + t.output.induced; // ripple output
-  // Gaming tax is a memo item within the TOPI concept and is not added again.
-  const totalTax = t.tax.total + (payroll?.total || 0) + (household?.total || 0);
+
+  // Direct-jobs basis and the 90% predictive interval from the QCEW validation
+  const empDetail = t.employment.detail || null;
+  const empCalibrated = !!empDetail && t.employment.basis === 'calibrated';
+  const jobsRange = ([lo, hi]) => `${j(lo)}–${j(hi)}`;
+  // In department mode only the gaming stream carries a calibration factor.
+  const deptCalibration = inputMode !== 'total' && byRevenue.length > 1;
+
+  // Section 6 subsection numbers for the optional modules (6.8 is the revenue-stream table)
+  let s6 = byRevenue.length > 1 ? 9 : 8;
+  const netSec = net ? `6.${s6++}` : null;
+  const conSec = construction ? `6.${s6++}` : null;
 
   // Derived metrics for richer narrative (full-dollar values where noted)
   const usd0 = (v) => '$' + Math.round(v).toLocaleString('en-US');
@@ -315,13 +348,16 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       dataRow(['Employee compensation ($M)', n(t.wages.direct), n(t.wages.total), x(mlt.wages)]),
       totalRow(['Public revenue ($M)', '—', n(totalTax), '—']),
     ], { colWidths: [4400, 1900, 1900, 1760] }),
-    sourceLine(`${PRODUCT_NAME_VERSIONED} model estimates. Figures are annual and expressed in millions of dollars except employment. FTEs are estimated with 2023 national BEA industry ratios.`),
+    sourceLine(`${PRODUCT_NAME_VERSIONED} model estimates. Figures are annual and expressed in millions of ${analysisYear ? `${analysisYear} ` : ''}dollars except employment. FTEs are estimated with 2023 national BEA industry ratios.`),
     H2('Key findings'),
     bullet([r(`Total economic output of `, {}), r(`${m$(t.output.total)}`, { bold: true, color: C.ink }), r(`. For every dollar of output generated directly at ${op}, an additional ${formatNumber(mlt.output - 1, 2)} dollars of output is generated elsewhere in the ${stateName} economy, for a total output multiplier of ${formatNumber(mlt.output, 2)}.`)]),
     bullet([r(`A contribution of `, {}), r(`${m$(t.gdp.total)}`, { bold: true, color: C.ink }), r(` to gross state product (value added) — the most directly comparable measure to a state's GDP, representing the net new value created.`)]),
-    bullet([r(`Support for `, {}), r(`${j(t.employment.total)} full- and part-time jobs`, { bold: true, color: C.ink }), r(` (${j(t.fte.total)} estimated FTEs), of which ${j(t.employment.direct)} jobs are at the operation itself and ${j(t.employment.indirect + t.employment.induced)} are sustained across suppliers and the broader community.`)]),
+    bullet([r(`Support for `, {}), r(`${j(t.employment.total)} full- and part-time jobs`, { bold: true, color: C.ink }), r(` (${j(t.fte.total)} estimated FTEs), of which ${j(t.employment.direct)} jobs are at the operation itself and ${j(t.employment.indirect + t.employment.induced)} are sustained across suppliers and the broader community.${empDetail ? ` ${deptCalibration ? 'Direct gaming jobs are' : 'Direct jobs are'} ${empCalibrated ? 'calibrated to observed QCEW casino labor intensity' : 'based on the I-O coefficient'}; the 90% range for total jobs is ${jobsRange(empDetail.range.total)}.` : ''}`)]),
     bullet([r(`${m$(t.wages.total)} in employee compensation`, { bold: true, color: C.ink }), r(` — cash wages plus employer-paid benefits and social-insurance contributions across all three layers of impact.`)]),
-    bullet([r(`Approximately `, {}), r(`${m$(totalTax)} in annual non-duplicative public revenue`, { bold: true, color: C.ink }), r(` from TOPI, payroll, and household taxes. Statutory gaming tax is reported separately as a memo component of TOPI.`)]),
+    bullet([r(`Approximately `, {}), r(`${m$(totalTax)} in annual tax revenue`, { bold: true, color: C.ink }),
+      r(`: ${levelSplit(fiscal)}${gamingLine ? `. State and local revenue includes ${m$(gamingLine.total)} in ${gamingRevName}` : ''}.${combinedIncomeNote(fiscal)}`)]),
+    ...(net ? [bullet([r(`About ${formatNumber(net.share * 100, 0)}% of the gross contribution is net new`, { bold: true, color: C.ink }), r(` to ${stateName} on the stated visitor and recapture shares: ${m$(net.totals.output.total)} of output, ${m$(net.totals.gdp.total)} of value added, and ${j(net.totals.employment.total)} jobs (Section ${netSec}).`)])] : []),
+    ...(construction ? [bullet([r(`A one-time construction phase`, { bold: true, color: C.ink }), r(` of ${m$(construction.localSpend)} in in-state spending over ${construction.years} year${construction.years === 1 ? '' : 's'} supports an estimated ${j(construction.employment.total)} job-years and ${m$(construction.output.total)} of output. These effects are temporary (Section ${conSec}).`)])] : []),
     fig('Composition of total economic output, by effect'),
     stackedBar(t.output),
     barLegend(),
@@ -330,7 +366,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       r(`gross`, { italics: true }),
       r(` rather than `, {}),
       r(`net`, { italics: true }),
-      r(` impacts — that is, they do not attempt to subtract activity that might have occurred elsewhere in the state absent the operation. Section 8 discusses how these choices should shape interpretation of the findings.`),
+      r(` impacts — that is, they do not attempt to subtract activity that might have occurred elsewhere in the state absent the operation. ${net ? `Section ${netSec} gives an approximate net-new estimate under stated visitor and recapture assumptions. ` : ''}Section 8 discusses how these choices should shape interpretation of the findings.`),
     ]),
   );
 
@@ -359,7 +395,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     H2('3.1   How gaming operations interact with the regional economy'),
     P(`A gaming operation participates in the regional economy through three principal channels. The first is its own production and employment: the operation hires workers, pays wages, and produces a service that is sold to consumers. The second is its demand for intermediate goods and services — everything from utilities, professional services, and maintenance to food, beverage, and gaming equipment — which sustains activity among its suppliers. The third is the consumption induced when the income earned by workers, both at the operation and throughout its supply chain, is spent on goods and services within the regional economy.`),
     P(`These channels correspond to the direct, indirect, and induced effects formalized in Section 4. Their relative size depends on how labor-intensive the operation is, how much of its purchasing it sources locally, and how much of the income it generates is spent within the state. GEMS combines a national gambling-industry calibration with ${stateName}'s supplier geography; department inputs provide additional composition where available.`),
-    P(`Gaming operations are also notable for the public revenue they generate. In addition to the production, payroll, and household taxes paid by any comparable business and its workforce, gaming is subject to dedicated taxes on gross gaming revenue. These gaming-specific levies are often a primary motivation for the legalization and regulation of the industry, and they are estimated separately in Section 7.`),
+    P(`Gaming operations are also notable for the public revenue they generate. In addition to the production, payroll, and household taxes paid by any comparable business and its workforce, ${tribal ? 'commercial gaming is subject to dedicated taxes on gross gaming revenue, and tribal gaming to revenue-sharing payments under tribal-state compacts' : 'gaming is subject to dedicated taxes on gross gaming revenue'}. These gaming-specific levies are often a primary motivation for the legalization and regulation of the industry, and they are estimated in Section 7 together with the other taxes the activity generates.`),
     H2('3.2   Why economic impact measurement matters'),
     P(`Quantifying these effects serves several practical purposes. For policymakers, a credible estimate of output, employment, and tax revenue informs decisions about licensing, tax rates, and the allocation of regulatory resources. For operators and investors, it clarifies the operation's contribution to the communities in which it operates and supports engagement with stakeholders. For the public, it provides an objective basis for weighing the economic benefits of gaming against its costs.`),
     P([
@@ -420,9 +456,11 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     H2('5.1   Data sources'),
     P(`The model is built entirely on official, publicly documented federal data, which supports transparency and replicability:`),
     bullet([rs('State input-output multipliers. ', { bold: true, color: C.navy, font: SERIF }), r(`Regional multipliers are derived from the U.S. Environmental Protection Agency's state input-output models (the stateior dataset), which provide state-specific accounts of inter-industry relationships.`), fnref(5)]),
-    bullet([rs('Employment and wages. ', { bold: true, color: C.navy, font: SERIF }), r(`Industry-level employment and wage data are drawn from the U.S. Bureau of Labor Statistics Quarterly Census of Employment and Wages (QCEW), which provides a near-complete census of covered employment by state and industry.`)]),
+    bullet([rs('Employment and wages. ', { bold: true, color: C.navy, font: SERIF }), r(`Industry-level employment and wage data are drawn from the U.S. Bureau of Labor Statistics Quarterly Census of Employment and Wages (QCEW), which provides a near-complete census of covered employment by state and industry.${empDetail ? ' QCEW casino employment is also the benchmark used to calibrate direct jobs (Section 6.4).' : ''}`)]),
     bullet([rs('Detailed industry accounts. ', { bold: true, color: C.navy, font: SERIF }), r(`The U.S. Bureau of Economic Analysis detail-level input-output accounts are used to isolate gambling-specific production and consumption patterns from the broader sectors in which they are otherwise embedded.`)]),
-    bullet([rs('Price adjustments. ', { bold: true, color: C.navy, font: SERIF }), r(`The Consumer Price Index is used to express monetary values in a consistent dollar year.`)]),
+    bullet([rs('Price adjustments. ', { bold: true, color: C.navy, font: SERIF }), r(analysisYear
+      ? `Revenue inputs and all dollar results are in ${analysisYear} dollars. Because the employment coefficients are measured in 2023 dollars, revenue is deflated to 2023 dollars with the Consumer Price Index (CPI-U, annual average) before jobs and FTEs are estimated.`
+      : `The Consumer Price Index is used to express monetary values in a consistent dollar year.`)]),
     H2('5.2   Industry classification and gambling-specific coefficients'),
     P([
       r(`A common weakness of off-the-shelf impact studies is the use of multipliers for a broad sector that only partially reflects gaming. Standard tools frequently rely on the blended NAICS 713 ("Amusement, Gambling, and Recreation Industries") sector, which combines casinos with amusement parks, fitness centers, golf courses, and a wide range of other activities whose economic structure differs substantially from that of gaming.`, {}),
@@ -434,13 +472,20 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       ? P(`Online gaming operations differ from land-based casinos in ways that materially affect their economic footprint. They employ on the order of one worker per million dollars of revenue, compared with roughly five for a typical land-based casino, and their workforces are concentrated in higher-paid technology, product, marketing, and compliance roles. Their supply chains are also more geographically dispersed and less locally embedded. The model reflects these features through online-specific coefficients. A particularly important implication is geographic: the direct, indirect, and induced effects estimated here accrue to the state in which the operator's workforce is located. Where an operator is headquartered outside ${stateName}, most of the economic impact other than gaming-tax revenue would accrue to that other state. For this reason, online estimates are most accurate when operation-specific in-state employment and wage data are supplied.`)
       : P(`The property label identifies the kind of operation for reporting but does not claim a separate estimated production function. Gaming uses the canonical gambling coefficients in every land-based case. When revenue is entered by department, lodging, food and beverage, and other activity use their own sector structures. When only total revenue is entered, the full amount uses the gambling structure and should be interpreted as an approximation if ancillary revenue is substantial.`),
     H2('5.4   Revenue inputs and the demand shock'),
-    P(`The analysis takes ${m$(totalRevenue)} of ${isOnline ? 'gross gaming revenue' : 'operating revenue'} as the final-demand shock applied to the input-output system. ${inputMode === 'total' ? 'Revenue is modeled in aggregate with the canonical gambling structure.' : 'Where revenue is resolved into its component streams, each stream is mapped to the appropriate production structure so that the composition of the operation’s activity is reflected in the direct effects.'} ${results.hasUserData ? 'Operation-supplied job counts and cash-wage figures were incorporated for the direct effects; known cash wages also rebase the household-induced effects.' : 'Direct jobs and employee compensation were estimated from the applicable gambling or department coefficients.'} The model then computes indirect and induced effects via the Type II multipliers described in Section 4.`),
+    P(`The analysis takes ${m$(totalRevenue)} of ${isOnline ? 'gross gaming revenue' : 'operating revenue'}${analysisYear ? `, in ${analysisYear} dollars,` : ''} as the final-demand shock applied to the input-output system. ${inputMode === 'total' ? 'Revenue is modeled in aggregate with the canonical gambling structure.' : 'Where revenue is resolved into its component streams, each stream is mapped to the appropriate production structure so that the composition of the operation’s activity is reflected in the direct effects.'} ${results.hasUserData ? 'Operation-supplied job counts and cash-wage figures were incorporated for the direct effects; known cash wages also rebase the household-induced effects.' : 'Direct jobs and employee compensation were estimated from the applicable gambling or department coefficients.'}${empDetail ? (empCalibrated ? ` ${deptCalibration ? 'Direct gaming jobs' : 'Direct jobs'} were then calibrated to observed QCEW casino labor intensity (Section 6.4).` : ' Direct jobs use the I-O coefficient; Section 6.4 reports the QCEW-calibrated alternative.') : ''} The model then computes indirect and induced effects via the Type II multipliers described in Section 4.`),
     H2('5.5   Estimating fiscal impacts'),
     P(`Public revenue is estimated from four distinct sources, reflecting the different ways gaming activity generates tax. Each is described in Section 7 and summarized here:`),
-    bullet([r('Gaming taxes', { bold: true, color: C.navy }), r(` levied on gross gaming revenue at the rate set by ${stateName} statute or compact;`)]),
+    tribal
+      ? bullet([r('Tribal revenue sharing', { bold: true, color: C.navy }), r(tribalUnadjusted
+        ? ` — payments to the state under the tribal-state compact, entered as a share of gross gaming revenue. Tribal gaming on trust land is largely exempt from state gaming, sales, and property taxes, but this treatment needs gaming revenue entered separately, which it was not here (see Section 7);`
+        : ` — payments to the state under the tribal-state compact, entered as a share of gross gaming revenue${gamingLine ? '' : ' (none was entered for this analysis)'}. Tribal gaming on trust land is largely exempt from state gaming, sales, and property taxes, so the gaming stream's direct production taxes from the input-output model are removed and replaced by the revenue share;`)])
+      : bullet([r('Gaming taxes', { bold: true, color: C.navy }), r(` levied on gross gaming revenue at the rate set by ${stateName} statute or compact. The statutory tax replaces the gaming share of the direct production taxes estimated by the input-output model, so it adds to the other lines rather than overlapping them;`)]),
     bullet([r('Taxes on production and imports (TOPI)', { bold: true, color: C.navy }), r(` — sales, excise, and property taxes and business fees arising across the supply chain, estimated within the input-output model;`)]),
-    bullet([r('Payroll taxes', { bold: true, color: C.navy }), r(` — employer-side social-insurance contributions applied to estimated cash wages by effect type;`)]),
-    bullet([r('Household taxes', { bold: true, color: C.navy }), r(` — income and related personal taxes paid by workers, estimated from published effective-tax ratios.`)]),
+    bullet([r('Payroll taxes', { bold: true, color: C.navy }), r(` — employer-side contributions applied to estimated cash wages and filled jobs by effect type: federal (Social Security and Medicare under FICA, and FUTA) and state (unemployment insurance, plus disability and paid-leave contributions where they exist);`)]),
+    bullet([r('Household income taxes', { bold: true, color: C.navy }), r(fiscal.incomeTaxMethod === 'per_worker'
+      ? ` — federal and state income taxes paid by supported workers, computed per worker by applying 2025 federal and ${stateName} schedules to the average cash wage per job for a single filer with no dependents.`
+      : ` — income and related personal taxes paid by workers, estimated with the BEA ratio of personal current taxes to wages because no per-worker income-tax schedule is available for ${stateName}.`)]),
+    P(`Each tax line is assigned to the federal or the state and local level of government, and Section 7 reports a subtotal for each level as well as the total.`),
     H2('5.6   Key assumptions'),
     P(`The analysis rests on the standard assumptions of input-output modeling, which the reader should bear in mind when interpreting the results:`),
     numItem(`Fixed production technology. The proportions in which each industry combines its inputs are taken as fixed, so the analysis does not model substitution among inputs in response to price changes.`, 'assumptions'),
@@ -472,6 +517,11 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     P(`Value added — output net of the cost of intermediate inputs — is estimated at ${m$(t.gdp.total)}, comprising ${m$(t.gdp.direct)} directly, ${m$(t.gdp.indirect)} indirectly, and ${m$(t.gdp.induced)} through induced effects. Because it avoids the double-counting inherent in output, value added is the measure most directly comparable to ${stateName}'s gross domestic product and is the preferred headline indicator of the operation's net economic contribution. The value-added multiplier of ${formatNumber(mlt.gdp, 2)} reflects the share of each round of activity that represents genuine new value rather than the pass-through of intermediate purchases.`),
     H2('6.4   Employment'),
     P(`The activity is estimated to support ${j(t.employment.total)} full- and part-time jobs across ${stateName}. Of these, ${j(t.employment.direct)} are at the operation itself, ${j(t.employment.indirect)} are sustained among suppliers, and ${j(t.employment.induced)} arise in the broader economy as workers spend their earnings. The employment multiplier of ${formatNumber(mlt.employment, 2)} means that every job at the operation is associated with ${formatNumber(mlt.employment - 1, 2)} additional jobs elsewhere in the state. QCEW counts filled jobs rather than FTEs. Applying a separate 2023 BEA industry satellite yields ${j(t.fte.total)} estimated FTEs: ${j(t.fte.direct)} direct, ${j(t.fte.indirect)} indirect, and ${j(t.fte.induced)} induced. These are estimates, not establishment-reported hours.`),
+    // Direct-jobs basis: calibrated to QCEW where a validation factor exists
+    ...(empDetail ? [P(empCalibrated
+      ? `${deptCalibration ? 'Direct jobs in the gaming department are' : 'Direct jobs are'} calibrated to observed casino labor intensity from a 50-state comparison of the model with BLS QCEW data (2023). The I-O coefficient alone gives ${j(empDetail.model.direct)} direct jobs in total, against ${j(empDetail.calibrated.direct)} calibrated; the 90% predictive interval from the comparison is ${jobsRange(empDetail.range.direct)} direct jobs (${jobsRange(empDetail.range.total)} in total). Supplier and induced jobs have no observed benchmark and are reported as modeled.`
+      : `Direct jobs are based on the I-O employment coefficient. Calibrated to observed casino labor intensity from a 50-state comparison with BLS QCEW data (2023), direct jobs would be ${j(empDetail.calibrated.direct)}, with a 90% predictive interval of ${jobsRange(empDetail.range.direct)} (${jobsRange(empDetail.range.total)} in total). Supplier and induced jobs are reported as modeled.`)]
+      : results.hasUserData ? [] : [P(`Direct jobs are based on the I-O employment coefficient.`)]),
     fig('Employment supported, by effect'),
     stackedBar(t.employment),
     barLegend(),
@@ -494,36 +544,97 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       sourceLine(`${PRODUCT_NAME_VERSIONED} model estimates. Totals include direct, indirect, and induced effects.`),
     );
   }
+  if (net) {
+    const nt = net.totals;
+    sec(
+      H2(`${netSec}   Net new impact`),
+      P(`The figures above measure the gross economic contribution of ${op}. An approximate net-new estimate scales them by the share of revenue that is new to the ${stateName} economy: revenue from non-residents, plus the part of residents' spending that would otherwise have left the state. On the shares assumed for this analysis, the net-new share is ${describeNetShare(inputs.netImpact, net.share)} of gross. The remainder is treated as spending displaced from other in-state businesses.`),
+      ex('Gross contribution and net new impact'),
+      dataTable(['Total impact', 'Gross contribution', 'Net new'], [
+        dataRow(['Output ($M)', n(t.output.total), n(nt.output.total)]),
+        dataRow(['Value added / GSP ($M)', n(t.gdp.total), n(nt.gdp.total)]),
+        dataRow(['Employment (jobs)', j(t.employment.total), j(nt.employment.total)]),
+        dataRow(['Estimated FTEs', j(t.fte.total), j(nt.fte.total)]),
+        dataRow(['Employee compensation ($M)', n(t.wages.total), n(nt.wages.total)]),
+      ], { colWidths: [4400, 2780, 2780] }),
+      sourceLine(`${PRODUCT_NAME_VERSIONED} model estimates. Net new = gross × ${formatNumber(net.share * 100, 1)}%. Tax estimates in Section 7 are gross.`),
+      P(`The net figures approximate what ${stateName} would lose if the activity did not exist. They are not a full net-impact study: they scale every effect in proportion, rest on assumed rather than observed visitor and recapture shares, and, like the gross figures, exclude the social costs of gambling.`),
+    );
+  }
+  if (construction) {
+    const c = construction;
+    sec(
+      H2(`${conSec}   Construction phase (one-time)`),
+      P(`The analysis also estimates the one-time effects of building the facility. Of ${m$(c.cost)} in construction cost, ${m$(c.localSpend)} is assumed to be spent in ${stateName} over ${c.years} year${c.years === 1 ? '' : 's'}; only this in-state share is modeled, so equipment and land bought outside the state should be excluded from it. The spending is modeled with StateIO construction (sector 23) multipliers for ${stateName}.`),
+      ex('One-time construction-phase impacts'),
+      dataTable(['Measure', 'Direct', 'Indirect', 'Induced', 'Total'], [
+        dataRow(['Output ($M)', n(c.output.direct), n(c.output.indirect), n(c.output.induced), n(c.output.total)]),
+        dataRow(['Value added / GSP ($M)', n(c.gdp.direct), n(c.gdp.indirect), n(c.gdp.induced), n(c.gdp.total)]),
+        dataRow(['Employment (job-years)', j(c.employment.direct), j(c.employment.indirect), j(c.employment.induced), j(c.employment.total)]),
+        dataRow(['Employee compensation ($M)', n(c.wages.direct), n(c.wages.indirect), n(c.wages.induced), n(c.wages.total)]),
+        ...(c.fiscal ? [totalRow(['Tax revenue ($M)', n(c.fiscal.totals.all.direct), n(c.fiscal.totals.all.indirect), n(c.fiscal.totals.all.induced), n(c.fiscal.totals.all.total)])] : []),
+      ], { colWidths: [3600, 1590, 1590, 1590, 1590] }),
+      sourceLine(`${PRODUCT_NAME_VERSIONED} model estimates. Employment is in job-years over the build period.`),
+      P(`Construction jobs are job-years: the ${j(c.employment.total)} job-years correspond to about ${j(c.annualJobs)} jobs in each year of the build. They are temporary, end when construction is complete, and are not added to the operating impacts reported above.${c.fiscal ? ` The construction phase generates an estimated ${m$(c.fiscal.totals.all.total)} in one-time tax revenue: ${levelSplit(c.fiscal)}.${combinedIncomeNote(c.fiscal)}` : ''}`),
+    );
+  }
 
   // ===== 7. FISCAL RESULTS
+  // Subsections are numbered in order, since the gaming-tax section is optional.
+  let s7 = 0;
+  const H7 = (title) => H2(`7.${++s7}   ${title}`);
   sec(
     H1('7   Results: Fiscal Impacts'),
-    P(`Beyond its effects on output and employment, ${op} generates public revenue through several channels. The non-duplicative total from TOPI, payroll, and household taxes is estimated at approximately ${m$(totalTax)} per year. Statutory gaming tax is shown as a memo item because gross-receipts, amusement, and license taxes are already within the TOPI concept.`),
+    P(`Beyond its effects on output and employment, ${op} generates public revenue through several channels. Total tax revenue is estimated at approximately ${m$(totalTax)} per year: ${levelSplit(fiscal)}. ${tribal
+      ? (gamingLine
+        ? 'Compact revenue sharing replaces the gaming stream\'s direct taxes on production and imports, which tribal gaming on trust land does not pay, so the tax lines reported below are additive.'
+        : tribalUnadjusted
+          ? `The tax lines reported below are additive. ${TRIBAL_UNADJUSTED_NOTE.replace(/^Tribal ownership, but revenue/, 'This operation is tribally owned, but revenue')}`
+          : 'The gaming stream\'s direct taxes on production and imports are excluded because tribal gaming on trust land does not pay them, and no compact revenue share was entered; the tax lines reported below are additive.')
+      : gamingLine
+        ? 'The statutory gaming tax replaces the gaming share of direct taxes on production and imports, so the tax lines reported below are additive.'
+        : 'The tax lines reported below are additive.'}${combinedIncomeNote(fiscal)}`),
   );
-  if (gaming) {
+  if (gamingLine && tribal) {
     sec(
-      H2('7.1   Gaming taxes'),
-      P(`Applying the ${stateName} gaming tax schedule${gaming.effectiveRate ? `, which implies an effective rate of approximately ${formatNumber(gaming.effectiveRate * 100, 1)}% on this operation's gaming revenue` : ''}, the operation is estimated to remit ${m$(gaming.amount)} in gaming taxes annually. This is reported as a memo item rather than added to TOPI because gaming-related gross-receipts, amusement, and license taxes fall within the TOPI accounting concept. StateIO does not identify the embedded amount by state, so the model does not subtract or replace it.`),
+      H7('Tribal revenue sharing'),
+      P(`Under its compact with ${stateName}, the operation is assumed to share ${gaming?.effectiveRate ? `${formatNumber(gaming.effectiveRate * 100, 1)}% of` : 'a portion of'} gross gaming revenue with the state, an estimated ${m$(gamingLine.total)} annually. Tribal gaming on trust land is largely exempt from state gaming, sales, and property taxes, so the input-output model's direct production taxes for the gaming stream are removed and replaced by the revenue-sharing payment; the two are not added together. Compact terms vary across tribes and states, so the rate is an input to this analysis rather than a modeled value.`),
+    );
+  } else if (gamingLine) {
+    sec(
+      H7('Gaming taxes'),
+      P(`Applying the ${stateName} gaming tax schedule${gaming?.effectiveRate ? `, which implies an effective rate of approximately ${formatNumber(gaming.effectiveRate * 100, 1)}% on this operation's gaming revenue` : ''}, the operation is estimated to remit ${m$(gamingLine.total)} in gaming taxes annually. The direct taxes on production and imports from the input-output model include the gross-receipts, amusement, and license taxes paid by gambling establishments. In the fiscal accounts the statutory gaming tax takes the place of the gaming share of those direct production taxes, and the remainder is reported as other taxes on production and imports, so the two lines are additive.`),
     );
   }
   sec(
-    H2('7.2   Taxes on production and imports'),
-    P(`Taxes on production and imports (TOPI) comprise sales taxes, excise taxes, property taxes, and assorted business fees levied across the operation and its supply chain. Estimated within the input-output model, these taxes amount to ${m$(t.tax.total)}, of which ${m$(t.tax.direct)} arises directly and ${m$(t.tax.indirect + t.tax.induced)} across the supply chain and induced activity.`),
-    H2('7.3   Payroll taxes'),
-    P(payroll && payroll.total > 0
-      ? `Employer-side payroll taxes — covering social-insurance programs such as Social Security, Medicare, and unemployment insurance — are estimated at ${m$(payroll.total)} across all effect types, calculated from estimated cash wages after removing employer-paid supplements from compensation.`
-      : `Employer-side payroll taxes are levied on cash wages generated by the activity; where applicable they are included in the combined fiscal total below.`),
-    H2('7.4   Household taxes'),
-    P(household && household.total > 0
-      ? `Household taxes — federal, state, and local income taxes and related personal taxes paid by the workers supported by the activity — are estimated at ${m$(household.total)}, based on published effective personal-tax ratios applied to estimated cash wages by effect type.`
-      : `Household taxes paid by supported workers are estimated from effective personal-tax ratios; where applicable they are included in the combined total below.`),
-    H2('7.5   Non-duplicative fiscal total'),
-    P(`The exhibit below totals TOPI, payroll, and household taxes. Gaming tax remains visible as a non-additive memo item.`),
+    H7(gamingLine ? 'Other taxes on production and imports' : 'Taxes on production and imports'),
+    P(`Taxes on production and imports (TOPI) comprise sales taxes, excise taxes, property taxes, and assorted business fees levied across the operation and its supply chain, most of them by state and local governments. Estimated within the input-output model${tribal ? (tribalUnadjusted ? '' : ', and excluding the gaming stream\'s direct TOPI, which tribal gaming on trust land does not pay') : gamingLine ? ', and net of the gaming share of direct TOPI that the statutory gaming tax replaces' : ''}, these taxes amount to ${m$(topiLine.total)}, of which ${m$(topiLine.direct)} arises directly and ${m$(topiLine.indirect + topiLine.induced)} across the supply chain and induced activity.`),
+    H7('Payroll taxes'),
+    P(payrollTotal <= 0
+      ? `Employer-side payroll taxes are levied on cash wages generated by the activity; none is estimated for this analysis.`
+      : `Employer-side payroll taxes are estimated at ${m$(payrollTotal)} across all effect types: ${m$(lineTotal('payroll_federal'))} in federal taxes (Social Security and Medicare under FICA, and federal unemployment tax under FUTA) and ${m$(lineTotal('payroll_state'))} in state taxes (unemployment insurance, plus employer disability and paid-family-leave contributions where ${stateName} levies them). Both are calculated from estimated cash wages and filled jobs by effect type, after removing employer-paid supplements from compensation, so that wage-base caps apply per worker.`),
+    H7('Household income taxes'),
+    P(incomeTotal <= 0
+      ? `No household income tax is estimated for this analysis.`
+      : fiscal.incomeTaxMethod === 'per_worker'
+        ? `Household income taxes paid by the workers supported by the activity are estimated at ${m$(incomeTotal)}: ${m$(lineTotal('income_federal'))} in federal income tax${lineTotal('income_state_local') > 0 ? ` and ${m$(lineTotal('income_state_local'))} in state and local income taxes` : ' (no state or local income tax is estimated on these wages)'}. The estimate is made per worker: the average cash wage per job in each effect is taxed under the 2025 federal and ${stateName} schedules as the income of a single filer with no dependents. It ignores household composition, refundable credits such as the EITC, itemized deductions, and the federal deductions for qualified tips and overtime available for 2025 through 2028, and it treats each job as one worker.`
+        : `Household income taxes paid by the workers supported by the activity are estimated at ${m$(incomeTotal)} by applying the BEA ratio of personal current taxes to wages for ${stateName} to estimated cash wages by effect type. No per-worker income-tax schedule is available for ${stateName}, so the ratio is used in its place. It combines federal, state, and local taxes without separating them, so the line is counted with state and local taxes in the subtotals below and the federal subtotal excludes federal income tax. Because the ratio averages over all households, including those with capital income and higher marginal rates, it may overstate the taxes paid at the wage levels of the jobs modeled here.`),
+    H7('Total tax revenue'),
+    P(`The exhibit below reports each tax line with its level of government, subtotals for federal and for state and local governments, and the total. Every line is additive.`),
     ex('Estimated annual public revenue by source'),
-    buildTaxTable(results, inputs),
-    sourceLine(`${PRODUCT_NAME_VERSIONED} model estimates. Gaming tax reflects the ${stateName} statutory schedule and is shown as a memo item within TOPI; payroll and household taxes use an estimated cash-wage base.`),
+    buildTaxTable(fiscal, gaming, tribal),
+    sourceLine([
+      `${PRODUCT_NAME_VERSIONED} model estimates${analysisYear ? `, ${analysisYear} dollars` : ''}.`,
+      tribal
+        ? (gamingLine ? 'Revenue sharing reflects the entered compact rate and replaces the gaming stream\'s direct TOPI.'
+          : tribalUnadjusted ? 'Production taxes are not adjusted for tribal trust-land exemptions (revenue entered in total).'
+            : 'The gaming stream\'s direct TOPI is excluded (tribal trust land).')
+        : gamingLine ? `Gaming tax reflects the ${stateName} statutory schedule and replaces the gaming share of direct TOPI.` : '',
+      'Payroll and household taxes use an estimated cash-wage base.',
+    ].filter(Boolean).join(' ')),
   );
-  if (inputs.stateTaxConfig?.localTaxNotes) {
+  // The state's local gaming-tax notes describe commercial casinos only.
+  if (!tribal && inputs.stateTaxConfig?.localTaxNotes) {
     sec(P([r('Local tax note.  ', { bold: true, color: C.navy }), r(inputs.stateTaxConfig.localTaxNotes, { italics: true })]));
   }
 
@@ -543,6 +654,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       fnref(4),
       r(`, and a full net-impact assessment would require data on visitor origin and cross-spending patterns beyond the scope of this report.`),
     ]),
+    ...(net ? [P(`Section ${netSec} gives an approximate net-new estimate that scales the gross figures by assumed shares of non-resident revenue and of resident spending recaptured from out of state. Those shares are inputs rather than observed data, and the estimate, like the gross figures, excludes social costs.`)] : []),
     H2('8.3   Catalytic and broader economic effects'),
     P([
       r(`This analysis quantifies the direct, indirect, and induced effects of the operation's ongoing activity. It does not attempt to quantify `, {}),
@@ -557,7 +669,7 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     P(`Input-output analysis is the standard method for estimating the economic impact of a facility or industry, and it is well suited to the question this report addresses: how does a given level of operating activity propagate through a regional economy? Its principal strengths are transparency and replicability. The framework is grounded in published national and regional accounts, its assumptions are explicit, and its results can be reproduced by any analyst working from the same data.`),
     P(`Alternative methods exist and answer somewhat different questions. Computable general equilibrium models incorporate price adjustment and resource constraints and are better suited to large structural changes, but they require additional assumptions and are less transparent. Simple ratio or "rule-of-thumb" approaches are easier still but lack the inter-industry detail that gives input-output estimates their credibility. For an analysis of a single operation at its current scale, the input-output approach offers the most appropriate balance of rigor, transparency, and interpretability — provided, as emphasized in Section 5, that it is implemented with gaming-specific rather than generic recreation-sector coefficients.`),
     H2('8.6   Distribution of the benefits'),
-    P(`The economic benefits estimated here are not confined to the operation or its immediate vicinity. By construction, a substantial share accrues across the supply chain and the broader economy: of the ${m$(t.output.total)} in total output, ${m$(indOut)} is generated beyond the operation itself, and of the ${j(t.employment.total)} jobs supported, ${j(rippleJobs)} are sustained elsewhere in ${stateName}. Fiscal effects are also distributed across levels of government. Statutory gaming tax${gaming ? ` (estimated at ${m$(gaming.amount)})` : ''} is shown separately as a memo component of TOPI, while payroll and household taxes flow to federal, state, and local authorities.`),
+    P(`The economic benefits estimated here are not confined to the operation or its immediate vicinity. By construction, a substantial share accrues across the supply chain and the broader economy: of the ${m$(t.output.total)} in total output, ${m$(indOut)} is generated beyond the operation itself, and of the ${j(t.employment.total)} jobs supported, ${j(rippleJobs)} are sustained elsewhere in ${stateName}. Fiscal effects are also distributed across levels of government. Of the ${m$(totalTax)} in estimated tax revenue, ${m$(fiscal.totals.stateLocal.total)} accrues to state and local governments${gamingLine ? `, including ${m$(gamingLine.total)} in ${gamingRevName},` : ''} and ${m$(fiscal.totals.federal.total)} to the federal government, mainly through payroll${lineTotal('income_federal') > 0 ? ' and household income' : ''} taxes.${combinedIncomeNote(fiscal)}`),
   );
 
   // ===== 9. LIMITATIONS
@@ -565,17 +677,17 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
     H1('9   Limitations'),
     P(`The following limitations qualify the estimates in this report and should be considered alongside the findings:`),
     numItem(`Input-output models are linear and static. They assume fixed production technology and constant returns to scale, and they do not capture price responses, capacity constraints, or dynamic adjustment over time.`, 'limitations'),
-    numItem(`The results are gross rather than net. They do not subtract substitution or displacement of activity that might otherwise have occurred within the state (Section 8.2).`, 'limitations'),
+    numItem(`The results are gross rather than net. They do not subtract substitution or displacement of activity that might otherwise have occurred within the state (Section 8.2).${net ? ` The net-new estimate in Section ${netSec} rests on assumed visitor and recapture shares.` : ''}`, 'limitations'),
     numItem(`The estimates are confined to the State of ${stateName}. Activity that leaks to other states is excluded, which is conservative for the in-state estimate but means the figures are not a measure of national impact.`, 'limitations'),
     numItem(`Catalytic and other long-term dynamic effects are not quantified (Section 8.3).`, 'limitations'),
-    numItem(`Results depend on the accuracy of the revenue input and, where applicable, operation-supplied data. ${results.hasUserData ? 'Operation-specific employment and wage figures were used for the direct effects where provided.' : 'In the absence of operation-specific data, direct effects rely on property-type coefficients and may differ from the operation’s actual staffing.'}`, 'limitations'),
+    numItem(`Results depend on the accuracy of the revenue input and, where applicable, operation-supplied data. ${results.hasUserData ? 'Operation-specific employment and wage figures were used for the direct effects where provided.' : 'In the absence of operation-specific data, direct effects rely on property-type coefficients and may differ from the operation’s actual staffing.'}${empDetail ? ` The QCEW validation implies a 90% predictive interval of ${jobsRange(empDetail.range.direct)} direct jobs.` : ''}`, 'limitations'),
     P([r('Not professional advice.  ', { bold: true, color: C.navy }), r(`This report is provided for informational purposes only and does not constitute investment, legal, tax, or other professional advice. While prepared with reasonable care, no warranty is made as to the completeness or reliability of the estimates, and the authors accept no liability for decisions taken in reliance on them.`)]),
   );
 
   // ===== 10. CONCLUSION
   sec(
     H1('10   Conclusion', { brk: false }),
-    P(`This report has estimated the economic and fiscal contribution of ${op} to ${stateName} using a transparent input-output framework built on official federal data and gambling-specific economic coefficients. The operation is estimated to support ${m$(t.output.total)} in total output, ${m$(t.gdp.total)} in value added, ${j(t.employment.total)} full- and part-time jobs, and ${m$(t.wages.total)} in employee compensation annually, while generating approximately ${m$(totalTax)} in non-duplicative public revenue.`),
+    P(`This report has estimated the economic and fiscal contribution of ${op} to ${stateName} using a transparent input-output framework built on official federal data and gambling-specific economic coefficients. The operation is estimated to support ${m$(t.output.total)} in total output, ${m$(t.gdp.total)} in value added, ${j(t.employment.total)} full- and part-time jobs, and ${m$(t.wages.total)} in employee compensation annually, while generating approximately ${m$(totalTax)} in total tax revenue.`),
     P(`These findings reflect deliberately conservative methodological choices — in-state geographic scope, gross-to-net cautions, and the exclusion of catalytic effects — and should be read as central estimates of the operation's contained, ongoing economic footprint. They provide a sound, replicable basis for understanding the role of ${op} in the ${stateName} economy and for informing the decisions of operators, regulators, and other stakeholders.`),
   );
 
@@ -629,13 +741,22 @@ export async function generateDocxReport(results, inputs, authorInfo = {}) {
       dataRow(['Jurisdiction', stateName]),
       dataRow(['Operation type', typeLabel]),
       dataRow(['Revenue analyzed', m$(totalRevenue)]),
-      dataRow(['Direct-effect basis', results.hasUserData ? 'Operation-supplied jobs/cash wages' : 'Property-type coefficients']),
+      ...(analysisYear ? [dataRow(['Dollar year of inputs and results', `${analysisYear} (CPI-U deflated to 2023 for jobs)`])] : []),
+      dataRow(['Direct-effect basis', results.hasUserData ? 'Operation-supplied jobs/cash wages'
+        : empCalibrated ? 'Property-type coefficients; direct jobs calibrated to QCEW' : 'Property-type coefficients']),
+      ...(empDetail ? [dataRow(['Direct jobs, 90% predictive interval', jobsRange(empDetail.range.direct)])] : []),
+      dataRow(['Household income-tax method', fiscal.incomeTaxMethod === 'per_worker' ? 'Per worker, 2025 schedules, single filer'
+        : fiscal.incomeTaxMethod === 'bea_ratio' ? 'BEA ratio of personal current taxes to wages'
+        : fiscal.incomeTaxMethod === 'none' ? 'Not estimated' : 'Not reported']),
+      ...(net ? [dataRow(['Net new share of gross', `${formatNumber(net.share * 100, 1)}%`])] : []),
+      ...(construction ? [dataRow(['Construction spending, in-state / total', `${m$(construction.localSpend)} / ${m$(construction.cost)} over ${construction.years} yr`])] : []),
       dataRow(['Output multiplier (Type II)', x(mlt.output)]),
       dataRow(['Value-added multiplier (Type II)', x(mlt.gdp)]),
       dataRow(['Employment multiplier (Type II)', x(mlt.employment)]),
       dataRow(['Employee-compensation multiplier (Type II)', x(mlt.wages)]),
       dataRow(['Avg. employee compensation per job (total)', usd0(compPerJobTotal)]),
-      ...(gaming ? [dataRow(['Effective gaming-tax rate', gaming.effectiveRate ? `${formatNumber(gaming.effectiveRate * 100, 1)}%` : '—'])] : []),
+      ...(tribal ? [dataRow(['Ownership', tribalUnadjusted ? 'Tribal (exemptions not applied: revenue entered in total)' : 'Tribal (compact revenue sharing; trust-land tax exemptions)'])] : []),
+      ...(gaming ? [dataRow([tribal ? 'Compact revenue-sharing rate' : 'Effective gaming-tax rate', gaming.effectiveRate ? `${formatNumber(gaming.effectiveRate * 100, 1)}%` : '—'])] : []),
       dataRow(['Geographic scope', `State of ${stateName} (in-state activity only)`]),
       dataRow(['Model', `${PRODUCT_NAME_VERSIONED} — ${BRAND.productFullName}`]),
     ], { colWidths: [5200, 4760] }),
@@ -743,22 +864,20 @@ function references() {
   ];
 }
 
-function buildTaxTable(results, inputs) {
-  const t = results.totals;
-  const { gamingTaxResult: gaming, payrollTaxResult: payroll, householdTaxResult: household } = inputs;
-  const rows = [];
-  if (gaming) {
-    const eff = gaming.effectiveRate ? ` (${formatNumber(gaming.effectiveRate * 100, 1)}% eff.)` : '';
-    rows.push(dataRow([`Gaming tax on GGR${eff} (memo)`, m$(gaming.amount), '—', '—', m$(gaming.amount)]));
-  }
-  if (t.tax.total > 0) rows.push(dataRow(['Taxes on production (TOPI)', m$(t.tax.direct), m$(t.tax.indirect), m$(t.tax.induced), m$(t.tax.total)]));
-  if (payroll && payroll.total > 0) rows.push(dataRow(['Payroll taxes', m$(payroll.direct), m$(payroll.indirect), m$(payroll.induced), m$(payroll.total)]));
-  if (household && household.total > 0) rows.push(dataRow(['Household taxes', m$(household.direct), m$(household.indirect), m$(household.induced), m$(household.total)]));
-  const td = t.tax.direct + (payroll?.direct || 0) + (household?.direct || 0);
-  const ti = t.tax.indirect + (payroll?.indirect || 0) + (household?.indirect || 0);
-  const tu = t.tax.induced + (payroll?.induced || 0) + (household?.induced || 0);
-  rows.push(totalRow(['Non-duplicative tax total', m$(td), m$(ti), m$(tu), m$(td + ti + tu)]));
-  return dataTable(['Tax source', 'Direct', 'Indirect', 'Induced', 'Total'], rows, { colWidths: [3600, 1620, 1620, 1620, 1620] });
+/** Tax exhibit: one row per fiscal line, then federal / state & local subtotals and the total. */
+function buildTaxTable(fiscal, gaming, tribal) {
+  const v = (x) => (x ? m$(x) : '—');
+  const cells = (o) => [v(o.direct), v(o.indirect), v(o.induced), m$(o.total)];
+  const rate = gaming?.effectiveRate ? formatNumber(gaming.effectiveRate * 100, 1) : null;
+  const rows = fiscal.lines.map((l) => dataRow([
+    l.key === 'gaming' && rate
+      ? (tribal ? `Tribal revenue sharing (${rate}% of GGR)` : `Gaming tax on GGR (${rate}% effective)`) : l.label,
+    LEVEL_LABEL[l.level] || '—', ...cells(l),
+  ]));
+  rows.push(totalRow(['Federal', '', ...cells(fiscal.totals.federal)]));
+  rows.push(totalRow(['State & local', '', ...cells(fiscal.totals.stateLocal)]));
+  rows.push(totalRow(['Total tax revenue', '', ...cells(fiscal.totals.all)]));
+  return dataTable(['Tax source', 'Level', 'Direct', 'Indirect', 'Induced', 'Total'], rows, { colWidths: [3300, 1260, 1350, 1350, 1350, 1350] });
 }
 
 /** Download the generated Word report. */

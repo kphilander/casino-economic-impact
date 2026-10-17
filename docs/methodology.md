@@ -27,7 +27,7 @@ GEMS quantifies the total economic footprint of casino and gaming operations at 
 | Employment | Filled full- and part-time jobs supported (not FTEs) |
 | Estimated FTEs | Industry-weighted full-time-equivalent estimate reported separately from jobs |
 | Employee Compensation | Cash wages plus employer-paid supplements generated |
-| Tax Revenue | TOPI, payroll, and household taxes; gaming tax is a memo component of TOPI |
+| Tax Revenue | Gaming tax (replacing the gaming share of direct TOPI), other TOPI, payroll and household income taxes, by federal vs. state and local |
 
 ## 2. Modeling Framework
 
@@ -78,13 +78,13 @@ The model also reports a separate estimated-FTE measure. `08b_generate_bea_fte_r
 Employment is the one quantity that needs a base-year adjustment, because the employment coefficients carry a dollar denomination. They are calibrated with **2023** QCEW jobs and 2023 StateIO output/value added. The model therefore restates the relevant output or GDP effect in 2023 dollars purely as an internal step in the jobs calculation:
 
 ```
-Deflator = CPI_2023 / CPI_current_year
-Jobs = (Output_or_GDP_in_current_dollars × Deflator) × Employment_Coefficient
+Deflator = CPI_2023 / CPI_analysis_year
+Jobs = (Output_or_GDP_in_analysis_year_dollars × Deflator) × Employment_Coefficient
 ```
 
 This conversion affects the employment estimate only; it does not change any displayed dollar figure.
 
-The CPI table uses official BLS calendar-year annual averages. When the analysis year is newer than the latest complete annual average, GEMS uses the latest complete year (currently 2025) rather than presenting a partial-year index as an annual value.
+The **analysis year** is the dollar year of the revenue inputs and is an explicit input (Inputs → Analysis settings), defaulting to the latest year with a complete BLS CPI-U annual average (currently 2025). It is not taken from the browser clock, so a 2024 revenue figure entered in 2026 is deflated from 2024 dollars. The CPI table uses official BLS calendar-year annual averages.
 
 The production structure remains a deliberate hybrid: the make/use matrices and household closure use 2019 relationships to avoid pandemic distortion, while the employment satellite uses internally consistent 2023 numerator and denominator data. This preserves the stated COVID rationale without interpreting nominal industry growth as a change in labor intensity.
 
@@ -107,15 +107,101 @@ The IO tables contain only the blended sector 713 (Amusement, Gambling, and Recr
 
 These ratios adapt StateIO 713 direct and incremental Type I effects. Because USEEIO is an open Type I model, the same documented supplier-side ratios scale the StateIO induced increments. Supplier and induced job intensity is not multiplied by the casino operator's direct labor ratio. The former competing legacy calibration has been removed.
 
+### 2.6 Validation Calibration of Direct Jobs
+
+Direct jobs are the one employment quantity with an observed, non-circular benchmark: QCEW reports jobs and wages for casino establishments (NAICS 713210, 713290, 721120) in each state. A 50-state comparison of the gambling coefficient's implied jobs per wage dollar with that benchmark (2023, cells with at least 50 jobs) found that the coefficient under-predicts casino labor intensity: geometric-mean ratios of 0.71 for stand-alone casinos, 0.84 for casino hotels, and 0.90 for slot parlors (not significant). The unadjusted 713/721 parent sectors over-predict (1.14, 1.10, 1.43). The national `713200/US` detail ratio lowers jobs per output by 46% but compensation per output by only 14%, moving the coefficient the right way but overshooting for stand-alone casinos.
+
+The comparison converts model compensation to QCEW-comparable wages by industry (Section 3.3). Without that conversion, the measured shortfall roughly doubles.
+
+GEMS therefore reports, by default, **calibrated direct jobs** = I-O direct jobs × property-type factor (`webapp/src/data/laborCalibration.json`), and shows the uncalibrated I-O value alongside. Each factor carries a 90% predictive interval from the cross-state dispersion of the residuals, which the dashboard and reports show as a range for direct and total jobs.
+
+| Property type | Cells | Factor | 90% interval |
+|---|---:|---:|---|
+| Stand-alone casino (713210) | 20 | 1.40 | 0.89–2.21 |
+| Slot parlor / other gambling (713290) | 30 | 1.11 | 0.54–2.31 |
+| Casino hotel (721120) | 18 | 1.19 | 0.69–2.06 |
+| Stand-alone casino, tribal | 17 | 1.21 | 0.64–2.26 |
+| Casino hotel, tribal | 11 | 1.13 | 0.68–1.88 |
+
+Scope and assumptions:
+
+- In total mode, the selected property type's factor applies. In department mode, only the gaming stream is calibrated, using the stand-alone-casino factor as the gaming-floor proxy (the slot-parlor factor for slot parlors). Lodging, food and other revenue use parent-sector coefficients, which are not adjusted.
+- **Tribal properties** (Inputs → Analysis settings → Ownership) use factors estimated against tribal-government casinos (QCEW own_code 3). BEA records tribal gaming as a state/local government enterprise, outside the private 713 industry the coefficients come from, and tribal casinos sit close to the coefficient. Tribal slot parlors (5 cells) are not calibrated.
+- Bars/restaurants with slots are not calibrated: the only QCEW benchmark, NAICS 722410, covers all drinking places. Online operations are not covered. User-entered jobs are never adjusted.
+- Supplier and induced jobs have no observed benchmark and are not adjusted.
+- The benchmark identifies jobs per *wage* dollar; casino output is not observed by state. The factor corrects jobs and holds the compensation-per-output coefficient fixed.
+- A factor calibrated on 2023 removes the bias in 2024 (corrected ratio 1.00); calibrated on 2019 it overshoots 2023 by 13%. Factors should be re-estimated with each QCEW vintage.
+
+Users can switch to the uncalibrated I-O coefficient (Inputs → Analysis settings → Direct jobs estimate). Replication: `kphilander/casino-io-validation` (`analysis_output/correction_factors.csv`, `correction_factors_tribal.csv`; private until publication).
+
+### 2.7 Optional Modules
+
+**Net new impact.** The headline results are a gross *economic contribution*. When enabled, GEMS also reports net new impact:
+
+```
+net share = non-resident revenue share + resident share × recapture share
+```
+
+The recapture share is the part of residents' gaming spending that would otherwise have left the state (for example, play at casinos across the border). The rest of resident spending is treated as displaced from other local businesses. Output, GDP, jobs and compensation are scaled by the net share, which is exact under the linear I-O model. Fiscal estimates remain gross. Neither figure accounts for social costs.
+
+**Construction phase.** A one-time impact of building or expanding a property, using StateIO construction (sector 23) multipliers for the state. Inputs are construction cost, the share spent in state (excluding land, gaming equipment and out-of-state purchases), and the build period. Jobs are **job-years** over the build period; the module also reports average annual jobs. Construction impacts are temporary and are reported separately from operating impacts.
+
 ## 3. Tax Estimates
 
-GEMS computes three categories of tax revenue:
+Every tax line is additive and is assigned to the federal or the state and local level; reports show both subtotals and the total.
 
-1. **Taxes on Production & Imports (TOPI)** — derived from the IO tables and flowed through the Leontief inverse; captures gross-receipts, amusement, license, property, excise, and other production-related taxes.
-2. **Gaming Tax (memo)** — state-specific tax on Gross Gaming Revenue (GGR), supporting flat-rate, graduated-tier, split-by-game-type, and split-tiered structures. Because gaming-related gross-receipts, amusement, and license taxes fall within TOPI, this estimate is displayed but not added to TOPI again. GEMS does not attempt to subtract and replace an embedded amount because StateIO does not identify the gaming-tax portion of sector 713 TOPI by state.
-3. **Payroll & Household Taxes** — employer-side FICA, FUTA, SUTA, and state SDI/PFML contributions; household taxes estimated via BEA personal current tax ratios. Both use estimated cash wages rather than total employee compensation.
+### 3.1 Taxes on production and imports, and the statutory gaming tax
 
-StateIO `V001` is employee compensation: wages and salaries plus employer contributions for pensions, insurance, and government social insurance. To avoid applying wage-based tax rates to benefits, GEMS estimates cash wages using the 2019 national BEA NIPA table 1.12 ratio: `9,323.5 / 11,447.7 = 0.8144`. This national share is an explicit approximation pending industry-by-state wage shares.
+**TOPI** (taxes on production and imports) come from the I-O tables and flow through the Leontief inverse. They cover sales, property, excise, license and gross-receipts taxes paid by the operation and its supply chain.
+
+BEA records state and local taxes on gaming receipts and admissions (Census "amusements" taxes) as taxes on products within TOPI, assigned to the amusement-and-gambling industry. StateIO gives every state the national TOPI intensity. Adding the statutory gaming tax to the I-O TOPI would therefore count gaming taxes twice.
+
+GEMS lets the **statutory gaming tax replace** the gaming share of the gaming stream's direct TOPI:
+
+```
+Direct taxes on gaming = statutory gaming tax + nonGamingShare × I-O direct TOPI of the gaming stream
+```
+
+`nonGamingShare` = 0.346 is the share of BEA detail industry 713200's TOPI that is "other taxes on production" (property taxes, licenses) rather than taxes on products: $737M of $2,130M in the 2017 detail supply-use table. It is derived by `scripts/derive_gaming_topi_share.R` into `webapp/src/data/fiscalAssumptions.json`. Supplier and induced TOPI are unchanged.
+
+The statutory gaming tax uses state schedules in `webapp/src/data/gamingTaxRates.json`. Supported structures:
+- flat
+- graduated tiers
+- split by game type
+- split-tiered
+- a flat add-on on top of any schedule (`additionalRate`, e.g. Detroit's city wagering tax)
+- handle-based taxes (`handleRate` with a stated hold)
+
+Twenty-eight states were re-verified against statutes and regulator reports in October 2026; those entries record `lastVerified` and `sources` (`scripts/apply_verified_gaming_tax_2026.py`). The gaming tax requires an explicit gaming-revenue input: land-based total operating revenue is never treated as GGR.
+
+**Tribal properties** pay compact revenue sharing rather than state gaming taxes and are largely exempt from state and local taxes on trust land. For them, the gaming stream's direct TOPI is replaced entirely by the revenue share entered as the custom rate.
+
+### 3.2 Payroll and household income taxes
+
+- **Payroll taxes** are employer-side, applied per job:
+  - **Federal:** FICA Social Security, FICA Medicare, and FUTA.
+  - **State:** SUTA (unemployment insurance), plus SDI and PFML where they exist.
+- **Household income taxes** are calculated per worker. The average wage per job for each effect is taxed as the income of a single filer with no dependents, using 2025 federal and state schedules plus a typical local wage-tax rate where local income taxes are common.
+  - The federal standard deduction is $15,750, under P.L. 119-21.
+  - State schedules include phase-outs, recaptures and federal-tax deductions.
+  - Tables by wage level are generated by `scripts/build_income_tax_tables.py` from the verified parameter file `data/income_tax_parameters_2025.json` (1,337 self-checks).
+  - Ignored: household composition, refundable credits (EITC), itemized deductions, and the 2025–2028 federal deductions for tips and overtime.
+  - This replaces a ratio of all personal taxes to wages, which overstated taxes at casino wage levels.
+
+### 3.3 Wage basis
+
+StateIO `V001` is BEA employee compensation. QCEW and payroll wages are lower for two reasons: employer supplements, and BEA's own adjustments to QCEW wages for unreported income, such as tips, which are large in gaming, lodging and food service and are not a tax base. GEMS converts compensation to QCEW-comparable wages by industry (`webapp/src/data/wageBasis.json`):
+
+| Sector | QCEW private wages / BEA compensation, 2023 |
+|---|---:|
+| 713 Amusements, gambling and recreation | 0.698 |
+| 721 Accommodation | 0.757 |
+| 722 Food services and drinking places | 0.738 |
+| 711–712 Arts and entertainment | 0.834 |
+| 23 Construction | 0.821 |
+| All private industries (supplier and induced effects; online operators) | 0.806 |
+
+This replaces the earlier national NIPA wage share (0.814), which removes supplements only. User-entered payroll is treated as QCEW-comparable wages and grossed up to compensation with the same shares.
 
 ## 4. Data Sources
 
@@ -125,7 +211,11 @@ StateIO `V001` is employee compensation: wages and salaries plus employer contri
 | BLS Quarterly Census of Employment and Wages (QCEW) | 2023 annual averages | Filled-job numerators for employment coefficients and diagnostic earnings fields |
 | BEA Detail IO Tables via `useeior` (USEEIOv2.0.1-411) | 2017 | National gambling/property-to-parent adjustment factors; versioned outputs in `bea_detail_coefficients.csv`, `blended_parent_coefficients.csv`, and `national_naics_ratios.csv` |
 | State gaming commissions, AGA State of the States | Current | Gaming tax schedules |
-| BLS CPI-U annual averages | Current | Inflation adjustment |
+| BLS CPI-U annual averages | 2019–2025 | Deflation of the revenue dollar year to 2023 |
+| BEA NIPA Tables 6.2D/6.3D (via FRED) and QCEW 2023 private wages | 2023 | Compensation-to-wage conversion by industry |
+| BEA 2017 detail supply-use table (via `useeior`) | 2017 | Non-gaming share of gambling TOPI |
+| IRS Rev. Proc. 2024-40, P.L. 119-21, state 2025 tax instructions and statutes | 2025 | Household income tax tables |
+| Validation of direct jobs against QCEW (Philander, under review) | 2023 | Direct-jobs calibration factors |
 
 ## 5. Sector and Property-Type Mapping
 
@@ -136,9 +226,11 @@ StateIO `V001` is employee compensation: wages and salaries plus employer contri
 | 721 | 721 | Lodging |
 | 722 | 722 | Food & Beverage |
 
+Construction-phase estimates use StateIO sector 23 (Construction), exported as `construction_multipliers_2023.csv` and the `construction` array of `multipliers.json`.
+
 Property types: Casino Hotel (721120), Stand-alone Casino (713210), Slot Parlor (713290), Bar/Restaurant Gaming (722410), plus online casino and sports betting variants. All four land-based labels use the same canonical gambling production function. In department mode, separately entered lodging, food, and other revenue use StateIO 721, 722, and 711AS. In total mode, the full amount uses the gambling function and should be treated as an approximation when non-gaming revenue is material.
 
-Legacy land-based total operating revenue is not treated as GGR for the statutory gaming-tax memo. The tax memo requires an explicit gaming-revenue input in department mode. Online total revenue is GGR by construction.
+Legacy land-based total operating revenue is not treated as GGR for the statutory gaming tax, which requires an explicit gaming-revenue input in department mode. Online total revenue is GGR by construction.
 
 ## 6. Limitations and Appropriate Use
 
@@ -151,6 +243,8 @@ Legacy land-based total operating revenue is not treated as GGR for the statutor
 - State-level analysis captures only impacts within the state boundary; spending that leaks to other states is excluded.
 - The model is appropriate for policy analysis, planning, and comparative assessment. It is **not** appropriate for precise forecasting, investment decisions without professional advice, or legal proceedings.
 - IO models assume fixed production technology and no supply constraints; very large projects may alter local economic structure in ways the model does not capture.
+- Indirect and induced effects cannot be validated against observation without circularity: no agency measures them, and published "total impact" figures are themselves model output. Only the direct jobs coefficient is calibrated to observed data (Section 2.6).
+- The direct value-added, compensation and TOPI coefficients in the StateIO summary tables are national constants within each sector; state variation in modeled labor intensity comes from jobs per output.
 
 ## 7. Versioning
 
@@ -161,6 +255,7 @@ The model version is the release edition year (e.g., GEMS 2026). When a new edit
 | Version | Released | Notes |
 |---------|----------|-------|
 | GEMS 2026 | 2026 | Initial release. 2019 EPA StateIO multipliers, 2023 QCEW employment, USEEIOv2.0.1-411 gambling adjustments. |
+| GEMS 2026 (methodology update) | October 2026 | Direct jobs calibrated to QCEW with predictive ranges; tribal ownership option; statutory gaming tax replaces the gaming share of direct TOPI; 28 states' gaming taxes re-verified; per-worker 2025 income taxes; industry wage basis; payroll taxes by level of government; revenue dollar-year input; net-impact and construction-phase modules. |
 
 ## 8. Key References
 

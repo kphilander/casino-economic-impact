@@ -1,4 +1,4 @@
-import { isOnlinePropertyType } from './calculations';
+import { isOnlinePropertyType } from './calculations.js';
 
 /**
  * Build a tax-config object for calculateGamingTax from a state's tax-rate
@@ -42,8 +42,17 @@ export function buildTaxConfig(taxInfo, customRate, slotRevenuePct, propertyType
     config.flatRate = effectiveTaxInfo.flatRate;
   } else if (effectiveTaxInfo.flatRate != null) {
     config.flatRate = effectiveTaxInfo.flatRate;
+  } else if (effectiveTaxInfo.handleRate != null && effectiveTaxInfo.assumedHold) {
+    // Tax levied on handle (amount wagered), not GGR: convert to a GGR rate
+    // using the documented hold percentage (GGR / handle).
+    config.flatRate = effectiveTaxInfo.handleRate / effectiveTaxInfo.assumedHold;
   } else if (effectiveTaxInfo.effectiveRate != null) {
     config.flatRate = effectiveTaxInfo.effectiveRate;
+  }
+  // Flat add-on levied on GGR on top of the main schedule (e.g. a city
+  // wagering tax or a supplemental state tax). A custom rate replaces both.
+  if (config.customRate == null && effectiveTaxInfo.additionalRate) {
+    config.additionalRate = effectiveTaxInfo.additionalRate;
   }
   return config;
 }

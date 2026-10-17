@@ -10,6 +10,7 @@
  * 3. Statewide Economic Impact
  * 4. Detailed Results
  * 5. Tax Revenue Estimates
+ *    (optional) Net New / Construction Impacts, when either module is enabled
  * 6. How We Calculated This
  * 7. About the Author
  * 8. Study Limitations
@@ -24,6 +25,7 @@
  */
 
 import { formatNumber, formatCurrency, formatJobs } from './calculations';
+import { reportFiscal, LEVEL_LABEL, describeNetShare, tribalTopiRemoved } from './exporters';
 
 // pptxgenjs is loaded at runtime as its self-contained standalone build
 // (public/vendor/pptxgen.min.js, which exposes the global `PptxGenJS` and
@@ -109,7 +111,7 @@ const SLIDE_WIDTH = 10;
 const SLIDE_HEIGHT = 5.625;
 const MARGIN = 0.4;              // Consistent margin from edges
 const HEADER_HEIGHT = 0.55;      // Navy header bar
-const ACCENT_HEIGHT = 0.05;      // Orange accent line
+const ACCENT_HEIGHT = 0.05;      // Accent line under the header
 const FOOTER_HEIGHT = 0.35;      // Footer bar (increased from 0.25 for legibility)
 const CONTENT_TOP = 0.7;         // Content starts below header + accent
 const CONTENT_BOTTOM = SLIDE_HEIGHT - FOOTER_HEIGHT - 0.1;
@@ -148,6 +150,15 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
         .reduce((sum, [, v]) => sum + (v || 0), 0);
   const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+  // Direct-jobs basis. When a validation-calibrated factor applies, job figures
+  // carry the 90% predictive interval from the 50-state QCEW comparison.
+  const empDetail = results.totals.employment.detail || null;
+  const empCalibrated = !!empDetail && results.totals.employment.basis === 'calibrated';
+  const jobsRange = ([lo, hi]) => `${formatJobs(lo)}–${formatJobs(hi)}`;
+  // In department mode only the gaming stream carries a calibration factor.
+  const empScope = inputMode !== 'total' && (results.byRevenue || []).filter(r => (r.revenue || 0) > 0).length > 1
+    ? 'Direct gaming jobs' : 'Direct jobs';
+
   // Sample reports get fixed demo data and a SAMPLE watermark on every slide
   const isSample = !!inputs.isSample;
 
@@ -177,8 +188,8 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
       ...(isSample ? [sampleWatermarkObject] : []),
       // Navy header bar
       { rect: { x: 0, y: 0, w: '100%', h: HEADER_HEIGHT, fill: { color: COLORS.navy } } },
-      // Orange accent line
-      { rect: { x: 0, y: HEADER_HEIGHT, w: '100%', h: ACCENT_HEIGHT, fill: { color: COLORS.orange } } },
+      // Accent line
+      { rect: { x: 0, y: HEADER_HEIGHT, w: '100%', h: ACCENT_HEIGHT, fill: { color: COLORS.accent } } },
       // Navy footer bar
       { rect: { x: 0, y: SLIDE_HEIGHT - FOOTER_HEIGHT, w: '100%', h: FOOTER_HEIGHT, fill: { color: COLORS.navy } } },
       // Footer text with license attribution
@@ -205,8 +216,8 @@ export async function generatePPTX(results, inputs, authorInfo = {}) {
       ...(isSample ? [sampleWatermarkObject] : []),
       // Gray header bar
       { rect: { x: 0, y: 0, w: '100%', h: 0.45, fill: { color: COLORS.secondary } } },
-      // Orange accent line
-      { rect: { x: 0, y: 0.45, w: '100%', h: 0.04, fill: { color: COLORS.orange } } },
+      // Accent line
+      { rect: { x: 0, y: 0.45, w: '100%', h: 0.04, fill: { color: COLORS.accent } } },
       // Gray footer bar
       { rect: { x: 0, y: SLIDE_HEIGHT - 0.25, w: '100%', h: 0.25, fill: { color: COLORS.secondary } } },
       // APPENDIX label with license
@@ -409,7 +420,8 @@ This includes not just casino employees, but workers throughout the supply chain
 
   const metrics = [
     { value: formatCurrency(results.totals.output.total), label: 'Total Economic Output', isJobs: false },
-    { value: formatJobs(results.totals.employment.total), label: `Jobs · ${formatJobs(results.totals.fte.total)} est. FTEs`, isJobs: true },
+    { value: formatJobs(results.totals.employment.total), label: `Jobs · ${formatJobs(results.totals.fte.total)} est. FTEs`, isJobs: true,
+      range: empDetail ? `90% range ${jobsRange(empDetail.range.total)} jobs` : null },
     { value: formatCurrency(results.totals.gdp.total), label: 'GDP Contribution', isJobs: false },
     { value: formatCurrency(results.totals.wages.total), label: 'Employee Compensation', isJobs: false }
   ];
@@ -422,14 +434,21 @@ This includes not just casino employees, but workers throughout the supply chain
     const boxColor = metric.isJobs ? COLORS.accent : COLORS.primary;
 
     slide2.addShape('rect', { x, y, w: boxWidth, h: boxHeight, fill: { color: boxColor } });
+    // A box with a jobs range shifts up to fit the range as a third line
     slide2.addText(metric.value, {
-      x, y: y + 0.2, w: boxWidth, h: 0.5,
+      x, y: y + (metric.range ? 0.12 : 0.2), w: boxWidth, h: 0.5,
       fontSize: FONT.title + 2, fontFace: 'Helvetica', bold: true, color: COLORS.white, align: 'center'
     });
     slide2.addText(metric.label, {
-      x, y: y + 0.75, w: boxWidth, h: 0.3,
+      x, y: y + (metric.range ? 0.6 : 0.75), w: boxWidth, h: metric.range ? 0.26 : 0.3,
       fontSize: FONT.body, fontFace: 'Helvetica', color: COLORS.white, align: 'center'
     });
+    if (metric.range) {
+      slide2.addText(metric.range, {
+        x, y: y + 0.86, w: boxWidth, h: 0.22,
+        fontSize: FONT.caption, fontFace: 'Helvetica', color: COLORS.white, align: 'center'
+      });
+    }
   });
 
   // Bottom section - simplified impact types with spotlight on jobs
@@ -439,7 +458,10 @@ This includes not just casino employees, but workers throughout the supply chain
   });
 
   const impactTypes = [
-    { title: 'At the Casino', jobs: results.totals.employment.direct, fte: results.totals.fte.direct, desc: 'Direct employees and on-site spending' },
+    { title: 'At the Casino', jobs: results.totals.employment.direct, fte: results.totals.fte.direct,
+      desc: empDetail
+        ? `Direct employees; ${empCalibrated ? 'calibrated to QCEW' : 'I-O coefficient'} (90% range ${jobsRange(empDetail.range.direct)})`
+        : 'Direct employees and on-site spending' },
     { title: 'Through Suppliers', jobs: results.totals.employment.indirect, fte: results.totals.fte.indirect, desc: 'Vendors, distributors, service providers' },
     { title: 'In the Community', jobs: results.totals.employment.induced, fte: results.totals.fte.induced, desc: 'Local businesses where workers shop' }
   ];
@@ -491,7 +513,9 @@ This includes not just casino employees, but workers throughout the supply chain
       amount: formatCurrency(results.totals.output.direct),
       jobs: formatJobs(results.totals.employment.direct),
       color: COLORS.primary,
-      explanation: 'The casino pays employees, purchases supplies, and covers operating costs. These are jobs and spending that happen at the casino itself.'
+      explanation: empDetail
+        ? `The casino's own employees and operating spending. ${empScope} are ${empCalibrated ? 'calibrated to observed QCEW casino labor intensity' : 'from the I-O coefficient'} (90% range ${jobsRange(empDetail.range.direct)}).`
+        : 'The casino pays employees, purchases supplies, and covers operating costs. These are jobs and spending that happen at the casino itself.'
     },
     {
       title: 'SUPPLY CHAIN',
@@ -573,12 +597,18 @@ This includes not just casino employees, but workers throughout the supply chain
   });
   slide3.addText(formatCurrency(results.totals.output.total), {
     x: colStartX + 0.2, y: 4.5, w: 3.2, h: 0.38,
-    fontSize: 24, fontFace: 'Helvetica', bold: true, color: COLORS.orange
+    fontSize: 24, fontFace: 'Helvetica', bold: true, color: COLORS.accentLight
   });
   slide3.addText(`${formatJobs(results.totals.employment.total)} total jobs supported across ${inputs.state}`, {
-    x: colStartX + 3.5, y: 4.38, w: totalColumnsWidth - 3.7, h: 0.4,
+    x: colStartX + 3.5, y: empDetail ? 4.24 : 4.38, w: totalColumnsWidth - 3.7, h: empDetail ? 0.34 : 0.4,
     fontSize: FONT.section + 2, fontFace: 'Helvetica', color: COLORS.white, align: 'right'
   });
+  if (empDetail) {
+    slide3.addText(`90% range ${jobsRange(empDetail.range.total)} jobs · ${empScope.toLowerCase()} ${empCalibrated ? 'calibrated to QCEW' : 'from the I-O coefficient'}`, {
+      x: colStartX + 3.5, y: 4.58, w: totalColumnsWidth - 3.7, h: 0.26,
+      fontSize: FONT.body, fontFace: 'Helvetica', color: COLORS.white, align: 'right'
+    });
+  }
 
   // Add license footer and watermark to slide 3
   addPropertyWatermark(slide3, inputs.casinoName);
@@ -618,15 +648,25 @@ This includes not just casino employees, but workers throughout the supply chain
 
   const tableData = [tableHeaderRow, ...tableDataRows];
 
+  // Rows tighten slightly to make room for the jobs-range note under the table;
+  // the label column is wide enough that no label wraps and grows its row.
+  const detailRowH = empDetail ? 0.31 : 0.35;
   slide4.addTable(tableData, {
-    x: MARGIN, y: 1.15, w: 9.2, h: 2.1,
+    x: MARGIN, y: 1.15, w: 9.2, h: detailRowH * tableData.length,
     fontFace: 'Helvetica', fontSize: FONT.body + 1, color: COLORS.text,
     border: { pt: 0.5, color: 'CCCCCC' },
-    colW: [1.7, 1.4, 1.4, 1.4, 1.4, 1.4],
-    rowH: 0.35,
+    colW: [2.4, 1.36, 1.36, 1.36, 1.36, 1.36],
+    rowH: detailRowH,
     fill: { color: COLORS.white },
     align: 'center', valign: 'middle'
   });
+
+  if (empDetail) {
+    slide4.addText(`${empScope} ${empCalibrated ? 'calibrated to QCEW casino labor intensity' : 'from the I-O coefficient'} (90% range: ${jobsRange(empDetail.range.direct)} direct, ${jobsRange(empDetail.range.total)} total). Supplier and induced jobs as modeled.`, {
+      x: MARGIN, y: 1.15 + detailRowH * tableData.length - 0.01, w: 9.2, h: 0.24,
+      fontSize: FONT.caption, fontFace: 'Helvetica', italic: true, color: COLORS.grayText
+    });
+  }
 
   // Understanding multipliers callout - 1/3 width column
   slide4.addText('Understanding Multipliers', {
@@ -678,134 +718,190 @@ This includes not just casino employees, but workers throughout the supply chain
     fontSize: FONT.title, fontFace: 'Helvetica', bold: true, color: COLORS.white
   });
 
-  slideTax.addText('Estimated tax revenues generated by casino operations', {
+  slideTax.addText(`Estimated annual tax revenues generated by casino operations${inputs.analysisYear ? ` (${inputs.analysisYear} dollars)` : ''}`, {
     x: MARGIN, y: CONTENT_TOP + 0.1, w: 9, h: 0.28,
     fontSize: FONT.body + 1, fontFace: 'Helvetica', color: COLORS.grayText
   });
 
-  // Tax table
-  const taxHeaderRow = [
-    { text: 'Tax Category', options: { fill: { color: COLORS.navy }, color: COLORS.white, bold: true } },
-    { text: 'Direct', options: { fill: { color: COLORS.navy }, color: COLORS.white, bold: true } },
-    { text: 'Indirect', options: { fill: { color: COLORS.navy }, color: COLORS.white, bold: true } },
-    { text: 'Induced', options: { fill: { color: COLORS.navy }, color: COLORS.white, bold: true } },
-    { text: 'Total', options: { fill: { color: COLORS.navy }, color: COLORS.white, bold: true } }
-  ];
-
+  // Tax table: one row per line of computeScenario's `fiscal` bundle, then
+  // subtotals by level of government. Every line is additive.
+  const fiscal = reportFiscal(results, inputs);
   const gamingTaxResult = inputs.gamingTaxResult;
   const stateTaxConfig = inputs.stateTaxConfig;
-  const taxDataRows = [];
+  // Tribal gaming pays compact revenue sharing, not the state's commercial taxes.
+  const tribal = inputs.ownership === 'tribal';
+  const headerCell = (text) => ({ text, options: { fill: { color: COLORS.navy }, color: COLORS.white, bold: true } });
+  const taxHeaderRow = ['Tax Category', 'Level', 'Direct', 'Indirect', 'Induced', 'Total'].map(headerCell);
+  const taxValue = (v) => (v ? formatCurrency(v) : '-');
 
-  // Gaming Tax (GGR) row
-  if (gamingTaxResult) {
-    const effRate = formatNumber(gamingTaxResult.effectiveRate * 100, 1) + '% eff.';
-    taxDataRows.push([
-      `Gaming Tax (memo)\n${effRate}`,
-      formatCurrency(gamingTaxResult.amount),
-      '-',
-      '-',
-      formatCurrency(gamingTaxResult.amount)
-    ]);
-  }
-
-  // TOPI row
-  if (results.totals.tax.total > 0) {
-    taxDataRows.push([
-      'Taxes on Production\n(TOPI from IO model)',
-      formatCurrency(results.totals.tax.direct),
-      formatCurrency(results.totals.tax.indirect),
-      formatCurrency(results.totals.tax.induced),
-      formatCurrency(results.totals.tax.total)
-    ]);
-  }
-
-  // Payroll Taxes row
-  const payrollTaxResult = inputs.payrollTaxResult;
-  if (payrollTaxResult && payrollTaxResult.total > 0) {
-    taxDataRows.push([
-      'Payroll Taxes\n(FICA, FUTA, SUTA)',
-      formatCurrency(payrollTaxResult.direct),
-      formatCurrency(payrollTaxResult.indirect),
-      formatCurrency(payrollTaxResult.induced),
-      formatCurrency(payrollTaxResult.total)
-    ]);
-  }
-
-  // Household Taxes row
-  const householdTaxResult = inputs.householdTaxResult;
-  if (householdTaxResult && householdTaxResult.total > 0) {
-    taxDataRows.push([
-      'Household Taxes\n(BEA ratio)',
-      formatCurrency(householdTaxResult.direct),
-      formatCurrency(householdTaxResult.indirect),
-      formatCurrency(householdTaxResult.induced),
-      formatCurrency(householdTaxResult.total)
-    ]);
-  }
-
-  // Total row
-  const taxTotalDirect = results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0);
-  const taxTotalIndirect = results.totals.tax.indirect + (payrollTaxResult?.indirect || 0) + (householdTaxResult?.indirect || 0);
-  const taxTotalInduced = results.totals.tax.induced + (payrollTaxResult?.induced || 0) + (householdTaxResult?.induced || 0);
-  const taxTotalAll = taxTotalDirect + taxTotalIndirect + taxTotalInduced;
-  taxDataRows.push([
-    { text: 'Non-duplicative Tax Total', options: { bold: true } },
-    { text: formatCurrency(taxTotalDirect), options: { bold: true } },
-    { text: formatCurrency(taxTotalIndirect), options: { bold: true } },
-    { text: formatCurrency(taxTotalInduced), options: { bold: true } },
-    { text: formatCurrency(taxTotalAll), options: { bold: true } }
+  const taxDataRows = fiscal.lines.map(l => [
+    { text: l.key === 'gaming' && gamingTaxResult
+      ? (tribal
+        ? `Tribal revenue sharing (${formatNumber(gamingTaxResult.effectiveRate * 100, 1)}% of GGR)`
+        : `Gaming tax on GGR (${formatNumber(gamingTaxResult.effectiveRate * 100, 1)}% eff.)`)
+      : l.label, options: { align: 'left' } },
+    LEVEL_LABEL[l.level] || '-',
+    taxValue(l.direct), taxValue(l.indirect), taxValue(l.induced), formatCurrency(l.total)
   ]);
+
+  // Subtotal rows by level of government, then the total
+  const subtotalRow = (label, v) => [label, '', taxValue(v.direct), taxValue(v.indirect), taxValue(v.induced), formatCurrency(v.total)]
+    .map((text, i) => ({ text, options: { bold: true, fill: { color: COLORS.lightBg }, ...(i === 0 ? { align: 'left' } : {}) } }));
+  taxDataRows.push(subtotalRow('Federal', fiscal.totals.federal));
+  taxDataRows.push(subtotalRow('State & local', fiscal.totals.stateLocal));
+  taxDataRows.push(subtotalRow('Total tax revenue', fiscal.totals.all));
 
   const taxTableData = [taxHeaderRow, ...taxDataRows];
 
+  // Definitions follow the fiscal method actually used
+  const taxTerms = [];
+  const hasGamingLine = fiscal.lines.some(l => l.key === 'gaming');
+  if (tribal) {
+    taxTerms.push(hasGamingLine
+      ? { term: 'Revenue sharing', def: 'Compact payment on GGR. Tribal gaming on trust land pays no state gaming, sales or property tax, so it replaces the gaming stream\'s direct TOPI.' }
+      : tribalTopiRemoved(results, fiscal)
+        ? { term: 'Tribal gaming', def: 'Trust-land gaming pays no state gaming, sales or property tax, so the gaming stream\'s direct TOPI is excluded. No compact share entered.' }
+        : { term: 'Tribal gaming', def: 'Revenue entered in total: no compact share and no trust-land TOPI adjustment, so production taxes may be overstated.' });
+  } else if (hasGamingLine) {
+    taxTerms.push({ term: 'Gaming tax', def: 'Statutory tax on gross gaming revenue. It replaces the gaming share of direct TOPI, so all lines are additive.' });
+  }
+  taxTerms.push({ term: 'TOPI', def: 'Taxes on production and imports from the I-O model (sales, property, excise, license), mostly state and local.' });
+  taxTerms.push({ term: 'Payroll taxes', def: 'Employer taxes on estimated cash wages: federal FICA and FUTA; state UI, plus SDI and PFML where levied.' });
+  if (fiscal.incomeTaxMethod === 'per_worker') {
+    taxTerms.push({ term: 'Household taxes', def: 'Federal and state income tax on the average cash wage per job, 2025 schedules, single filer, no dependents.' });
+  } else if (fiscal.incomeTaxMethod === 'bea_ratio') {
+    taxTerms.push({ term: 'Household taxes', def: 'BEA ratio of personal current taxes to wages (no state schedule); federal, state and local combined, counted as State & local.' });
+  }
+  // The state's local gaming-tax notes describe commercial casinos only.
+  const localNote = !tribal && stateTaxConfig?.localTaxNotes ? `Note: ${stateTaxConfig.localTaxNotes}` : null;
+
+  // Size the rows from the row count so the table, definitions and local note
+  // all stay above the footer. Line counts are estimated from text length at
+  // 9pt across the full content width.
+  const TAX_TABLE_Y = 1.15;
+  const DEF_LINE_H = 0.155;
+  const textLines = (s, perLine) => Math.max(1, Math.ceil(s.length / perLine));
+  const defsH = taxTerms.reduce((h, t) => h + textLines(`${t.term}: ${t.def}`, 135) * DEF_LINE_H, 0) + 0.1;
+  const noteH = localNote ? textLines(localNote, 140) * DEF_LINE_H + 0.12 : 0;
+  const belowTable = 0.1 + 0.24 + defsH + (localNote ? 0.06 + noteH : 0);
+  const taxRowH = Math.min(0.38, Math.max(0.22, (CONTENT_BOTTOM - TAX_TABLE_Y - belowTable) / taxTableData.length));
+  const taxTableH = taxRowH * taxTableData.length;
+
   slideTax.addTable(taxTableData, {
-    x: MARGIN, y: 1.15, w: 9.2, h: 2.8,
-    fontFace: 'Helvetica', fontSize: FONT.body + 1, color: COLORS.text,
+    x: MARGIN, y: TAX_TABLE_Y, w: 9.2, h: taxTableH,
+    fontFace: 'Helvetica', fontSize: taxRowH < 0.3 ? FONT.body : FONT.body + 1, color: COLORS.text,
     border: { pt: 0.5, color: 'CCCCCC' },
-    colW: [2.4, 1.6, 1.6, 1.6, 1.6],
-    rowH: 0.38,
+    colW: [3.0, 1.2, 1.25, 1.25, 1.25, 1.25],
+    rowH: taxRowH,
+    margin: [0.03, 0.08, 0.03, 0.08],
     fill: { color: COLORS.white },
     align: 'center', valign: 'middle'
   });
 
-  // Tax definitions (compact)
-  const taxY = 4.2;
+  // Tax definitions (compact, one paragraph per term)
+  const taxY = TAX_TABLE_Y + taxTableH + 0.1;
   slideTax.addText('Definitions', {
     x: MARGIN, y: taxY, w: 9, h: 0.24,
     fontSize: FONT.section, fontFace: 'Helvetica', bold: true, color: COLORS.primary
   });
 
-  const taxTerms = [
-    { term: 'Gaming Tax', def: `Memo estimate of state-mandated GGR tax. It is not added to TOPI because gaming-related gross-receipts and license taxes fall within the TOPI concept. StateIO does not identify the embedded amount by state, so the model does not subtract or replace it.` },
-    { term: 'TOPI', def: 'Taxes on Production and Imports — gross-receipts, amusement, license, property, excise, and other production taxes from the IO model.' },
-    { term: 'Payroll Taxes', def: 'Employer-side payroll taxes using DOL rates applied to estimated cash wages, after removing benefits from employee compensation.' },
-    { term: 'Household Taxes', def: 'Federal, state, and local income taxes plus motor vehicle licenses and personal property taxes, estimated using BEA personal current tax ratios by state.' }
-  ];
-
-  let taxTermY = taxY + 0.26;
-  taxTerms.forEach(t => {
-    slideTax.addText(`${t.term}: `, {
-      x: MARGIN, y: taxTermY, w: 1.6, h: 0.2,
-      fontSize: FONT.caption, fontFace: 'Helvetica', bold: true, color: COLORS.text
-    });
-    slideTax.addText(t.def, {
-      x: MARGIN + 1.6, y: taxTermY, w: 7.5, h: 0.2,
-      fontSize: FONT.caption, fontFace: 'Helvetica', color: COLORS.grayText
-    });
-    taxTermY += 0.22;
+  slideTax.addText(taxTerms.flatMap(t => [
+    { text: `${t.term}: `, options: { bold: true, color: COLORS.text } },
+    { text: t.def, options: { color: COLORS.grayText, breakLine: true } }
+  ]), {
+    x: MARGIN, y: taxY + 0.24, w: 9.2, h: defsH,
+    fontSize: FONT.caption, fontFace: 'Helvetica', valign: 'top', paraSpaceAfter: 1
   });
 
   // Local tax note if applicable
-  if (stateTaxConfig?.localTaxNotes) {
-    slideTax.addShape('rect', { x: MARGIN, y: taxTermY + 0.1, w: 9.2, h: 0.35, fill: { color: 'FFF8E1' } });
-    slideTax.addShape('rect', { x: MARGIN, y: taxTermY + 0.1, w: 0.06, h: 0.35, fill: { color: COLORS.warning } });
-    slideTax.addText(`Note: ${stateTaxConfig.localTaxNotes}`, {
-      x: MARGIN + 0.15, y: taxTermY + 0.1, w: 9.0, h: 0.35,
+  if (localNote) {
+    const noteY = taxY + 0.24 + defsH + 0.06;
+    slideTax.addShape('rect', { x: MARGIN, y: noteY, w: 9.2, h: noteH, fill: { color: 'FFF8E1' } });
+    slideTax.addShape('rect', { x: MARGIN, y: noteY, w: 0.06, h: noteH, fill: { color: COLORS.warning } });
+    slideTax.addText(localNote, {
+      x: MARGIN + 0.15, y: noteY, w: 9.0, h: noteH,
       fontSize: FONT.caption, fontFace: 'Helvetica', italic: true, color: COLORS.grayText, valign: 'middle'
     });
   }
 
   addPropertyWatermark(slideTax, inputs.casinoName);
+
+  // ============================================================
+  // OPTIONAL SLIDE: Net New Impact and Construction Phase
+  // ============================================================
+  const net = inputs.net || null;
+  const construction = inputs.constructionResult || null;
+  if (net || construction) {
+    const slideExtra = pptx.addSlide({ masterName: 'CONTENT_SLIDE' });
+
+    slideExtra.addText(net && construction ? 'NET NEW & CONSTRUCTION IMPACTS'
+      : net ? 'NET NEW IMPACT' : 'CONSTRUCTION PHASE (ONE-TIME)', {
+      x: MARGIN, y: 0.12, w: 9, h: 0.4,
+      fontSize: FONT.title, fontFace: 'Helvetica', bold: true, color: COLORS.white
+    });
+
+    // Side by side, each with its own title, when both modules are on;
+    // otherwise full width under the slide title alone
+    const both = !!(net && construction);
+    const extraTop = CONTENT_TOP + 0.1;
+    const extraTableY = both ? extraTop + 0.38 : extraTop + 0.05;
+    const extraRowH = 0.3;
+    const extraTable = {
+      fontFace: 'Helvetica', fontSize: FONT.body, color: COLORS.text,
+      border: { pt: 0.5, color: 'CCCCCC' }, rowH: extraRowH, margin: [0.03, 0.08, 0.03, 0.08],
+      fill: { color: COLORS.white }, align: 'center', valign: 'middle'
+    };
+    const sectionTitle = (text, x, w) => both && slideExtra.addText(text, {
+      x, y: extraTop, w, h: 0.3,
+      fontSize: FONT.section + 2, fontFace: 'Helvetica', bold: true, color: COLORS.primary
+    });
+    const noteText = (text, x, w, y) => slideExtra.addText(text, {
+      x, y, w, h: CONTENT_BOTTOM - y,
+      fontSize: FONT.caption, fontFace: 'Helvetica', color: COLORS.grayText, valign: 'top'
+    });
+
+    if (net) {
+      const nx = MARGIN, nw = both ? 3.7 : 9.2;
+      const g = results.totals, nt = net.totals;
+      const netRows = [
+        ['Total impact', 'Gross', 'Net new'].map(headerCell),
+        ['Output', formatCurrency(g.output.total), formatCurrency(nt.output.total)],
+        ['GDP', formatCurrency(g.gdp.total), formatCurrency(nt.gdp.total)],
+        ['Jobs', formatJobs(g.employment.total), formatJobs(nt.employment.total)],
+        ['Employee comp.', formatCurrency(g.wages.total), formatCurrency(nt.wages.total)]
+      ];
+      sectionTitle('Net New Impact', nx, nw);
+      slideExtra.addTable(netRows, {
+        ...extraTable, x: nx, y: extraTableY, w: nw, h: extraRowH * netRows.length,
+        colW: both ? [1.5, 1.1, 1.1] : [3.6, 2.8, 2.8]
+      });
+      noteText(`Net new share = ${describeNetShare(inputs.netImpact, net.share)} of gross. The remainder is treated as spending displaced from other in-state businesses. Gross figures measure the operation's economic contribution; net figures approximate what ${inputs.state} would lose without the activity. Neither accounts for social costs. Tax estimates are gross.`,
+        nx, nw, extraTableY + extraRowH * netRows.length + 0.12);
+    }
+
+    if (construction) {
+      const c = construction;
+      const cx = both ? MARGIN + 3.95 : MARGIN, cw = both ? 5.25 : 9.2;
+      const conRow = (label, v, fmt) => [label, fmt(v.direct), fmt(v.indirect), fmt(v.induced), fmt(v.total)];
+      const conRows = [
+        ['One-time impact', 'Direct', 'Indirect', 'Induced', 'Total'].map(headerCell),
+        conRow('Output', c.output, formatCurrency),
+        conRow('GDP', c.gdp, formatCurrency),
+        conRow('Jobs (job-years)', c.employment, formatJobs),
+        conRow('Employee comp.', c.wages, formatCurrency),
+        ...(c.fiscal ? [conRow('Tax revenue', c.fiscal.totals.all, formatCurrency)] : [])
+      ];
+      sectionTitle('Construction Phase (One-Time)', cx, cw);
+      slideExtra.addTable(conRows, {
+        ...extraTable, x: cx, y: extraTableY, w: cw, h: extraRowH * conRows.length,
+        colW: both ? [1.65, 0.9, 0.9, 0.9, 0.9] : [2.8, 1.6, 1.6, 1.6, 1.6]
+      });
+      noteText(`${formatCurrency(c.localSpend)} of in-state construction spending (of ${formatCurrency(c.cost)} total) over ${c.years} year${c.years === 1 ? '' : 's'}, using StateIO construction (sector 23) multipliers. Jobs are job-years: about ${formatJobs(c.annualJobs)} jobs in each year of the build. They are temporary and are not added to the operating impact.${c.fiscal ? ' Tax revenue combines federal, state and local taxes.' : ''}`,
+        cx, cw, extraTableY + extraRowH * conRows.length + 0.12);
+    }
+
+    addPropertyWatermark(slideExtra, inputs.casinoName);
+  }
 
   // ============================================================
   // SLIDE 6: How We Calculated This
@@ -841,9 +937,11 @@ For technical details, see the appendix.`;
 
   const dataSources = [
     { name: 'EPA State IO Tables', desc: 'Regional economic multipliers' },
-    { name: 'BLS QCEW', desc: 'State employment and wage data' },
+    { name: 'BLS QCEW', desc: empDetail ? 'State employment and wages; direct-jobs calibration' : 'State employment and wage data' },
     { name: 'BEA National Tables', desc: 'Gambling-specific adjustments' },
-    { name: 'Consumer Price Index (CPI)', desc: 'Inflation adjustments' }
+    { name: 'Consumer Price Index (CPI)', desc: inputs.analysisYear
+      ? `Revenue in ${inputs.analysisYear} dollars; deflated to 2023 for job estimates`
+      : 'Inflation adjustments' }
   ];
 
   let dsY = 1.05;
@@ -922,7 +1020,7 @@ The selected property label is "${propertyTypeLabel}" (NAICS ${propertyTypeCode}
   const titleText = `${authorInfo.title || 'Principal Consultant'} | ${authorInfo.institution || 'GP Consulting'}`;
   slide6.addText(titleText, {
     x: MARGIN, y: 1.1, w: 9.2, h: 0.28,
-    fontSize: FONT.body + 2, fontFace: 'Helvetica', color: COLORS.orange
+    fontSize: FONT.body + 2, fontFace: 'Helvetica', color: COLORS.accent
   });
 
   // Website with hyperlink
@@ -965,7 +1063,9 @@ The selected property label is "${propertyTypeLabel}" (NAICS ${propertyTypeCode}
 
   const limitations = [
     'Results are estimates derived from Input-Output modeling and should not be interpreted as precise predictions',
-    'The analysis measures gross economic impacts and does not account for substitution effects, displacement, or opportunity costs',
+    inputs.net
+      ? 'Headline results are gross impacts. The net-new estimate rests on assumed visitor and recapture shares; neither accounts for opportunity or social costs'
+      : 'The analysis measures gross economic impacts and does not account for substitution effects, displacement, or opportunity costs',
     'Multiplier effects assume available economic capacity; actual impacts may be lower during periods of full employment',
     'Results are sensitive to the geographic scope of analysis and local economic conditions'
   ];
@@ -1144,11 +1244,12 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
     ['Source', 'Year', 'Use'],
     ['EPA State IO', '2019', 'Multipliers'],
     ['BLS QCEW', '2023', 'Employment/wages'],
-    ['BEA IO Tables', '2017', 'Gambling coefficients']
+    ['BEA IO Tables', '2017', 'Gambling coefficients'],
+    ...(empDetail ? [['BLS QCEW validation', '2023', 'Direct-jobs calibration']] : [])
   ];
 
   appendixB.addTable(vintageTable, {
-    x: 5.2, y: 3.08, w: 4.4, h: 0.8,
+    x: 5.2, y: 3.08, w: 4.4, h: 0.2 * vintageTable.length,
     fontFace: 'Helvetica', fontSize: FONT.caption, color: COLORS.text,
     border: { pt: 0.3, color: 'CCCCCC' },
     colW: [1.6, 0.8, 2.0],
@@ -1211,8 +1312,10 @@ Example: Nevada retains more casino supply chain spending locally than Ohio beca
     fontSize: FONT.section, fontFace: 'Helvetica', bold: true, color: COLORS.primary
   });
 
-  appendixC.addText(`Results are validated against published industry benchmarks and cross-checked with BLS employment data. Sensitivity analysis shows that results are most sensitive to direct employment assumptions. Users can input known employment figures to improve accuracy for specific operations.`, {
-    x: MARGIN, y: 3.9, w: 9.2, h: 0.55,
+  appendixC.addText(empDetail
+    ? `${empScope} are checked against a 50-state comparison of the model's direct-jobs coefficient with BLS QCEW casino employment (2023). For this analysis the I-O coefficient gives ${formatJobs(empDetail.model.direct)} direct jobs and the QCEW-calibrated estimate is ${formatJobs(empDetail.calibrated.direct)}; the 90% predictive interval from the comparison is ${jobsRange(empDetail.range.direct)} direct jobs. The report uses the ${empCalibrated ? 'calibrated estimate' : 'I-O coefficient'}. Supplier and induced jobs have no observed benchmark and are shown as modeled. Users can enter known employment to replace the estimate.`
+    : `Results are validated against published industry benchmarks and cross-checked with BLS employment data. Sensitivity analysis shows that results are most sensitive to direct employment assumptions. Users can input known employment figures to improve accuracy for specific operations.`, {
+    x: MARGIN, y: 3.9, w: 9.2, h: empDetail ? 0.8 : 0.55,
     fontSize: FONT.caption, fontFace: 'Helvetica', color: COLORS.text
   });
 

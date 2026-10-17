@@ -4,7 +4,7 @@ import multiplierData from './data/multipliers.json';
 import gamingTaxRatesData from './data/gamingTaxRates.json';
 import employmentTaxRatesData from './data/employmentTaxRates.json';
 import { ARCHETYPES, ARCHETYPE_LIST, calculateArchetypeEmployment } from './data/archetypes';
-import { calculateCombinedImpact, calculateGamingTax, calculatePayrollTax, calculateHouseholdTax, formatNumber, formatCurrency, formatJobs, getTaxableGgr, isOnlinePropertyType } from './utils/calculations';
+import { formatNumber, formatCurrency, formatJobs, isOnlinePropertyType } from './utils/calculations';
 import {
   validateLicense,
   validateLicenseRemote,
@@ -36,7 +36,15 @@ import ControlBar from './components/dashboard/ControlBar';
 import {
   buildAnalysis, applyAnalysis, buildShareURL, readAnalysisFromURL, clearURLParam,
   loadProjects, saveProject as saveProjectStore, deleteProject as deleteProjectStore,
+  DEFAULT_NET_IMPACT, DEFAULT_CONSTRUCTION,
 } from './utils/analysisState';
+import { computeScenario } from './utils/computeScenario';
+import { buildTaxConfig } from './utils/taxConfig';
+import FiscalTable from './components/dashboard/FiscalTable';
+import EmploymentCalibrationNote from './components/dashboard/EmploymentCalibrationNote';
+import NetImpactCard from './components/dashboard/NetImpactCard';
+import ConstructionCard from './components/dashboard/ConstructionCard';
+import AnalysisOptions from './components/dashboard/AnalysisOptions';
 import { buildResultsCSV, downloadCSV, printReport, slugify } from './utils/exporters';
 // Report generators are dynamically imported to reduce initial bundle size
 // import { generateReport } from './utils/reportGenerator';
@@ -187,7 +195,7 @@ function RevenueBreakdownTable({ byRevenue }) {
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total Jobs</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Estimated FTEs</th>
             <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Employee Compensation</th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">TOPI</th>
+            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600" title="I-O taxes on production before the statutory gaming tax replaces the gaming share">I-O TOPI</th>
           </tr>
         </thead>
         <tbody>
@@ -249,50 +257,6 @@ const PROPERTY_TYPE_OPTIONS = [
   { value: 'ONLINE_SPORTSBOOK', label: 'Online Sportsbook', description: 'Online sports betting operations', category: 'online' }
 ];
 
-/**
- * Build a tax config object for calculateGamingTax from a state's tax rate data.
- * For online property types, uses the iGaming or sportsBetting sub-config.
- */
-function buildTaxConfig(taxInfo, customRate, slotRevenuePct, propertyType = null) {
-  if (!taxInfo) return {};
-
-  // For online types, use the appropriate sub-config
-  let effectiveTaxInfo = taxInfo;
-  if (isOnlinePropertyType(propertyType)) {
-    const isIGaming = propertyType === 'ONLINE_CASINO';
-    const onlineConfig = isIGaming ? taxInfo.iGaming : taxInfo.sportsBetting;
-    if (onlineConfig) {
-      effectiveTaxInfo = onlineConfig;
-    } else {
-      // State doesn't have this online type legalized
-      return {};
-    }
-  }
-
-  const config = {};
-  if (customRate != null && customRate !== '') {
-    config.customRate = parseFloat(customRate);
-  } else if (effectiveTaxInfo.rateStructure === 'split_tiered' && effectiveTaxInfo.slotTiers && effectiveTaxInfo.tableTiers) {
-    config.slotTiers = effectiveTaxInfo.slotTiers;
-    config.tableTiers = effectiveTaxInfo.tableTiers;
-    config.slotRevenuePct = (slotRevenuePct || 70) / 100;
-  } else if (effectiveTaxInfo.rateStructure === 'tiered' && effectiveTaxInfo.tiers) {
-    config.tiers = effectiveTaxInfo.tiers;
-  } else if (effectiveTaxInfo.rateStructure === 'split_game_type' && effectiveTaxInfo.slotsRate != null && effectiveTaxInfo.tableRate != null) {
-    config.slotsRate = effectiveTaxInfo.slotsRate;
-    config.tableRate = effectiveTaxInfo.tableRate;
-    config.slotRevenuePct = (slotRevenuePct || 70) / 100;
-  } else if (effectiveTaxInfo.slotTableSplit && effectiveTaxInfo.slotsRate != null && effectiveTaxInfo.tableRate != null) {
-    config.slotsRate = effectiveTaxInfo.slotsRate;
-    config.tableRate = effectiveTaxInfo.tableRate;
-    config.slotRevenuePct = (slotRevenuePct || 70) / 100;
-  } else if (effectiveTaxInfo.flatRate != null) {
-    config.flatRate = effectiveTaxInfo.flatRate;
-  } else if (effectiveTaxInfo.effectiveRate != null) {
-    config.flatRate = effectiveTaxInfo.effectiveRate;
-  }
-  return config;
-}
 
 // Main App Component
 export default function App() {
@@ -343,6 +307,13 @@ export default function App() {
   // Gaming tax state
   const [gamingTaxCustomRate, setGamingTaxCustomRate] = useState(null); // User override rate (0-1)
   const [slotRevenuePct, setSlotRevenuePct] = useState(70); // For split-rate states: % of GGR from slots
+
+  // Analysis settings and optional modules
+  const [analysisYear, setAnalysisYear] = useState(null); // dollar year of revenue inputs (null = latest CPI year)
+  const [employmentBasis, setEmploymentBasis] = useState('calibrated'); // 'calibrated' | 'model'
+  const [netImpact, setNetImpact] = useState(DEFAULT_NET_IMPACT);
+  const [construction, setConstruction] = useState(DEFAULT_CONSTRUCTION);
+  const [ownership, setOwnership] = useState('commercial'); // 'commercial' | 'tribal'
 
   // Wizard helper state
   const [hasOtherRevenue, setHasOtherRevenue] = useState(false);
@@ -541,90 +512,29 @@ export default function App() {
       applyAnalysis(shared, {
         setState, setCasinoName, setPropertyType, setInputMode,
         setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
+        setAnalysisYear, setEmploymentBasis, setNetImpact, setConstruction, setOwnership,
       });
       setWizardComplete(true);
       clearURLParam();
     }
   }, []);
 
-  // Calculate results using the canonical land-based gambling calibration or
-  // the separate online scenario coefficients.
+  // One engine (computeScenario) for the dashboard, scenario comparison,
+  // sensitivity analysis and every export, so their numbers cannot diverge.
   const isOnline = isOnlinePropertyType(propertyType);
-  const results = useMemo(() => {
-    return calculateCombinedImpact(
-      revenues,
-      multiplierData.multipliers,
-      multiplierData.gambling,
-      state,
-      true,  // Use gambling-specific (fallback if no property type)
-      knownData,  // Department-level known data object
-      null,       // Legacy parameter (not used with new format)
-      propertyType || null,
-      multiplierData.propertyTypes || null,
-      inputMode,
-      multiplierData.onlineGaming || null
-    );
-  }, [revenues, state, knownData, propertyType, inputMode]);
-
-  // Stable serialized analysis for the sensitivity/projection panel so it
-  // doesn't recompute its sweeps on every unrelated render.
   const liveAnalysis = useMemo(() => buildAnalysis({
     state, casinoName, propertyType, inputMode, revenues, knownData,
     gamingTaxCustomRate, slotRevenuePct,
-  }), [state, casinoName, propertyType, inputMode, revenues, knownData, gamingTaxCustomRate, slotRevenuePct]);
-
-  // Gaming tax calculation shown as a memo component of direct TOPI.
+    analysisYear, employmentBasis, netImpact, construction, ownership,
+  }), [state, casinoName, propertyType, inputMode, revenues, knownData, gamingTaxCustomRate, slotRevenuePct,
+       analysisYear, employmentBasis, netImpact, construction, ownership]);
+  const bundle = useMemo(() => computeScenario(liveAnalysis), [liveAnalysis]);
+  const {
+    results, fiscal, net, gamingTaxResult, payrollTaxResult, householdTaxResult,
+    construction: constructionResult,
+  } = bundle;
   const stateTaxConfig = gamingTaxRatesData.rates[state];
-  const gamingTaxResult = useMemo(() => {
-    // For online types, check if the state has that specific online type legalized
-    if (isOnline) {
-      const hasOnlineType = propertyType === 'ONLINE_CASINO'
-        ? stateTaxConfig?.hasIGaming
-        : stateTaxConfig?.hasSportsBetting;
-      if (!hasOnlineType && (gamingTaxCustomRate == null || gamingTaxCustomRate === '')) return null;
-    } else {
-      const hasCommercial = stateTaxConfig && stateTaxConfig.hasCommercial;
-      // Allow calculation if state has commercial gaming OR user provided a custom rate
-      if (!hasCommercial && (gamingTaxCustomRate == null || gamingTaxCustomRate === '')) return null;
-    }
-    // A legacy land-based total-revenue value can include rooms, food, and
-    // other sales, so it is never silently treated as taxable GGR.
-    const ggr = getTaxableGgr(inputMode, isOnline, revenues);
-    if (ggr <= 0) return null;
-
-    // Build tax config for calculation (passes propertyType for online routing)
-    let taxConfig = buildTaxConfig(stateTaxConfig, gamingTaxCustomRate, slotRevenuePct, propertyType);
-
-    const gamingTax = calculateGamingTax(ggr, taxConfig);
-    const effectiveRate = ggr > 0 ? gamingTax / ggr : 0;
-    return { amount: gamingTax, effectiveRate, ggr };
-  }, [revenues, state, inputMode, gamingTaxCustomRate, slotRevenuePct, stateTaxConfig, propertyType, isOnline]);
-
-  // Payroll and household tax calculations
   const stateEmploymentTaxRates = employmentTaxRatesData.states[state];
-  const payrollTaxResult = useMemo(() => {
-    if (!results || !stateEmploymentTaxRates) return null;
-    const federal = employmentTaxRatesData.federal;
-    const w = results.totals.cashWages;
-    const e = results.totals.employment;
-    return {
-      direct: calculatePayrollTax(w.direct, e.direct, stateEmploymentTaxRates, federal),
-      indirect: calculatePayrollTax(w.indirect, e.indirect, stateEmploymentTaxRates, federal),
-      induced: calculatePayrollTax(w.induced, e.induced, stateEmploymentTaxRates, federal),
-      get total() { return this.direct + this.indirect + this.induced; }
-    };
-  }, [results, state, stateEmploymentTaxRates]);
-
-  const householdTaxResult = useMemo(() => {
-    if (!results || !stateEmploymentTaxRates) return null;
-    const w = results.totals.cashWages;
-    return {
-      direct: calculateHouseholdTax(w.direct, stateEmploymentTaxRates),
-      indirect: calculateHouseholdTax(w.indirect, stateEmploymentTaxRates),
-      induced: calculateHouseholdTax(w.induced, stateEmploymentTaxRates),
-      get total() { return this.direct + this.indirect + this.induced; }
-    };
-  }, [results, state, stateEmploymentTaxRates]);
 
   // State options
   const stateOptions = multiplierData.states.map(s => ({ value: s, label: s }));
@@ -760,7 +670,13 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
           gamingTaxResult,
           stateTaxConfig,
           payrollTaxResult,
-          householdTaxResult
+          householdTaxResult,
+          fiscal,
+          net,
+          netImpact,
+          constructionResult,
+          analysisYear: bundle.analysisYear,
+          employmentBasis
         },
         authorInfo
       );
@@ -788,6 +704,13 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
     stateTaxConfig,
     payrollTaxResult,
     householdTaxResult,
+    fiscal,
+    net,
+    netImpact,
+    constructionResult,
+    analysisYear: bundle.analysisYear,
+    employmentBasis,
+    ownership: bundle.ownership,
   });
 
   // Handle Word (.docx) report generation — same license gating as PPTX.
@@ -846,25 +769,7 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
 
     try {
       const { downloadPPTX } = await import('./utils/pptxGenerator');
-      const propertyTypeLabel = PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || null;
-      await downloadPPTX(
-        results,
-        {
-          state,
-          casinoName,
-          useGamblingSpecific: true,
-          revenues,
-          knownData,
-          propertyType,
-          propertyTypeLabel,
-          inputMode,
-          gamingTaxResult,
-          stateTaxConfig,
-          payrollTaxResult,
-          householdTaxResult
-        },
-        authorInfo
-      );
+      await downloadPPTX(results, buildReportInputs(), authorInfo);
     } catch (error) {
       console.error('Failed to generate PPTX:', error);
       alert(`Failed to generate PPTX: ${error.message}`);
@@ -889,49 +794,17 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
         other: { emp: null, wages: null }
       };
 
-      const sampleResults = calculateCombinedImpact(
-        sampleRevenues,
-        multiplierData.multipliers,
-        multiplierData.gambling,
-        sampleState,
-        true,
-        emptyKnownData,
-        null,
-        samplePropertyType,
-        multiplierData.propertyTypes || null,
-        'department',
-        multiplierData.onlineGaming || null
-      );
-
-      const sampleStateTaxConfig = gamingTaxRatesData.rates[sampleState];
-      const sampleTaxConfig = buildTaxConfig(sampleStateTaxConfig, null, 70, samplePropertyType);
-      const sampleGamingTax = calculateGamingTax(sampleRevenues.gaming, sampleTaxConfig);
-      const sampleGamingTaxResult = {
-        amount: sampleGamingTax,
-        effectiveRate: sampleGamingTax / sampleRevenues.gaming,
-        ggr: sampleRevenues.gaming
-      };
-
-      const sampleStateEmpTaxRates = employmentTaxRatesData.states[sampleState];
-      const federal = employmentTaxRatesData.federal;
-      const w = sampleResults.totals.cashWages;
-      const e = sampleResults.totals.employment;
-      const samplePayrollTaxResult = {
-        direct: calculatePayrollTax(w.direct, e.direct, sampleStateEmpTaxRates, federal),
-        indirect: calculatePayrollTax(w.indirect, e.indirect, sampleStateEmpTaxRates, federal),
-        induced: calculatePayrollTax(w.induced, e.induced, sampleStateEmpTaxRates, federal),
-        get total() { return this.direct + this.indirect + this.induced; }
-      };
-      const sampleHouseholdTaxResult = {
-        direct: calculateHouseholdTax(w.direct, sampleStateEmpTaxRates),
-        indirect: calculateHouseholdTax(w.indirect, sampleStateEmpTaxRates),
-        induced: calculateHouseholdTax(w.induced, sampleStateEmpTaxRates),
-        get total() { return this.direct + this.indirect + this.induced; }
-      };
+      // Same engine as the dashboard, so the sample shows exactly what a user would get.
+      const sampleAnalysis = buildAnalysis({
+        state: sampleState, casinoName: 'Sample Casino Resort', propertyType: samplePropertyType,
+        inputMode: 'department', revenues: sampleRevenues, knownData: emptyKnownData,
+        gamingTaxCustomRate: null, slotRevenuePct: 70,
+      });
+      const sample = computeScenario(sampleAnalysis);
 
       const { downloadPPTX } = await import('./utils/pptxGenerator');
       await downloadPPTX(
-        sampleResults,
+        sample.results,
         {
           state: sampleState,
           casinoName: 'Sample Casino Resort',
@@ -941,10 +814,13 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
           propertyType: samplePropertyType,
           propertyTypeLabel: PROPERTY_TYPE_OPTIONS.find(p => p.value === samplePropertyType)?.label || 'Casino Hotel',
           inputMode: 'department',
-          gamingTaxResult: sampleGamingTaxResult,
-          stateTaxConfig: sampleStateTaxConfig,
-          payrollTaxResult: samplePayrollTaxResult,
-          householdTaxResult: sampleHouseholdTaxResult,
+          gamingTaxResult: sample.gamingTaxResult,
+          stateTaxConfig: sample.stateTaxConfig,
+          payrollTaxResult: sample.payrollTaxResult,
+          householdTaxResult: sample.householdTaxResult,
+          fiscal: sample.fiscal,
+          analysisYear: sample.analysisYear,
+          employmentBasis: sample.employmentBasis,
           isSample: true
         },
         authorInfo
@@ -979,11 +855,13 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
   const currentAnalysis = () => buildAnalysis({
     state, casinoName, propertyType, inputMode, revenues, knownData,
     gamingTaxCustomRate, slotRevenuePct,
+    analysisYear, employmentBasis, netImpact, construction, ownership,
   });
 
   const restoreAnalysis = (analysis) => applyAnalysis(analysis, {
     setState, setCasinoName, setPropertyType, setInputMode,
     setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
+    setAnalysisYear, setEmploymentBasis, setNetImpact, setConstruction, setOwnership,
   });
 
   const handleSaveProject = (name) => {
@@ -1017,6 +895,8 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
     state, casinoName,
     propertyTypeLabel: PROPERTY_TYPE_OPTIONS.find(p => p.value === propertyType)?.label || null,
     gamingTaxResult, payrollTaxResult, householdTaxResult,
+    fiscal, net, netImpact, constructionResult, analysisYear: bundle.analysisYear, employmentBasis,
+    ownership: bundle.ownership,
   });
 
   const handleExportCSV = () => {
@@ -1745,6 +1625,17 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
               </div>
             </div>
 
+            {/* Analysis settings and optional modules */}
+            <AnalysisOptions
+              analysisYear={analysisYear} setAnalysisYear={setAnalysisYear}
+              employmentBasis={employmentBasis} setEmploymentBasis={setEmploymentBasis}
+              netImpact={netImpact} setNetImpact={setNetImpact}
+              construction={construction} setConstruction={setConstruction}
+              ownership={ownership} setOwnership={setOwnership}
+              stateHasTribal={!!stateTaxConfig?.hasTribal}
+              isOnline={isOnline}
+            />
+
           </aside>
             </div>
           </div>
@@ -1801,6 +1692,10 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                 <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '75ms' }}>
                   <SectionHeader>Economic Impact Summary</SectionHeader>
                   <DashboardResultsTable results={results} termDefs={getTermDefinitions(isOnline)} />
+                  <EmploymentCalibrationNote
+                    results={results}
+                    onToggleBasis={() => setEmploymentBasis(b => (b === 'calibrated' ? 'model' : 'calibrated'))}
+                  />
                   {results.hasUserData && (
                     <p className="text-xs text-gray-500 mt-3 italic">
                       Note: Direct jobs and/or cash wages use user-provided values. Known wages also rebase the induced household-spending effects.
@@ -1809,114 +1704,30 @@ More information about Dr. Simeon-Rose is available at kahlil.co.`,
                 </div>
 
                 {/* Tax Revenue Estimates */}
-                {(results.totals.tax.total > 0 || gamingTaxResult || payrollTaxResult || householdTaxResult) && (
+                {fiscal && (
                   <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                     <SectionHeader>Tax Revenue Estimates</SectionHeader>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Tax Type</th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-primary">
-                              <DefTooltip text={TERM_DEFINITIONS.direct}>Direct</DefTooltip>
-                            </th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-accent">
-                              <DefTooltip text={TERM_DEFINITIONS.indirect}>Indirect</DefTooltip>
-                            </th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-effect-induced">
-                              <DefTooltip text={TERM_DEFINITIONS.induced}>Induced</DefTooltip>
-                            </th>
-                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {gamingTaxResult && (
-                            <tr className="border-b border-gray-100 hover:bg-gray-50">
-                              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                                <DefTooltip text={isOnline
-                                  ? "State taxes levied on online gross gaming/betting revenue at statutory rates."
-                                  : "State and local taxes levied directly on gross gaming revenue at rates set by statute or compact."}>
-                                  {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports Betting Tax (memo)' : 'iGaming Tax (memo)') : 'Gaming Tax (GGR, memo)'}
-                                </DefTooltip>
-                                <span className="block text-xs text-gray-500">
-                                  {formatNumber(gamingTaxResult.effectiveRate * 100, 1)}% effective rate; not added to TOPI
-                                </span>
-                              </th>
-                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(gamingTaxResult.amount)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-accent">-</td>
-                              <td className="py-3 px-4 text-sm text-right text-effect-induced">-</td>
-                              <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(gamingTaxResult.amount)}</td>
-                            </tr>
-                          )}
-                          {results.totals.tax.total > 0 && (
-                            <tr className="border-b border-gray-100 hover:bg-gray-50">
-                              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                                <DefTooltip text="Taxes on Production and Imports (TOPI) from the IO model — includes sales taxes, property taxes, excise taxes, and business fees paid across the supply chain.">
-                                  Taxes on Production
-                                </DefTooltip>
-                                <span className="block text-xs text-gray-500">TOPI from IO model</span>
-                              </th>
-                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(results.totals.tax.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(results.totals.tax.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(results.totals.tax.induced)}</td>
-                              <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(results.totals.tax.total)}</td>
-                            </tr>
-                          )}
-                          {payrollTaxResult && payrollTaxResult.total > 0 && (
-                            <tr className="border-b border-gray-100 hover:bg-gray-50">
-                              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                                <DefTooltip text="Employer-side payroll taxes: FICA (Social Security + Medicare), FUTA, SUTA, and state SDI/PFML where applicable. Applied to estimated cash wages—not total employee compensation—using per-job caps and state-specific rates.">
-                                  Payroll Taxes
-                                </DefTooltip>
-                                <span className="block text-xs text-gray-500">FICA, FUTA, SUTA{stateEmploymentTaxRates?.sdi_employer_rate > 0 ? ', SDI' : ''}{stateEmploymentTaxRates?.pfml_employer_rate > 0 ? ', PFML' : ''}</span>
-                              </th>
-                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(payrollTaxResult.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(payrollTaxResult.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(payrollTaxResult.induced)}</td>
-                              <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(payrollTaxResult.total)}</td>
-                            </tr>
-                          )}
-                          {householdTaxResult && householdTaxResult.total > 0 && (
-                            <tr className="border-b border-gray-100 hover:bg-gray-50">
-                              <th scope="row" className="py-3 px-4 text-sm font-medium text-gray-700 text-left">
-                                <DefTooltip text="Federal, state, and local income taxes plus motor vehicle licenses and personal property taxes paid by employee households. Based on BEA personal current tax ratios applied to estimated cash wages. Does not include real estate or sales taxes (covered under TOPI).">
-                                  Household Taxes
-                                </DefTooltip>
-                                <span className="block text-xs text-gray-500">{formatNumber((stateEmploymentTaxRates?.household_tax_ratio || 0) * 100, 1)}% of estimated cash wages (BEA ratio)</span>
-                              </th>
-                              <td className="py-3 px-4 text-sm text-right text-primary">{formatCurrency(householdTaxResult.direct)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-accent">{formatCurrency(householdTaxResult.indirect)}</td>
-                              <td className="py-3 px-4 text-sm text-right text-effect-induced">{formatCurrency(householdTaxResult.induced)}</td>
-                              <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">{formatCurrency(householdTaxResult.total)}</td>
-                            </tr>
-                          )}
-                          <tr className="bg-gray-50 border-t border-gray-200">
-                            <th scope="row" className="py-3 px-4 text-sm font-bold text-gray-900 text-left">Non-duplicative Tax Total</th>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-primary">
-                              {formatCurrency(results.totals.tax.direct + (payrollTaxResult?.direct || 0) + (householdTaxResult?.direct || 0))}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-accent">
-                              {formatCurrency(results.totals.tax.indirect + (payrollTaxResult?.indirect || 0) + (householdTaxResult?.indirect || 0))}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-effect-induced">
-                              {formatCurrency(results.totals.tax.induced + (payrollTaxResult?.induced || 0) + (householdTaxResult?.induced || 0))}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right font-bold text-gray-900">
-                              {formatCurrency(results.totals.tax.total + (payrollTaxResult?.total || 0) + (householdTaxResult?.total || 0))}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-3">
-                      TOPI includes gross-receipts, amusement, license, property, excise, and other production taxes.
-                      The statutory {isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'sports betting tax' : 'iGaming tax') : 'gaming tax'} estimate is therefore shown as a memo item and is not added again.
-                      StateIO does not identify the embedded gaming-tax amount by state, so the model does not subtract or replace it.
-                      Payroll and household taxes use estimated cash wages rather than total employee compensation; the cash-wage share is based on BEA NIPA table 1.12.
-                      {stateTaxConfig?.localTaxNotes && (
-                        <span className="block mt-1 italic">Note: {stateTaxConfig.localTaxNotes}</span>
-                      )}
-                    </p>
+                    <FiscalTable
+                      fiscal={fiscal}
+                      gamingTaxLabel={isOnline ? (propertyType === 'ONLINE_SPORTSBOOK' ? 'Sports betting tax (statutory)' : 'iGaming tax (statutory)') : null}
+                      localTaxNotes={stateTaxConfig?.localTaxNotes}
+                    />
+                  </div>
+                )}
+
+                {/* Net new impact (optional module) */}
+                {net && (
+                  <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '110ms' }}>
+                    <SectionHeader>Net New Impact</SectionHeader>
+                    <NetImpactCard results={results} net={net} netImpact={netImpact} />
+                  </div>
+                )}
+
+                {/* Construction phase (optional module) */}
+                {constructionResult && (
+                  <div className="dash-card p-6 animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+                    <SectionHeader>Construction Phase (One-Time)</SectionHeader>
+                    <ConstructionCard construction={constructionResult} />
                   </div>
                 )}
 

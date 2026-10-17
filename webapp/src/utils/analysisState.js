@@ -10,15 +10,26 @@
  * and exports all speak the same language.
  */
 
-export const ANALYSIS_VERSION = 1;
+export const ANALYSIS_VERSION = 2;
 const PROJECTS_KEY = 'gems_projects';
 const URL_PARAM = 'a';
 
-/** The fields that fully define an analysis (mirrors App input state). */
+/** Defaults for the optional modules (net impact, construction phase). */
+export const DEFAULT_NET_IMPACT = { enabled: false, nonResidentShare: null, recaptureShare: 0 };
+export const DEFAULT_CONSTRUCTION = { enabled: false, cost: null, localShare: 60, years: 2 };
+
+/**
+ * The fields that fully define an analysis (mirrors App input state).
+ * v2 adds: analysisYear (dollar year of revenue inputs), employmentBasis
+ * ('calibrated' | 'model'), ownership ('commercial' | 'tribal'), netImpact and
+ * construction modules. v1 analyses load with defaults (latest CPI year,
+ * calibrated, commercial, modules off).
+ */
 export function buildAnalysis(input) {
   const {
     state, casinoName, propertyType, inputMode,
     revenues, knownData, gamingTaxCustomRate, slotRevenuePct,
+    analysisYear, employmentBasis, netImpact, construction, ownership,
   } = input;
   return {
     v: ANALYSIS_VERSION,
@@ -30,6 +41,11 @@ export function buildAnalysis(input) {
     knownData: cloneKnownData(knownData),
     gamingTaxCustomRate: gamingTaxCustomRate ?? null,
     slotRevenuePct: slotRevenuePct ?? 70,
+    analysisYear: analysisYear ?? null,
+    employmentBasis: employmentBasis || 'calibrated',
+    ownership: ownership === 'tribal' ? 'tribal' : 'commercial',
+    netImpact: { ...DEFAULT_NET_IMPACT, ...(netImpact || {}) },
+    construction: { ...DEFAULT_CONSTRUCTION, ...(construction || {}) },
   };
 }
 
@@ -48,6 +64,7 @@ export function applyAnalysis(analysis, setters) {
   const {
     setState, setCasinoName, setPropertyType, setInputMode,
     setRevenues, setKnownData, setGamingTaxCustomRate, setSlotRevenuePct,
+    setAnalysisYear, setEmploymentBasis, setNetImpact, setConstruction, setOwnership,
   } = setters;
   if (analysis.state) setState(analysis.state);
   setCasinoName(analysis.casinoName || '');
@@ -57,6 +74,12 @@ export function applyAnalysis(analysis, setters) {
   if (analysis.knownData) setKnownData(analysis.knownData);
   setGamingTaxCustomRate(analysis.gamingTaxCustomRate ?? null);
   setSlotRevenuePct(analysis.slotRevenuePct ?? 70);
+  // v2 fields; absent in v1 links and saved projects
+  if (setAnalysisYear) setAnalysisYear(analysis.analysisYear ?? null);
+  if (setEmploymentBasis) setEmploymentBasis(analysis.employmentBasis || 'calibrated');
+  if (setOwnership) setOwnership(analysis.ownership === 'tribal' ? 'tribal' : 'commercial');
+  if (setNetImpact) setNetImpact({ ...DEFAULT_NET_IMPACT, ...(analysis.netImpact || {}) });
+  if (setConstruction) setConstruction({ ...DEFAULT_CONSTRUCTION, ...(analysis.construction || {}) });
 }
 
 // ---------------------------------------------------------------- URL encoding

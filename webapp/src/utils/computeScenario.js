@@ -1,24 +1,45 @@
 /**
  * Run the full impact + tax calculation for a single analysis.
  *
- * This is the engine behind scenario comparison and sensitivity analysis: it
- * mirrors exactly what the dashboard computes for the active inputs, so any
- * number of scenarios can be evaluated consistently and side by side.
+ * This is the engine behind the dashboard, scenario comparison, sensitivity
+ * analysis and every export: they all read the same bundle, so the numbers
+ * cannot drift apart between views.
  */
 import multiplierData from '../data/multipliers.json';
 import gamingTaxRatesData from '../data/gamingTaxRates.json';
 import employmentTaxRatesData from '../data/employmentTaxRates.json';
+import incomeTaxData from '../data/incomeTaxRates.json';
+import laborCalibration from '../data/laborCalibration.json';
+import fiscalAssumptions from '../data/fiscalAssumptions.json';
+import wageBasis from '../data/wageBasis.json';
 import {
-  calculateCombinedImpact, calculateGamingTax, calculatePayrollTax,
-  calculateHouseholdTax, getTaxableGgr, isOnlinePropertyType,
+  calculateCombinedImpact, calculateGamingTax, getTaxableGgr,
+  isOnlinePropertyType, getDeflator, DEFAULT_ANALYSIS_YEAR,
 } from './calculations';
+import { buildFiscal, netShare, scaleTotals, computeConstructionImpact } from './fiscal';
 import { buildTaxConfig } from './taxConfig';
+
+const EFFECTS = ['direct', 'indirect', 'induced'];
+
+/** Data for buildFiscal for one state, from the bundled tax tables. */
+export function fiscalDataFor(state) {
+  return {
+    stateEmp: employmentTaxRatesData.states[state],
+    federalPayroll: employmentTaxRatesData.federal,
+    incomeTax: incomeTaxData,
+    stateName: state,
+    nonGamingShare: fiscalAssumptions.gamingTopi.nonGamingShare,
+  };
+}
 
 export function computeScenario(analysis) {
   const {
     state, propertyType, inputMode, revenues, knownData,
     gamingTaxCustomRate, slotRevenuePct,
   } = analysis;
+  const analysisYear = analysis.analysisYear ?? DEFAULT_ANALYSIS_YEAR;
+  const employmentBasis = analysis.employmentBasis || 'calibrated';
+  const tribal = analysis.ownership === 'tribal' && !isOnlinePropertyType(analysis.propertyType);
 
   const isOnline = isOnlinePropertyType(propertyType);
 
@@ -34,6 +55,7 @@ export function computeScenario(analysis) {
     multiplierData.propertyTypes || null,
     inputMode,
     multiplierData.onlineGaming || null,
+    { analysisYear, laborCalibration, employmentBasis, wageBasis, ownership: tribal ? 'tribal' : 'commercial' },
   );
 
   // Gaming tax (on GGR)
@@ -44,44 +66,50 @@ export function computeScenario(analysis) {
     : stateTaxConfig?.hasCommercial;
   const ggr = getTaxableGgr(inputMode, isOnline, revenues);
   const hasCustom = gamingTaxCustomRate != null && gamingTaxCustomRate !== '';
-  if ((hasGamingTax || hasCustom) && ggr > 0) {
+  // Tribal properties pay no state gaming tax; the custom rate is the compact
+  // revenue share, if any.
+  if ((tribal ? hasCustom : (hasGamingTax || hasCustom)) && ggr > 0) {
     const taxConfig = buildTaxConfig(stateTaxConfig, gamingTaxCustomRate, slotRevenuePct, propertyType);
     const amount = calculateGamingTax(ggr, taxConfig);
     gamingTaxResult = { amount, effectiveRate: ggr > 0 ? amount / ggr : 0, ggr };
   }
 
-  // Payroll + household taxes use estimated cash wages, not V001 employee
-  // compensation, which also contains benefits and employer contributions.
-  const stateEmp = employmentTaxRatesData.states[state];
-  const federal = employmentTaxRatesData.federal;
-  let payrollTaxResult = null;
-  let householdTaxResult = null;
-  if (results && stateEmp) {
-    const w = results.totals.cashWages;
-    const e = results.totals.employment;
-    payrollTaxResult = {
-      direct: calculatePayrollTax(w.direct, e.direct, stateEmp, federal),
-      indirect: calculatePayrollTax(w.indirect, e.indirect, stateEmp, federal),
-      induced: calculatePayrollTax(w.induced, e.induced, stateEmp, federal),
-      get total() { return this.direct + this.indirect + this.induced; },
-    };
-    householdTaxResult = {
-      direct: calculateHouseholdTax(w.direct, stateEmp),
-      indirect: calculateHouseholdTax(w.indirect, stateEmp),
-      induced: calculateHouseholdTax(w.induced, stateEmp),
-      get total() { return this.direct + this.indirect + this.induced; },
-    };
-  }
+  // Direct TOPI of the revenue stream that the statutory tax applies to. For a
+  // tribal property entered as total revenue, the whole input is the tribal
+  // gaming enterprise, so its direct TOPI is the one replaced.
+  const gamingStream = results?.byRevenue.find(r => r.type === 'gaming' || ((isOnline || tribal) && r.type === 'total'));
+  const fiscalData = fiscalDataFor(state);
+  const fiscal = buildFiscal({
+    results, gamingTaxResult, tribal,
+    gamingStreamTopiDirect: (gamingTaxResult || tribal) && gamingStream ? gamingStream.tax.direct : 0,
+  }, fiscalData);
 
-  // Statutory gaming tax is a memo item because gross-receipts, amusement, and
-  // license taxes are already within the TOPI concept. StateIO does not
-  // identify the embedded gaming-tax amount by state, so do not add, subtract,
-  // or replace it in the non-duplicative total.
-  const totalTax = (results?.totals.tax.total || 0)
-    + (payrollTaxResult?.total || 0)
-    + (householdTaxResult?.total || 0);
+  // Legacy shapes consumed by older report code paths.
+  const payrollTaxResult = fiscal && {
+    ...Object.fromEntries(EFFECTS.map(e => [e, fiscal.payroll[e].total])),
+    get total() { return this.direct + this.indirect + this.induced; },
+  };
+  const householdTaxResult = fiscal && {
+    ...Object.fromEntries(EFFECTS.map(e => [e, fiscal.income[e].total])),
+    get total() { return this.direct + this.indirect + this.induced; },
+  };
+  const totalTax = fiscal?.totals.all.total || 0;
 
-  return { results, gamingTaxResult, payrollTaxResult, householdTaxResult, totalTax, stateTaxConfig };
+  const share = netShare(analysis.netImpact);
+  const net = results && share != null
+    ? { share, totals: scaleTotals(results.totals, share) }
+    : null;
+
+  const constructionRow = (multiplierData.construction || []).find(d => d.State === state);
+  const construction = computeConstructionImpact(
+    analysis.construction, constructionRow, getDeflator(analysisYear), fiscalData,
+    { direct: wageBasis.sectors['23'] ?? wageBasis.private, ripple: wageBasis.private });
+
+  return {
+    results, fiscal, gamingTaxResult, payrollTaxResult, householdTaxResult,
+    totalTax, stateTaxConfig, net, construction, analysisYear, employmentBasis,
+    ownership: tribal ? 'tribal' : 'commercial',
+  };
 }
 
 /** Convenience: the headline scalars used in comparison/sensitivity views. */

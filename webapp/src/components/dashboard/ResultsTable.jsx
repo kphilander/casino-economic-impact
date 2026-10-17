@@ -20,8 +20,9 @@ export default function ResultsTable({ results, termDefs }) {
     { label: 'GDP ($M)', key: 'gdp', format: (v) => formatNumber(v, 1) },
     { label: 'Employment (jobs)', key: 'employment', format: (v) => formatJobs(v) },
     { label: 'Estimated FTEs', key: 'fte', format: (v) => formatJobs(v) },
-    { label: 'Employee Compensation ($M)', key: 'wages', format: (v) => formatNumber(v, 1) },
-    { label: 'TOPI ($M)', key: 'tax', format: (v) => formatNumber(v, 1) }
+    { label: 'Employee Compensation ($M)', key: 'wages', format: (v) => formatNumber(v, 1) }
+    // Taxes are reported in the Tax Revenue Estimates table, where the
+    // statutory gaming tax replaces the gaming share of I-O TOPI.
   ];
 
   return (

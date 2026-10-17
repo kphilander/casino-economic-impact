@@ -37,9 +37,15 @@ export function getDeflator(year) {
   return baseValue / currentValue;
 }
 
-// Current year deflator (calculated once at module load)
-const CURRENT_YEAR = new Date().getFullYear();
-const DEFLATOR = getDeflator(CURRENT_YEAR);
+/** Years with a complete CPI-U annual average, for the dollar-year selector. */
+export const CPI_YEARS = Object.keys(CPI_ANNUAL_AVG).map(Number).sort((a, b) => a - b);
+
+/**
+ * Default dollar year of revenue inputs: the latest complete CPI-U year. The
+ * analysis year is an explicit input rather than the browser clock, so a 2024
+ * revenue figure entered in 2026 is deflated from 2024 dollars.
+ */
+export const DEFAULT_ANALYSIS_YEAR = LATEST_CPI_YEAR;
 
 /**
  * Share of employee compensation represented by wages and salaries.
@@ -55,10 +61,17 @@ export const WAGE_SHARE_OF_COMPENSATION = 9323.5 / 11447.7;
 /**
  * Calculate economic impact for a single revenue stream
  */
-export function calculateSingleImpact(revenue, stateData, knownEmployment = null, knownWages = null) {
+export function calculateSingleImpact(revenue, stateData, knownEmployment = null, knownWages = null, options = {}) {
   if (!revenue || revenue <= 0 || !stateData) {
     return null;
   }
+  const DEFLATOR = options.deflator ?? getDeflator(DEFAULT_ANALYSIS_YEAR);
+  // Validation-calibrated direct-jobs factor { factor, p05, p95 } or null.
+  const labor = options.laborFactor || null;
+  const useCalibrated = labor && options.employmentBasis !== 'model';
+  // Share of compensation that is QCEW-comparable (taxable, payroll-reported)
+  // wages: the stream's own sector for direct effects, all-private for ripple.
+  const cashShare = options.cashWageShare || { direct: WAGE_SHARE_OF_COMPENSATION, ripple: WAGE_SHARE_OF_COMPENSATION };
 
   const {
     Direct_VA_Coef: vaCoef,
@@ -103,7 +116,7 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   const modeledCompDirect = revenue * wageCoef;
   let wageDirect, wageSource;
   if (knownWages && knownWages > 0) {
-    wageDirect = knownWages / WAGE_SHARE_OF_COMPENSATION;
+    wageDirect = knownWages / cashShare.direct;
     wageSource = 'user';
   } else {
     wageDirect = modeledCompDirect;
@@ -131,9 +144,9 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   // the legacy `wages` key for API compatibility, but that key now has accurate
   // employee-compensation labels throughout the interface and reports.
   const cashWages = {
-    direct: wageSource === 'user' ? knownWages : wageDirect * WAGE_SHARE_OF_COMPENSATION,
-    indirect: wageIndirect * WAGE_SHARE_OF_COMPENSATION,
-    induced: wageInduced * WAGE_SHARE_OF_COMPENSATION
+    direct: wageSource === 'user' ? knownWages : wageDirect * cashShare.direct,
+    indirect: wageIndirect * cashShare.ripple,
+    induced: wageInduced * cashShare.ripple
   };
   cashWages.total = cashWages.direct + cashWages.indirect + cashWages.induced;
 
@@ -148,15 +161,21 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   // 2019 interindustry relationships but does not mix 2023 jobs with 2019
   // dollar denominators.
   let empDirect, empSource;
+  let modelEmpDirect = null;
   if (knownEmployment && knownEmployment > 0) {
     empDirect = knownEmployment;
     empSource = 'user';
   } else {
     // Deflate direct output to 2023 dollars before applying the coefficient.
-    empDirect = directJobsPerOutput != null
+    modelEmpDirect = directJobsPerOutput != null
       ? (revenue * DEFLATOR) * directJobsPerOutput
       : (gdpDirect * DEFLATOR) * empCoef;
-    empSource = 'calculated';
+    // Direct jobs are the one employment quantity with an observed benchmark
+    // (QCEW jobs per wage dollar by state and property type). Where a
+    // validation-calibrated factor exists, the calibrated estimate is the
+    // default and the I-O coefficient is retained as `model`.
+    empDirect = useCalibrated ? modelEmpDirect * labor.factor : modelEmpDirect;
+    empSource = useCalibrated ? 'calibrated' : 'calculated';
   }
 
   // Use industry-weighted employment coefficients for indirect/induced
@@ -167,6 +186,24 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   const empInduced = (gdpInduced * DEFLATOR) * inducedEmpCoef;
   const empTotal = empDirect + empIndirect + empInduced;
 
+  // Model vs. calibrated direct jobs, and the 90% predictive interval for
+  // direct jobs implied by the validation residuals. Supplier and induced
+  // jobs have no observed benchmark and enter the interval unchanged.
+  const ripple = empIndirect + empInduced;
+  let employmentDetail = null;
+  if (labor && modelEmpDirect != null) {
+    const calibratedDirect = modelEmpDirect * labor.factor;
+    employmentDetail = {
+      model: { direct: modelEmpDirect, total: modelEmpDirect + ripple },
+      calibrated: { direct: calibratedDirect, total: calibratedDirect + ripple },
+      range: {
+        direct: [modelEmpDirect * labor.p05, modelEmpDirect * labor.p95],
+        total: [modelEmpDirect * labor.p05 + ripple, modelEmpDirect * labor.p95 + ripple],
+      },
+      factor: labor.factor,
+    };
+  }
+
   // Estimated FTE impacts use a separate BEA industry satellite. Direct FTEs
   // use the direct industry's ratio; supplier and induced FTE coefficients
   // were propagated in R using the industries where those effects occur.
@@ -174,7 +211,7 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   // direct industry's documented ratio rather than silently treated as FTEs.
   const fteDirect = empSource === 'user'
     ? empDirect * ftePerJob
-    : (revenue * DEFLATOR) * directFtePerOutput;
+    : (revenue * DEFLATOR) * directFtePerOutput * (useCalibrated ? labor.factor : 1);
   const fteIndirect = (gdpIndirect * DEFLATOR) * indirectFteCoef;
   const fteInduced = (gdpInduced * DEFLATOR) * inducedFteCoef;
   const fteTotal = fteDirect + fteIndirect + fteInduced;
@@ -193,7 +230,7 @@ export function calculateSingleImpact(revenue, stateData, knownEmployment = null
   return {
     output: { direct: outputDirect, indirect: outputIndirect, induced: outputInduced, total: outputTotal },
     gdp: { direct: gdpDirect, indirect: gdpIndirect, induced: gdpInduced, total: gdpTotal },
-    employment: { direct: empDirect, indirect: empIndirect, induced: empInduced, total: empTotal, source: empSource },
+    employment: { direct: empDirect, indirect: empIndirect, induced: empInduced, total: empTotal, source: empSource, detail: employmentDetail },
     fte: { direct: fteDirect, indirect: fteIndirect, induced: fteInduced, total: fteTotal, source: 'estimated' },
     wages: { direct: wageDirect, indirect: wageIndirect, induced: wageInduced, total: wageTotal, source: wageSource },
     cashWages,
@@ -255,6 +292,12 @@ export function getPropertyTypeData(propertyType, state, propertyTypesData) {
  * @param {object|null} propertyTypesData - Property type multipliers from JSON
  * @param {string} inputMode - 'department' (default) or 'total'
  * @param {array|null} onlineGamingData - Array of online gambling multipliers (from multipliers.json onlineGaming section)
+ * @param {object} options - { analysisYear, laborCalibration, employmentBasis, wageBasis, ownership }
+ *   analysisYear: dollar year of the revenue inputs (CPI-U deflation to 2023$)
+ *   laborCalibration: laborCalibration.json contents (validation factors)
+ *   employmentBasis: 'calibrated' (default when factors exist) or 'model'
+ *   wageBasis: wageBasis.json contents (compensation -> QCEW-comparable wages)
+ *   ownership: 'commercial' (default) or 'tribal'
  */
 export function calculateCombinedImpact(
   revenues,
@@ -267,8 +310,20 @@ export function calculateCombinedImpact(
   propertyType = null,
   propertyTypesData = null,
   inputMode = 'department',
-  onlineGamingData = null
+  onlineGamingData = null,
+  options = {}
 ) {
+  const deflator = getDeflator(options.analysisYear ?? DEFAULT_ANALYSIS_YEAR);
+  const employmentBasis = options.employmentBasis || 'calibrated';
+  const laborFactorFor = (stream) => laborFactorForStream(options.laborCalibration, propertyType, inputMode, stream, options.ownership);
+  const wb = options.wageBasis;
+  const cashWageShareFor = (stateData) => wb ? {
+    direct: isOnlinePropertyType(propertyType) ? wb.private : (wb.sectors[String(stateData.Sector)] ?? wb.private),
+    ripple: wb.private,
+  } : undefined;
+  const impactOptions = (stream, stateData) => ({
+    deflator, employmentBasis, laborFactor: laborFactorFor(stream), cashWageShare: cashWageShareFor(stateData),
+  });
   // Handle legacy single-value parameters (backward compatibility)
   // If knownData is a number, treat it as legacy knownEmployment
   let knownDataNormalized = {};
@@ -344,7 +399,8 @@ export function calculateCombinedImpact(
       revenues.total,
       stateData,
       totalKnownEmp,
-      totalKnownWages
+      totalKnownWages,
+      impactOptions('total', stateData)
     );
 
     if (impact) {
@@ -427,7 +483,8 @@ export function calculateCombinedImpact(
         revenue,
         stateData,
         deptKnownData.emp || null,
-        deptKnownData.wages || null
+        deptKnownData.wages || null,
+        impactOptions(key, stateData)
       );
 
       if (impact) {
@@ -464,6 +521,26 @@ export function calculateCombinedImpact(
     }
   }
 
+  // Model vs. calibrated direct jobs and the direct-jobs predictive interval,
+  // summed across streams (streams without a factor contribute their point).
+  const anyDetail = results.some(r => r.employment.detail);
+  const employmentDetail = anyDetail ? results.reduce((acc, r) => {
+    const e = r.employment;
+    const d = e.detail || {
+      model: { direct: e.direct, total: e.total },
+      calibrated: { direct: e.direct, total: e.total },
+      range: { direct: [e.direct, e.direct], total: [e.total, e.total] },
+    };
+    acc.model.direct += d.model.direct; acc.model.total += d.model.total;
+    acc.calibrated.direct += d.calibrated.direct; acc.calibrated.total += d.calibrated.total;
+    acc.range.direct[0] += d.range.direct[0]; acc.range.direct[1] += d.range.direct[1];
+    acc.range.total[0] += d.range.total[0]; acc.range.total[1] += d.range.total[1];
+    return acc;
+  }, { model: { direct: 0, total: 0 }, calibrated: { direct: 0, total: 0 },
+       range: { direct: [0, 0], total: [0, 0] } }) : null;
+  totals.employment.detail = employmentDetail;
+  totals.employment.basis = anyDetail ? employmentBasis : 'model';
+
   // Calculate weighted average multipliers
   const multipliers = {
     output: totals.output.total / totals.output.direct,
@@ -477,8 +554,35 @@ export function calculateCombinedImpact(
     byRevenue: results,
     totals,
     multipliers,
+    analysisYear: options.analysisYear ?? DEFAULT_ANALYSIS_YEAR,
     hasUserData: results.some(r => r.employment.source === 'user' || r.wages.source === 'user')
   };
+}
+
+/**
+ * Which validation factor applies to a revenue stream.
+ *
+ * The factors come from the 50-state comparison of the calculator's direct
+ * jobs coefficient with QCEW jobs per wage dollar, by property type
+ * (laborCalibration.json). In total mode the selected property type's factor
+ * applies to the whole input. In department mode only the gaming stream is
+ * calibrated, with the stand-alone-casino factor as the gaming-floor proxy
+ * (or the slot-parlor factor for slot parlors); lodging, food and other
+ * revenue use parent-sector coefficients, which are not adjusted.
+ * Tribal properties use factors estimated against tribal-government casinos.
+ * Online operations are not covered by the validation.
+ */
+export function laborFactorForStream(calibration, propertyType, inputMode, stream, ownership = 'commercial') {
+  if (!calibration || !calibration.propertyTypes || isOnlinePropertyType(propertyType)) return null;
+  const types = (ownership === 'tribal' ? calibration.tribalPropertyTypes : calibration.propertyTypes) || {};
+  if (inputMode === 'total' && stream === 'total') {
+    return types[propertyType] || null;
+  }
+  if (stream === 'gaming') {
+    const key = propertyType === '713290' ? '713290' : (calibration.gamingDepartmentProxy || '713210');
+    return types[key] || null;
+  }
+  return null;
 }
 
 /**
@@ -489,6 +593,11 @@ export function calculateCombinedImpact(
  */
 export function calculateGamingTax(ggr, taxConfig) {
   if (!ggr || ggr <= 0 || !taxConfig) return 0;
+  const addOn = taxConfig.customRate == null && taxConfig.additionalRate ? ggr * taxConfig.additionalRate : 0;
+  return baseGamingTax(ggr, taxConfig) + addOn;
+}
+
+function baseGamingTax(ggr, taxConfig) {
 
   // If user provided a custom rate override, use that
   if (taxConfig.customRate != null) {
@@ -560,7 +669,17 @@ function applyTieredTax(amount, tiers) {
  * @returns {number} Total payroll taxes in $M
  */
 export function calculatePayrollTax(wages, jobs, stateRates, federal) {
-  if (!wages || wages <= 0 || !jobs || jobs <= 0 || !stateRates || !federal) return 0;
+  return calculatePayrollTaxDetail(wages, jobs, stateRates, federal).total;
+}
+
+/**
+ * Employer payroll taxes split by level of government, in $M:
+ *   federal: FICA Social Security + Medicare, FUTA
+ *   state:   SUTA, plus employer SDI and PFML contributions where they exist
+ */
+export function calculatePayrollTaxDetail(wages, jobs, stateRates, federal) {
+  const zero = { federal: 0, state: 0, total: 0 };
+  if (!wages || wages <= 0 || !jobs || jobs <= 0 || !stateRates || !federal) return zero;
 
   const wagesDollars = wages * 1e6;
   const avgWage = wagesDollars / jobs;
@@ -595,7 +714,63 @@ export function calculatePayrollTax(wages, jobs, stateRates, federal) {
     pfml = wagesDollars * stateRates.pfml_employer_rate;
   }
 
-  return (ficaSS + ficaMedicare + futa + suta + sdi + pfml) / 1e6;
+  const fed = (ficaSS + ficaMedicare + futa) / 1e6;
+  const st = (suta + sdi + pfml) / 1e6;
+  return { federal: fed, state: st, total: fed + st };
+}
+
+/**
+ * Value of a tax table at wage w: linear interpolation on an evenly spaced
+ * wage grid, extrapolating the last segment's marginal rate above the grid.
+ */
+export function taxAtWage(table, grid, w) {
+  if (!table || !grid || !(w > 0)) return 0;
+  const { min, max, step } = grid;
+  const last = table.length - 1;
+  if (w >= max) return table[last] + (table[last] - table[last - 1]) * (w - max) / step;
+  const x = (Math.max(w, min) - min) / step;
+  const i = Math.floor(x);
+  return table[i] + (table[i + 1] - table[i]) * (x - i);
+}
+
+/**
+ * Household income taxes, per worker, split by level of government ($M).
+ *
+ * Each job's average cash wage is taxed as the income of a single filer with
+ * no dependents, using 2025 federal and state tax tables by wage level
+ * (incomeTaxRates.json, generated by scripts/build_income_tax_tables.py from
+ * verified 2025 schedules, including state phase-outs, recaptures and
+ * federal-tax deductions) plus a typical local wage-tax rate where local
+ * income taxes are common. This replaces an average ratio of all personal
+ * taxes to wages, which overstates taxes at casino wage levels because it
+ * carries capital-income taxes and progressivity from higher-income households.
+ *
+ * Limitations: ignores household composition, refundable credits (EITC),
+ * itemized deductions and the 2025-2028 federal deductions for qualified tips
+ * and overtime; treats each job as one worker.
+ *
+ * Falls back to the BEA personal-current-tax ratio (method 'bea_ratio') when
+ * no table is available for the state.
+ */
+export function calculateIncomeTaxDetail(wages, jobs, incomeTax, stateName, fallbackRates = null) {
+  const zero = { federal: 0, state: 0, local: 0, stateLocal: 0, total: 0, method: 'none' };
+  if (!wages || wages <= 0) return zero;
+
+  const st = incomeTax?.states?.[stateName];
+  if (!st || !incomeTax?.federal?.tax || !jobs || jobs <= 0) {
+    const ratio = fallbackRates?.household_tax_ratio;
+    if (!ratio) return zero;
+    const total = wages * ratio;
+    return { federal: 0, state: 0, local: 0, stateLocal: 0, total, method: 'bea_ratio' };
+  }
+
+  const grid = incomeTax.wageGrid;
+  const w = (wages * 1e6) / jobs;   // average cash wage per job ($)
+  const toM = (perJob) => (perJob * jobs) / 1e6;
+  const federal = toM(taxAtWage(incomeTax.federal.tax, grid, w));
+  const state = toM(taxAtWage(st.state, grid, w));
+  const local = toM(taxAtWage(st.local, grid, w));
+  return { federal, state, local, stateLocal: state + local, total: federal + state + local, method: 'per_worker' };
 }
 
 /**

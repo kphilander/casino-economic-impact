@@ -1,0 +1,21 @@
+{
+  "_metadata": {
+    "description": "Converts I-O employee compensation (StateIO V001 = BEA compensation) to QCEW-comparable wages, the base for payroll and household income taxes and the basis of user-entered payroll.",
+    "method": "Share = national 2023 QCEW private total wages / BEA NIPA Table 6.2D 2023 compensation for the industry. BEA compensation exceeds QCEW wages by employer supplements and by BEA's adjustments to QCEW wages (e.g. unreported tips), which are not reported to tax authorities and so are not a tax base.",
+    "sources": [
+      "BLS QCEW 2023 annual averages (2023_annual_singlefile.zip), US000, own_code 5, total_annual_wages",
+      "BEA NIPA Table 6.2D via FRED: N4083C0A144NBEA (713), N4085C0A144NBEA (721), N4086C0A144NBEA (722), N4082C0A144NBEA (711-712), N4012C0A144NBEA (23), A4003C0A144NBEA (private); vintage of 2026-09-30"
+    ],
+    "direct": "Direct effects use the share of the stream's sector; supplier and induced effects, which span many industries, use the all-private share. Online operators use the all-private share.",
+    "replaces": "The national NIPA Table 1.12 (2019) wage share of 0.8144, which removes supplements only."
+  },
+  "sectors": {
+    "713": 0.6982,
+    "7132": 0.6982,
+    "721": 0.7566,
+    "722": 0.7376,
+    "711AS": 0.8341,
+    "23": 0.8209
+  },
+  "private": 0.8057
+}

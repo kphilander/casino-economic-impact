@@ -1,0 +1,14 @@
+{
+  "_metadata": {
+    "generatedBy": "scripts/derive_gaming_topi_share.R",
+    "source": "BEA 2017 detail supply-use table (useeior::Detail_Use_SUT_2017_17sch), industry 713200",
+    "treatment": "Statutory gaming tax replaces the gaming share of the gaming stream's direct TOPI. Direct taxes on gaming = statutory gaming tax + nonGamingShare x I-O direct TOPI. Supplier and induced TOPI are unchanged."
+  },
+  "gamingTopi": {
+    "nonGamingShare": 0.346,
+    "taxesOnProducts_M": 1393,
+    "otherTaxesOnProduction_M": 737,
+    "note": "Share of 713200's TOPI recorded as other taxes on production (property taxes, licenses) rather than taxes on products, where BEA records amusement and gaming taxes. StateIO assigns every state the national TOPI intensity, so the embedded gaming-tax amount is a national average unrelated to the state's own rate.",
+    "tribal": "Tribal casinos pay compact revenue shares rather than state gaming taxes and are largely exempt from state and local taxes on trust land; for tribal properties the gaming stream's direct TOPI is replaced entirely by the compact revenue share."
+  }
+}

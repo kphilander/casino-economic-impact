@@ -12,10 +12,14 @@ const git = (args: string): string => {
 
 // The commit the bundle is built from, shown in the footer and Method tab so
 // the hosted copy can be traced to the repository. "dirty" marks a build with
-// uncommitted changes under webapp/ or in the exported data.
+// uncommitted changes under webapp/. Vite writes a temporary
+// vite.config.ts.timestamp-*.mjs while it loads this file; it is not a change.
+const changes = git('status --porcelain -- .')
+  .split('\n')
+  .filter((line) => line.trim() !== '' && !line.includes('vite.config.ts.timestamp-'));
 const build = {
   commit: process.env.GEMS_BUILD_COMMIT || git('rev-parse --short HEAD') || 'unknown',
-  dirty: git('status --porcelain -- .') !== '',
+  dirty: changes.length > 0,
   date: new Date().toISOString().slice(0, 10),
 };
 

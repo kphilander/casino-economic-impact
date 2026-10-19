@@ -15,7 +15,7 @@ import {
 } from './scenario';
 import { gamingTax, gamingTaxSteps, payrollTax, taxAtWage, incomeTax, taxRule, verticalSchedule, type GamingVertical } from './tax';
 import { buildFiscal } from './fiscal';
-import { analysisFromForecaster, analysisFromUrl, decodeAnalysis, encodeAnalysis, migrate, shareUrl } from './share';
+import { analysisFromForecaster, analysisFromUrl, decodeAnalysis, encodeAnalysis, loadDraft, migrate, saveDraft, shareUrl } from './share';
 
 const nv = () => loadModel('NV');
 const opts = (o: Partial<StreamOptions> = {}): StreamOptions => ({
@@ -205,6 +205,27 @@ describe('save and share', () => {
     const url = shareUrl(a, 'https://example.org/tools/economic-impact/?x=1#top');
     expect(analysisFromUrl(new URL(url).search)).toEqual(a);
     expect(decodeAnalysis('not-base64!')).toBeNull();
+  });
+
+  test('the working draft survives a reload and tolerates missing storage', () => {
+    const store = new Map<string, string>();
+    const g = globalThis as { localStorage?: unknown };
+    const saved = g.localStorage;
+    g.localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v); } };
+    try {
+      expect(loadDraft()).toBeNull();
+      const a: Analysis = { ...defaultAnalysis(), state: 'Iowa', name: 'Draft' };
+      saveDraft(a);
+      expect(loadDraft()).toEqual(a);
+      store.set('gems_draft', JSON.stringify({ v: 2, state: 'Ohio', casinoName: 'Old', revenues: { gaming: 50 } }));
+      expect(loadDraft()).toMatchObject({ v: 3, state: 'Ohio', name: 'Old', revenue: { gaming: 50 } });
+      store.set('gems_draft', '{not json');
+      expect(loadDraft()).toBeNull();
+    } finally {
+      g.localStorage = saved;
+    }
+    expect(() => saveDraft(defaultAnalysis())).not.toThrow();
+    expect(loadDraft()).toBeNull();
   });
 
   test('Revenue Forecaster links pre-fill the analysis', () => {

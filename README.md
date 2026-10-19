@@ -411,7 +411,7 @@ When imported, a banner links back to the forecaster.
 
 ## Access and Privacy
 
-The calculator is free to use. It has no accounts, licensing or payments. Inputs stay in the browser: saved projects use `localStorage`, and a share link carries the full analysis in its URL.
+The calculator is free to use. It has no accounts, licensing or payments. Inputs stay in the browser: saved projects and the analysis on screen (restored after a reload) use `localStorage`, and a share link carries the full analysis in its URL.
 
 ## Regenerating Data from Scratch
 

@@ -37,7 +37,11 @@ export function LineChart(props: {
         <line x1={sx(props.markX)} x2={sx(props.markX)} y1={pad.t} y2={H - pad.b} className="mark" />
       )}
       <path d={d} className="line" />
-      {points.map((p) => <circle key={p.x} cx={sx(p.x)} cy={sy(p.y)} r={3.5} className="dot" />)}
+      {points.map((p) => (
+        <circle key={p.x} cx={sx(p.x)} cy={sy(p.y)} r={4} className="dot">
+          <title>{`${props.xLabel(p.x)}: ${props.yLabel(p.y)}`}</title>
+        </circle>
+      ))}
     </svg>
   );
 }

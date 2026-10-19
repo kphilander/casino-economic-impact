@@ -39,11 +39,15 @@ describe('views render', () => {
       expect(results).toContain('Leontief inverse');
       expect(results).toContain('Social Security');
       expect(results).toContain('What these values measure');
+      if (r.payrollAdjustment) expect(results).toContain('<strong>Gaming-tax adjustment.</strong>');
       if (a.construction.enabled) expect(results).toContain('Job-years');
       if (a.netImpact.enabled) expect(results).toContain('Net new impact');
       if (a.ownership === 'tribal') expect(results).toContain('Tribal revenue share (compact)');
       expect(renderToStaticMarkup(<SensitivityView analysis={a} model={model} result={r} />)).toContain('Multi-year projection');
-      expect(renderToStaticMarkup(<InputsPanel analysis={a} update={() => {}} result={r} />)).toContain('Annual revenue');
+      const inputs = renderToStaticMarkup(<InputsPanel analysis={a} update={() => {}} result={r} />);
+      expect(inputs).toContain('Annual revenue');
+      expect(inputs).toContain('Reset all inputs');
+      if (a.propertyType === '721120') expect(inputs).toContain('Total revenue: $');
     });
   }
 

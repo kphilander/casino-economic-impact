@@ -11,6 +11,7 @@ import { stateByName } from './data';
 
 const URL_PARAM = 'a';
 const PROJECTS_KEY = 'gems_projects';
+const DRAFT_KEY = 'gems_draft';
 
 const num = (v: unknown): number | null => {
   if (v == null || v === '') return null;
@@ -131,6 +132,26 @@ export function clearImportParams(): void {
   if (url.searchParams.get('from') === 'forecaster') url.search = '';
   else url.searchParams.delete(URL_PARAM);
   window.history.replaceState({}, '', url.pathname + url.search);
+}
+
+// ------------------------------------------------------------ working draft
+
+/** The analysis on screen, kept in this browser so a reload does not lose it. */
+export function saveDraft(a: Analysis): void {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(a));
+  } catch {
+    // Storage can be unavailable (private windows, blocked site data).
+  }
+}
+
+export function loadDraft(): Analysis | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? migrate(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
 }
 
 // ------------------------------------------------------------ projects

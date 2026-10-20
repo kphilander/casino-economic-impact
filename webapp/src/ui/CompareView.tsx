@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { computeScenario, PROPERTY_TYPES, type Analysis, type ScenarioResult } from '../engine/scenario';
 import { useModels } from './useModels';
 import { jobs, money, pct, signedPct } from './format';
@@ -30,8 +31,10 @@ export function CompareView(props: {
   onAdd: () => void;
   onRemove: (id: string) => void;
   onLoad: (a: Analysis) => void;
+  onRename?: (id: string, name: string) => void;
 }) {
   const { scenarios } = props;
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const { models } = useModels(scenarios.map((s) => s.analysis.state));
   const results = scenarios.map((s) => {
     const m = models[s.analysis.state];
@@ -61,10 +64,20 @@ export function CompareView(props: {
                 <th scope="col">Metric</th>
                 {scenarios.map((s, i) => (
                   <th scope="col" key={s.id}>
-                    <span className="scn-name">{i === 0 ? 'Baseline: ' : ''}{s.name}</span>
+                    {editing?.id === s.id ? (
+                      <form className="scn-rename" onSubmit={(e) => { e.preventDefault(); props.onRename?.(s.id, editing.name); setEditing(null); }}>
+                        <input aria-label="Scenario name" value={editing.name} autoFocus
+                          onChange={(e) => setEditing({ id: s.id, name: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === 'Escape') setEditing(null); }} />
+                        <button type="submit" className="link">OK</button>
+                      </form>
+                    ) : (
+                      <span className="scn-name">{i === 0 ? 'Baseline: ' : ''}{s.name}</span>
+                    )}
                     <span className="scn-meta">{describe(s.analysis)}</span>
                     <span className="scn-actions">
                       <button type="button" className="link" onClick={() => props.onLoad(s.analysis)}>Load</button>
+                      {props.onRename && <button type="button" className="link" onClick={() => setEditing({ id: s.id, name: s.name })}>Rename</button>}
                       <button type="button" className="link" onClick={() => props.onRemove(s.id)}>Remove</button>
                     </span>
                   </th>

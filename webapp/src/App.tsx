@@ -11,6 +11,7 @@ import { MethodView } from './ui/MethodView';
 import { ShareBar } from './ui/ShareBar';
 import { MobileSummary } from './ui/MobileSummary';
 import { useModels } from './ui/useModels';
+import { jobs, money } from './ui/format';
 
 type Tab = 'results' | 'compare' | 'sensitivity' | 'method';
 
@@ -79,6 +80,19 @@ export function App() {
   const viewModel = model ?? shown?.model;
   const viewResult = model ? result : shown?.result ?? null;
 
+  // Screen readers hear the new totals after the inputs settle.
+  const [announcement, setAnnouncement] = useState('');
+  useEffect(() => {
+    if (!result) return;
+    const t = setTimeout(() => setAnnouncement(
+      `Results updated: ${jobs(result.totals.jobs.total)} jobs, ${money(result.totals.gdp.total)} GDP, ${money(result.fiscal.totals.all.total)} tax revenue.`,
+    ), 800);
+    return () => clearTimeout(t);
+  }, [result]);
+
+  const renameScenario = (id: string, name: string) =>
+    setScenarios((prev) => prev.map((s) => (s.id === id ? { ...s, name: name.trim() || s.name } : s)));
+
   const addScenario = () => {
     setScenarios((prev) => (prev.length >= 4 ? prev : [...prev, {
       id: `s_${Date.now().toString(36)}`,
@@ -93,7 +107,7 @@ export function App() {
   else if (!viewModel) body = <p className="empty">Wait. The app loads the input-output tables for {analysis.state}.</p>;
   else if (tab === 'method') body = <MethodView model={viewModel} />;
   else if (tab === 'compare') {
-    body = <CompareView scenarios={scenarios} onAdd={addScenario}
+    body = <CompareView scenarios={scenarios} onAdd={addScenario} onRename={renameScenario}
       onRemove={(id) => setScenarios((p) => p.filter((s) => s.id !== id))}
       onLoad={(a) => { setAnalysis(structuredClone(a)); setTab('results'); }} />;
   } else if (!viewResult) body = <p className="empty">To see the economic impact, enter annual revenue.</p>;
@@ -102,6 +116,8 @@ export function App() {
 
   return (
     <div className="app">
+      <a className="skip" href="#results">Skip to results</a>
+      <p className="sr-only" aria-live="polite">{announcement}</p>
       <header className="masthead">
         <p className="eyebrow">{BRAND.publisher} · Economic analysis</p>
         <h1>{PRODUCT_NAME_VERSIONED}: {BRAND.productFullName}</h1>
@@ -129,8 +145,8 @@ export function App() {
         <aside className="inputs-col" aria-label="Inputs">
           <InputsPanel analysis={analysis} update={update} result={result} />
         </aside>
-        <div className="main-col" ref={mainRef}>
-          <nav className="tabs" role="tablist" aria-label="Views">
+        <div className="main-col" ref={mainRef} id="results" tabIndex={-1}>
+          <div className="tabs" role="tablist" aria-label="Views">
             {TABS.map((t, i) => (
               <button key={t.key} id={`tab-${t.key}`} ref={(el) => { tabRefs.current[t.key] = el; }}
                 type="button" role="tab" aria-selected={tab === t.key} aria-controls="view-panel"
@@ -139,7 +155,7 @@ export function App() {
                 {t.label}{t.key === 'compare' && scenarios.length ? ` (${scenarios.length})` : ''}
               </button>
             ))}
-          </nav>
+          </div>
           {loading && viewModel && (
             <p className="loading-note" role="status">The app loads the input-output tables for {analysis.state}.</p>
           )}

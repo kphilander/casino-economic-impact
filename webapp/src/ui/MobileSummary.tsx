@@ -30,7 +30,8 @@ export function MobileSummary({ result, target, onShow }: {
       </span>
       <button type="button" className="btn primary" onClick={() => {
         onShow();
-        target.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        target.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
       }}>
         Show results
       </button>

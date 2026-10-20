@@ -13,6 +13,17 @@ export function ShareBar({ analysis, onLoad, onCompare }: { analysis: Analysis; 
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const linkRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Escape or a click outside closes the open popover.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(null); };
+    const onDown = (e: MouseEvent) => { if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(null); };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onDown); };
+  }, [open]);
 
   useEffect(() => {
     if (!flash) return;
@@ -35,7 +46,7 @@ export function ShareBar({ analysis, onLoad, onCompare }: { analysis: Analysis; 
   };
 
   return (
-    <div className="sharebar">
+    <div className="sharebar" ref={rootRef}>
       <button type="button" className="btn" onClick={() => { setName(defaultName(analysis)); setOpen(open === 'save' ? null : 'save'); }}>Save</button>
       <button type="button" className="btn" onClick={() => { setProjects(loadProjects()); setOpen(open === 'projects' ? null : 'projects'); }}>
         Projects{projects.length ? ` (${projects.length})` : ''}

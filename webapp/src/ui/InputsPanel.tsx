@@ -81,7 +81,7 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
             onChange={(n) => setRevenue(a.inputMode === 'total' ? 'total' : 'gaming', n)} />
         ) : a.inputMode === 'total' ? (
           <NumberField label="Total operating revenue" unit="$M" min={0} value={a.revenue.total} onChange={(n) => setRevenue('total', n)}
-            hint="The model uses the gambling coefficients for all of this revenue and calculates no gaming tax. To get the gaming tax, enter revenue by department." />
+            hint="The model uses the gambling coefficients for all of this revenue and calculates no gaming tax. To get the gaming tax, enter revenue by department." pinHint />
         ) : (
           <>
             {DEPARTMENTS.map((d) => (
@@ -135,11 +135,11 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
         </p>
         <p className="hint">Jobs: annual average filled jobs. Cash wages: payroll wages, as in QCEW. The model divides cash wages by the QCEW-to-BEA wage ratio of the industry to get labor income.</p>
         {departments.map((d) => (
-          <div className="pair" key={d}>
-            <span className="pair-label">{online ? 'Operations' : DEPARTMENT_LABELS[d]}</span>
+          <fieldset className="pair" key={d}>
+            <legend className="pair-label">{online ? 'Operations' : DEPARTMENT_LABELS[d]}</legend>
             <NumberField label="Jobs" min={0} value={a.known[d].jobs} onChange={(n) => setKnown(d, 'jobs', n)} />
             <NumberField label="Cash wages" unit="$M" min={0} value={a.known[d].wages} onChange={(n) => setKnown(d, 'wages', n)} />
-          </div>
+          </fieldset>
         ))}
       </Section>
 

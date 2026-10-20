@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { RegionalModel } from '../engine/io';
-import { baseGgr, project, sweepGgr, sweepTaxRate, type SweepPoint } from '../engine/sensitivity';
+import { baseGgr, householdSpendingRange, project, sweepGgr, sweepTaxRate, type SweepPoint } from '../engine/sensitivity';
 import type { Analysis, Headline, ScenarioResult } from '../engine/scenario';
 import { LineChart } from './LineChart';
 import { NumberField, Segmented, SelectField } from './fields';
@@ -30,6 +30,8 @@ export function SensitivityView({ analysis, model, result }: { analysis: Analysi
     () => project(analysis, model, Math.min(30, Math.max(1, Math.round(years ?? 5))), growth ?? 0),
     [analysis, model, years, growth],
   );
+  const household = useMemo(() => householdSpendingRange(analysis, model), [analysis, model]);
+  const hh = model.household;
   const taxSweepUnavailable = driver === 'tax' && !result.gamingTax && analysis.inputMode === 'total';
   const currentRate = result.gamingTax?.effectiveRate;
 
@@ -75,6 +77,30 @@ export function SensitivityView({ analysis, model, result }: { analysis: Analysi
             </div>
           </>
         )}
+      </section>
+
+      <section className="card">
+        <h3>Household spending</h3>
+        <p className="card-sub">
+          Induced effects depend on how much of each dollar of labor income households spend. After the payroll and income taxes of {model.state} at its
+          average wage, households keep {pct(hh.disposable, 1)} of labor income. They spend {pct(hh.consumptionShare, 1)} of it, the 2023 national share of
+          disposable income. The central value is {pct(hh.range.central, 1)} of labor income. Of each dollar that households spend, {pct(hh.instateShare, 0)} goes
+          to in-state suppliers. Low: households spend the lowest annual share of disposable income since 2000 (2020). High: households spend all disposable
+          income. Direct and supplier effects do not change.
+        </p>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Household spending</th>{METRICS.map((x) => <th scope="col" key={x.key}>{x.label}</th>)}</tr></thead>
+            <tbody>
+              {household.map((p) => (
+                <tr key={p.key} className={p.key === 'central' ? 'current' : undefined}>
+                  <th scope="row">{p.key === 'low' ? 'Low' : p.key === 'high' ? 'High' : 'Central'}: {pct(p.share, 1)} of labor income</th>
+                  {METRICS.map((x) => <td key={x.key}>{x.fmt(p[x.key])}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="card">

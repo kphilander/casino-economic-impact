@@ -109,8 +109,9 @@ export function MethodView({ model }: { model: RegionalModel }) {
         </p>
         <p className="card-sub">
           StateIO gives all states the same national ratios for value added, labor income and taxes. As a result, the differences between states come from
-          in-state inputs and jobs. The household column of the Type II model has {coef(model.householdColumn.reduce((s, x) => s + x, 0))} of in-state
-          purchases for each $1 of labor income. This value is all in-state personal consumption divided by total labor income, as in the R pipeline.
+          in-state inputs and jobs. Households spend {coef(model.household.range.central)} of each $1 of labor income, after payroll and income taxes and
+          saving. Of this spending, {pct(model.household.instateShare, 0)} goes to in-state suppliers. As a result, the household column of the Type II model
+          has {coef(model.household.inState)} of in-state purchases for each $1 of labor income.
         </p>
         <CoefficientTable model={model} codes={KEY_SECTORS} />
         <Explain title={`All ${model.n} industries`}>
@@ -135,7 +136,9 @@ export function MethodView({ model }: { model: RegionalModel }) {
           </li>
           <li>
             <strong>Type II.</strong> The model adds households as an industry. The household row is labor income for each dollar of output (V001 ÷ g). The
-            household column is in-state personal consumption for each dollar of total labor income, changed to industries with D. L̄ = (I − Ā)⁻¹.
+            household column is the household spending share of each dollar of labor income, in the pattern of in-state personal consumption (in-state PCE ÷
+            all PCE), changed to industries with D. L̄ = (I − Ā)⁻¹. The spending share = 2023 national PCE ÷ disposable income × (1 − payroll and income taxes
+            per dollar of labor income at the state average wage).
           </li>
           <li>
             <strong>Satellites.</strong> For each industry, the model calculates GDP, labor income and taxes on production for each dollar of output

@@ -21,6 +21,11 @@ import type { Effects, ImpactMetric } from './impact';
  * FTEs are left out of the comparison: the BEA FTE/job ratios were refreshed
  * (September 2026 revisions) after the fixture was recorded. io.test.ts checks
  * the engine's FTEs against the regenerated R outputs.
+ *
+ * The fixture also predates the household spending share of the Type II
+ * closure (October 2026), so the comparison uses the earlier closure
+ * (withHouseholdSpending('legacy')). io.test.ts checks the current closure
+ * against the R outputs.
  */
 function withoutFte(x: unknown): unknown {
   if (Array.isArray(x)) return x.map(withoutFte);
@@ -79,7 +84,7 @@ function legacyShape(r: ScenarioResult) {
 }
 
 async function modelFor(stateName: string) {
-  return loadModel(stateByName(stateName)!.abbrev);
+  return (await loadModel(stateByName(stateName)!.abbrev)).withHouseholdSpending('legacy');
 }
 
 describe('rebuilt engine matches the pre-rebuild engine', () => {

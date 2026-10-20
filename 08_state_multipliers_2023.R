@@ -145,6 +145,22 @@ if (nrow(FTE_RATIOS) != 71L || anyDuplicated(FTE_RATIOS$io_sector) ||
        fte_ratio_year)
 }
 
+# Household spending share of compensation for the Type II closure.
+household_spending_file <- Sys.getenv(
+  "GEMS_HOUSEHOLD_SPENDING_FILE",
+  unset = paste0("household_spending_", fte_ratio_year, ".csv")
+)
+if (!file.exists(household_spending_file)) {
+  stop("Household spending file not found: ", household_spending_file,
+       "\nRun 08c_household_spending.R first.")
+}
+household_spending_data <- read.csv(household_spending_file, stringsAsFactors = FALSE)
+if (nrow(household_spending_data) != 50L ||
+    any(!is.finite(household_spending_data$household_spending_share)) ||
+    any(household_spending_data$pce_all_2019 <= 0)) {
+  stop("Expected a complete, valid 50-state household spending file")
+}
+
 # ============================================================================
 # FUNCTION: Calculate all multipliers for a single state
 # ============================================================================
@@ -326,11 +342,13 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
       names(pce) <- common_com
     }
 
-    # Total labor income in economy
-    total_labor <- sum(V001, na.rm = TRUE)
-
-    # Household consumption per $ of labor income (commodity space)
-    hh_col_com <- pce / total_labor
+    # Households spend household_spending_share of each $ of compensation
+    # (after payroll and income taxes and saving; 08c_household_spending.R),
+    # in the pattern of the state's personal consumption. pce is in-state
+    # commodities only, so pce / pce_all_2019 keeps the in-state part.
+    hs <- household_spending_data[household_spending_data$state_name == state_name, ]
+    if (nrow(hs) != 1L) stop("No household spending share for ", state_name)
+    hh_col_com <- hs$household_spending_share * pce / hs$pce_all_2019
     hh_col_com[is.na(hh_col_com)] <- 0
     hh_col_com[is.infinite(hh_col_com)] <- 0
 

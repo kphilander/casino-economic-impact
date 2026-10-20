@@ -5,8 +5,11 @@
  *   D = V q^-1 (market shares), B = U g^-1 (input coefficients),
  *   A = D B (industry technology assumption), L = (I - A)^-1.
  *   Type II closes the model with a household row (employee compensation per
- *   dollar of output) and a household column (in-state personal consumption
- *   per dollar of total compensation, mapped to industries with D).
+ *   dollar of output) and a household column: households spend a share of
+ *   each dollar of compensation (after payroll and income taxes and saving;
+ *   08c_household_spending.R) in the pattern of the state's personal
+ *   consumption, so the column is share x in-state PCE / all PCE, mapped to
+ *   industries with D.
  *   Value-added components are StateIO V001-V003 per dollar of output. Jobs
  *   are 2023 QCEW filled jobs per $1M of 2023 StateIO output; estimated FTEs
  *   apply BEA national FTE/job ratios by industry.
@@ -35,6 +38,14 @@ export interface StateTables {
   gos: number[];
   /** Personal consumption expenditure (F010) of in-state commodities. */
   pce: number[];
+  /** Personal consumption expenditure of the state from all origins (in-state, other states, imports). */
+  pceAll: number;
+  /**
+   * Household spending per dollar of compensation (central value and the range
+   * for sensitivity), with its inputs: the state's average 2023 QCEW private
+   * wage and the national consumption share of disposable income.
+   */
+  householdSpending: { share: number; low: number; high: number; avgWage: number; consumptionShare: number };
   jobs2023: (number | null)[];
   output2023: (number | null)[];
   valueAdded2023: (number | null)[];
@@ -84,13 +95,34 @@ export interface RegionalModel {
   };
   householdRow: Float64Array;
   householdColumn: Float64Array;
+  household: HouseholdClosure;
   /** Response to $1M of final demand for an industry (memoized). */
   respond(code: string): Response;
+  /** The same model with another household spending share, or the earlier closure (memoized). */
+  withHouseholdSpending(spending: number | 'legacy'): RegionalModel;
+}
+
+export interface HouseholdClosure {
+  /** Household spending per dollar of compensation in this model; null for the earlier closure. */
+  share: number | null;
+  /** In-state share of personal consumption. */
+  instateShare: number;
+  /** In-state household purchases per dollar of compensation (sum of the household column). */
+  inState: number;
+  range: { low: number; central: number; high: number };
+  /** Disposable income per dollar of compensation, and the national share of it that households spend. */
+  disposable: number;
+  consumptionShare: number;
 }
 
 const finite = (x: number): number => (Number.isFinite(x) ? x : 0);
 
-export function buildModel(t: StateTables, national: NationalTables): RegionalModel {
+/**
+ * Build a state's model. `spending` replaces the state's household spending
+ * share; 'legacy' uses the closure of earlier versions (in-state consumption
+ * per dollar of compensation), for regression tests only.
+ */
+export function buildModel(t: StateTables, national: NationalTables, spending?: number | 'legacy'): RegionalModel {
   const industries = national.industries;
   const n = industries.length;
   const k = national.commodities.length;
@@ -116,11 +148,14 @@ export function buildModel(t: StateTables, national: NationalTables): RegionalMo
     topi[j] = finite(t.topi[j] / g[j]);
   }
 
-  // Household closure. The household column converts in-state consumption
-  // per dollar of compensation from commodities to industries with D.
+  // Household closure. Households spend `share` of each dollar of
+  // compensation; the in-state part follows in-state consumption. D converts
+  // the column from commodities to industries.
+  const legacy = spending === 'legacy';
+  const share = legacy ? null : spending ?? t.householdSpending.share;
   let totalCompensation = 0;
   for (let j = 0; j < n; j++) totalCompensation += Number.isFinite(t.compensation[j]) ? t.compensation[j] : 0;
-  const pcePerComp = t.pce.map((p) => finite(p / totalCompensation));
+  const pcePerComp = t.pce.map((p) => finite(legacy ? p / totalCompensation : (share! * p) / t.pceAll));
   const householdColumn = timesColumn(D, pcePerComp);
   const householdRow = compensation;
   const Abar = matrix(n + 1, n + 1);
@@ -145,6 +180,17 @@ export function buildModel(t: StateTables, national: NationalTables): RegionalMo
     if (e != null && v != null && v > 0) jobsPerVa[j] = e / (v / 1e6);
     fte[j] = jobs[j] * ftePerJob[j];
   }
+
+  const pceInState = t.pce.reduce((s, p) => s + finite(p), 0);
+  const household: HouseholdClosure = {
+    share,
+    instateShare: finite(pceInState / t.pceAll),
+    inState: householdColumn.reduce((s, x) => s + x, 0),
+    range: { low: t.householdSpending.low, central: t.householdSpending.share, high: t.householdSpending.high },
+    disposable: t.householdSpending.high,
+    consumptionShare: t.householdSpending.consumptionShare,
+  };
+  const variants = new Map<number | 'legacy', RegionalModel>();
 
   const index: Record<string, number> = {};
   industries.forEach((ind, i) => { index[ind.code] = i; });
@@ -182,10 +228,17 @@ export function buildModel(t: StateTables, national: NationalTables): RegionalMo
     return r;
   }
 
-  return {
+  const model: RegionalModel = {
     state: t.state, abbrev: t.abbrev, industries, n, index, A, L, L2,
-    coefficients, householdRow, householdColumn, respond,
+    coefficients, householdRow, householdColumn, household, respond,
+    withHouseholdSpending(s) {
+      if (s === share || (s === 'legacy' && legacy)) return model;
+      let m = variants.get(s);
+      if (!m) { m = buildModel(t, national, s); variants.set(s, m); }
+      return m;
+    },
   };
+  return model;
 }
 
 /** Totals of a response over industries, by metric and effect. */

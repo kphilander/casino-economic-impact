@@ -310,6 +310,7 @@ Scripts are numbered to indicate execution order:
 | `08_state_multipliers_2023.R` | Build 2019 StateIO Leontief relationships and apply 2023 StateIO/QCEW jobs-per-output satellites for all 50 states |
 | `08a_process_all_qcew_employment.R` | Download/read the official BLS annual singlefile and build the complete 50-state × 71-sector employment satellite |
 | `08b_generate_bea_fte_ratios.R` | Download BEA NIPA employee-job and FTE series and build the 71-sector FTE/job crosswalk |
+| `08c_household_spending.R` | Download BEA NIPA PCE and disposable income (FRED) and build each state's household spending share for the Type II closure |
 | `09_employment_multipliers_2023.R` | Merge IO multipliers with QCEW employment data, calculate employment-weighted coefficients (direct, indirect, induced) |
 | `10_casino_impact_model.R` | Main impact calculation engine — takes revenue, sector, and state as input, returns full impact table with multiplier decomposition and tax estimates |
 | `11_property_impact_calculator.R` | Property-specific analysis and reporting script |
@@ -331,6 +332,7 @@ Scripts are numbered to indicate execution order:
 |------|------|-------------|
 | `employment_multipliers_2023.csv` | 200 | 50 states × 4 sectors — full multiplier dataset with employment coefficients |
 | `fte_ratios_2023.csv` | 71 | BEA national employee jobs, FTE employees, and FTE/job ratios mapped to StateIO sectors |
+| `household_spending_2023.csv` | 50 | Household spending share of compensation by state (after payroll and income taxes and saving), its range, and in-state consumption shares |
 | `gambling_multipliers_2023.csv` | 50 | Gambling-specific multipliers (one per state), adjusted from blended 713 |
 | `property_type_multipliers_2023.csv` | 200 | Four descriptive land-based property labels × 50 states, all using the canonical gambling coefficients |
 | `state_multipliers_with_tax.csv` | 200 | Backward-compatible tax-only export from the canonical state multiplier build |
@@ -424,6 +426,7 @@ To regenerate all multiplier data from raw sources:
 ```r
 source("08a_process_all_qcew_employment.R")  # Process mapped private-industry QCEW sectors
 source("08b_generate_bea_fte_ratios.R")      # Build national BEA industry FTE/job ratios
+source("08c_household_spending.R")           # Household spending share for the Type II closure
 source("08_state_multipliers_2023.R")         # Calculate state IO multipliers (this downloads StateIO data)
 source("09_employment_multipliers_2023.R")    # Merge multipliers with employment data
 source("13_extract_national_naics_ratios.R")  # Rebuild detailed national ratio evidence

@@ -2,8 +2,11 @@
 
 Each change below was checked against an official state source (statute,
 regulator report or revenue department page) between 2026-10-15 and
-2026-10-17; the URL is recorded in the entry's `sources`. Values marked
-"inference" are arithmetic on those sources. Run from the repo root:
+2026-10-17, and Oklahoma, Connecticut, Illinois and Pennsylvania again on
+2026-10-20; the URL is recorded in the entry's `sources`. Values marked
+"inference" are arithmetic on those sources. The displayed descriptions are
+then replaced with the plain-language (ASD-STE100) versions in
+scripts/gaming_tax_descriptions.json. Run from the repo root:
 
     python3 -I scripts/apply_verified_gaming_tax_2026.py
 
@@ -13,20 +16,21 @@ import json
 
 PATH = "webapp/src/data/gamingTaxRates.json"
 VERIFIED = "2026-10-17"
+REVERIFIED = "2026-10-20"
 
 with open(PATH) as fh:
     data = json.load(fh)
 R = data["rates"]
 
 
-def patch(state, sources, **fields):
+def patch(state, sources, verified=VERIFIED, **fields):
     entry = R[state]
     for key, value in fields.items():
         if value is None:
             entry.pop(key, None)
         else:
             entry[key] = value
-    entry["lastVerified"] = VERIFIED
+    entry["lastVerified"] = verified
     entry["sources"] = sources
     entry["sourceYear"] = 2026
 
@@ -62,12 +66,13 @@ sub("New Jersey", "sportsBetting", flatRate=0.21,
     description="Online sports wagering 19.75% from July 1, 2025 (P.L.2025, c.66; was 13%) plus a 1.25% CRDA tax: ~21%. Retail sports wagering remains 8.5% + 1.25% = 9.75%.")
 
 # ---------------------------------------------------------------- Pennsylvania
-patch("Pennsylvania", ["https://www.palegis.us/statutes/consolidated (4 Pa.C.S. 1403, 1405, 1407, 13A62, 13B52, 13C62-63)",
+patch("Pennsylvania", ["https://www.palegis.us/statutes/consolidated (4 Pa.C.S. 1403, 1405, 1407, 13A62, 13A63, 13B52, 13C62-63)",
+                       "Tax Reform Code of 1971, Art. XXV, 72 P.S. 2502 (additional 2% table game tax from Aug 1, 2016; made permanent by Act 25 of 2021)",
                        "https://gamingcontrolboard.pa.gov/sites/default/files/2026-01/012126%20Revenue%20year%20end%202025.pdf",
                        "https://gamingcontrolboard.pa.gov/sites/default/files/2026-04/FY%202025-2026%20Table%20Games%20Monthly%20Report_0.pdf"],
-      slotsRate=0.504, tableRate=0.16, effectiveRate=0.40,
-      description="Category 1-2 slots: 34% state tax + 2% county local share + 5.5% Economic Development and Tourism Fund + 0.5% supplemental + Race Horse Development Fund (18% x racetrack-casino revenue share, capped at 12%; ~8.7% in 2025). PGCB-reported effective slot rate 50.4% (2025). Table games: 14% state + 2% local = 16%.",
-      localTaxNotes="Host municipalities also receive a flat $10M/yr license operation fee (not a % of revenue; not modeled). Category 4 casinos pay exactly 54% on slots (50% + 4% local). Fully automated electronic table games: 34% + 14% + 2% = 50%.")
+      verified=REVERIFIED, slotsRate=0.504, tableRate=0.16, effectiveRate=0.40,
+      description="Category 1-2 slots: 34% state tax + 2% county local share + 5.5% Economic Development and Tourism Fund + 0.5% supplemental + Race Horse Development Fund (18% x racetrack-casino revenue share, capped at 12%; ~8.7% in 2025). PGCB-reported effective slot rate 50.4% (2025). Table games: 12% state tax (4 Pa.C.S. 13A62(a)(1)) + 2% additional state tax (Tax Reform Code 2502) + 2% local share (13A63) = 16%.",
+      localTaxNotes="Host municipalities also receive a flat $10M/yr license operation fee (not a % of revenue; not modeled). Category 4 casinos pay exactly 54% on slots (50% + 4% local). Fully automated electronic table games: 12% + 34% (13A62(a)(2)) + 2% state + 2% local = 50%.")
 sub("Pennsylvania", "iGaming", slotsRate=0.54, tableRate=0.16,
     description="Online slots 52% state + 2% local = 54% (4 Pa.C.S. 13B52); online table games and poker 14% + 2% = 16%.")
 sub("Pennsylvania", "sportsBetting", flatRate=0.36,
@@ -75,7 +80,9 @@ sub("Pennsylvania", "sportsBetting", flatRate=0.36,
 
 # ---------------------------------------------------------------- Illinois
 patch("Illinois", ["https://igb.illinois.gov/casino-gambling/casino-faq.html",
-                   "230 ILCS 10/12, 10/13 and 45/25-90 (FindLaw copies; ilga.gov unreachable at verification)"],
+                   "https://ilga.gov/Documents/legislation/ilcs/documents/023000100K13.htm",
+                   "230 ILCS 10/12 and 45/25-90 (FindLaw copies)"],
+      verified=REVERIFIED,
       localTaxNotes="Admission tax $2 per person for licensees with <=1M admissions in 2004, $3 otherwise (230 ILCS 10/12(a)). The Chicago casino has its own combined state/city schedule (230 ILCS 10/13(a-5)(2)): slots 22.5% to 74.7% and tables 15% to 35% by revenue band; use a custom rate for Chicago.",
       description="Graduated wagering tax on AGR (230 ILCS 10/13(a-5)(1)). Electronic gaming: 15%, 22.5%, 27.5%, 32.5%, 37.5%, 45%, 50% at $25M, $50M, $75M, $100M, $150M, $200M. Table games: 15% to $25M, 20% above.")
 sub("Illinois", "sportsBetting",
@@ -91,6 +98,29 @@ patch("Indiana", ["https://www.in.gov/igc/files/reports/2025/2025-07-Revenue.pdf
       additionalRate=0.03, effectiveRate=0.30,
       description="Graduated wagering tax on AGR (IC 4-33-13-1.5(a), FY2022+): 10% to $25M, 20%, 25%, 30%, 35%, 40% above $600M. Plus a licensee-specific supplemental wagering tax (IC 4-33-12-1.5; ~2.3-3.5% in 2025, capped at 3.5%), modeled at 3%.",
       localTaxNotes="The $3 admission tax was replaced by the supplemental wagering tax (HEA 1350, 2017). Casinos with prior-year AGR under $75M use a reduced schedule (2.5% on the first $25M, then 10%, 20%, 30-40%). Racinos (IC 4-35-8-1): 25% to $100M, 30% above, on 88% of revenue.")
+
+# ---------------------------------------------------------------- Oklahoma (tribal, 2026-10-20)
+# Model Tribal Gaming Compact, 3A O.S. 281, Part 11(A)(2): the bands are per
+# tribe per calendar year. Nonhouse-banked table games pay 10% of net win
+# under the 2018 supplement (3A O.S. 280.1). The 2020 renewal is automatic
+# (Part 15(B)) and kept these rates. Informational only: tribal analyses use
+# the revenue share that the user enters.
+patch("Oklahoma", ["https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=441417",
+                   "https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=482330"],
+      verified=REVERIFIED, flatRate=None,
+      tiers=[{"threshold": 0, "rate": 0.04}, {"threshold": 10, "rate": 0.05}, {"threshold": 20, "rate": 0.06}],
+      tableRate=0.10, effectiveRate=0.06,
+      description="No commercial casinos. Tribal gaming under the model compact (3A O.S. 281, Part 11(A)(2)): exclusivity fees of 4% of the first $10M, 5% of the next $10M and 6% above $20M of a tribe's annual adjusted gross revenue from electronic games, and 10% of monthly net win from nonhouse-banked card and table games. About 6% for a large tribe. The compacts renewed automatically on January 1, 2020, at these rates.")
+
+# ---------------------------------------------------------------- Connecticut (tribal, 2026-10-20)
+patch("Connecticut", ["https://portal.ct.gov/dcp/-/media/dcp/gaming/compacts-and-documents/mptn-mou-january-1993.pdf",
+                      "https://portal.ct.gov/dcp/-/media/dcp/gaming/compacts-and-documents/mohegan-mou-may-1994.pdf",
+                      "https://www.cga.ct.gov/2026/sup/chap_229b.htm",
+                      "https://data.ct.gov/api/views/imqd-at3c"],
+      verified=REVERIFIED,
+      description="No commercial casinos. Foxwoods and Mohegan Sun pay 25% of slot machine revenue to the state under their memoranda of understanding (1993, 1994). They pay nothing on table game revenue.")
+sub("Connecticut", "iGaming", flatRate=0.20,
+    description="20% of online casino gaming GGR from October 2026, the sixth year after the first license (CGS 12-866(b)); 18% before. Offered only by the two tribes, through their online partners.")
 
 # ---------------------------------------------------------------- Iowa
 patch("Iowa", ["https://irgc.iowa.gov/news-release/2026-07-17/iowa-casino-and-sports-wagering-tax-revenue-exceeds-331-million-fiscal-year-2026",
@@ -228,13 +258,24 @@ R["Tennessee"]["sources"] = ["https://www.tn.gov/content/dam/tn/swac/documents/r
 # ---------------------------------------------------------------- metadata
 meta = data["metadata"]
 notes = []
-for n in meta["notes"]:
+for n in meta["notes"] + [
+        "October 2026: 28 states re-verified against statutes and regulator reports (entries carry lastVerified and sources). Flat add-ons on top of a schedule are coded as additionalRate; handle-based taxes as handleRate with an assumedHold.",
+        "October 20, 2026: Oklahoma, Connecticut, Illinois and Pennsylvania re-verified. Connecticut online casino gaming is 20% from October 2026. Descriptions are in plain language (ASD-STE100)."]:
     if n not in notes:
-        notes.append(n)          # drop the duplicated verification line
-notes.append("October 2026: 28 states re-verified against statutes and regulator reports (entries carry lastVerified and sources). Flat add-ons on top of a schedule are coded as additionalRate; handle-based taxes as handleRate with an assumedHold.")
+        notes.append(n)          # each note once, so re-running changes nothing
 meta["notes"] = notes
 meta["sourceYear"] = "2026 (28 states re-verified October 2026)"
 
+# ---------------------------------------------------------------- descriptions
+# The schedule descriptions that the calculator shows, in ASD-STE100 plain
+# language. Applied last so the statutory text above stays the record of
+# what was verified.
+with open("scripts/gaming_tax_descriptions.json") as fh:
+    DESCRIPTIONS = json.load(fh)
+for state, by_vertical in DESCRIPTIONS.items():
+    for vertical, text in by_vertical.items():
+        (R[state] if vertical == "land" else R[state][vertical])["description"] = text
+
 with open(PATH, "w") as fh:
     fh.write(json.dumps(data, indent=2, ensure_ascii=True))
-print("patched", sum(1 for v in R.values() if v.get("lastVerified") == VERIFIED), "states")
+print("verified", sum(1 for v in R.values() if v.get("lastVerified") in (VERIFIED, REVERIFIED)), "states")

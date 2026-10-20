@@ -113,6 +113,10 @@ describe('taxes', () => {
     expect(tax('Tennessee', 100, 'sports')).toBeCloseTo(100 * 0.0185 / 0.095, 9);
     expect(tax('Ohio', 100, 'sports')).toBeCloseTo(20, 9);
     expect(tax('Michigan', 100, 'land', 0.1)).toBeCloseTo(10, 9);
+    // Re-verified 2026-10-20: Connecticut online casino gaming moved to 20% in October 2026.
+    expect(tax('Connecticut', 100, 'igaming')).toBeCloseTo(20, 9);
+    // Illinois: slots 70% of $40M = $28M (15% to $25M, then 22.5%); tables $12M at 15%.
+    expect(tax('Illinois', 40)).toBeCloseTo(25 * 0.15 + 3 * 0.225 + 12 * 0.15, 9);
     for (const [state, entry] of Object.entries(GAMING_TAX.rates)) {
       if (entry.lastVerified) expect(entry.sources?.length, state).toBeGreaterThan(0);
     }

@@ -215,8 +215,7 @@ def draw_body(canvas, doc):
 SECTIONS = [
     "Introduction", "Inputs and results", "Model structure", "Employment",
     "Gaming, online and other revenue", "Validation", "Tax estimates",
-    "Optional modules", "Data sources", "Limits of the model", "Versions",
-    "References",
+    "Optional modules", "Data sources", "References",
 ]
 
 def build():
@@ -292,6 +291,9 @@ def build():
     el.append(body(
         "A land-based property can have commercial or tribal ownership (Section 5.4). Online "
         "operators are always commercial."))
+    el.append(body(
+        "Use the model for policy analysis, plans and comparisons. Do not use it for exact "
+        "forecasts, for investment decisions without professional advice or in legal proceedings."))
 
     # --- 2. Inputs and results ----------------------------------------------
     el.append(h1("2. Inputs and results"))
@@ -325,7 +327,9 @@ def build():
     el.append(body(
         "The calculator gives each result as direct, supplier and induced effects, and as a "
         "total. It also gives supplier and induced jobs by industry, and a 90% range for direct "
-        "and total jobs (Section 6.3). For each value, a panel shows how the model calculated it."))
+        "and total jobs (Section 6.3). For each value, a panel shows how the model calculated it. "
+        "The results are estimates from average relations between industries. Use them as "
+        "indications, not as exact values."))
     el.append(h2("2.3 Analysis tools"))
     el.append(body("The calculator has these tools:"))
     el.append(bullets([
@@ -358,7 +362,12 @@ def build():
     ]))
     el.append(body(
         "The model keeps the 2019 production structure because the 2020 and 2021 tables show "
-        "the effects of the pandemic. Jobs use 2023 data (Section 4)."))
+        "the effects of the pandemic. Jobs use 2023 data (Section 4). This combination is "
+        "deliberate."))
+    el.append(body(
+        "There are tables for the 50 states only. The model does not include the District of "
+        "Columbia, counties or cities. It counts only the effects in the state. Purchases from "
+        "other states and imports are leakage, and the model does not count their effects."))
     el.append(h2("3.2 Direct requirements"))
     el.append(formula("D = V diag(q)<super>-1</super>&nbsp;&nbsp;&nbsp;B = U diag(g)<super>-1</super>&nbsp;&nbsp;&nbsp;A = D B"))
     el.append(body(
@@ -371,6 +380,9 @@ def build():
         "Column j of L gives the in-state output of each industry that $1 of final demand for "
         "industry j causes. It includes all rounds of supplier purchases. The column sum is the "
         "Type I output multiplier."))
+    el.append(body(
+        "An I-O model has fixed production technology and no supply limits. A very large project "
+        "can change the local economy in ways that the model does not show."))
     el.append(h2("3.4 Type II model and the household closure"))
     el.append(body(
         "The Type II model adds households as an industry. A<sub>II</sub> is A with a household row "
@@ -455,6 +467,10 @@ def build():
         "jobs counts two times. QCEW has no data for hours. Thus jobs are the primary employment "
         "measure of GEMS. Owner-occupied housing (HS) and government enterprises (GFE, GSLE) have "
         "no QCEW measure, so their job coefficients are zero."))
+    el.append(body(
+        "StateIO gives each sector national coefficients for value added, compensation and TOPI. "
+        "Thus the differences between states in labor intensity come from jobs for each dollar "
+        "of output."))
     el.append(h2("4.2 Estimated FTEs"))
     el.append(body(
         "BEA NIPA Tables 6.4D and 6.5D give full-time and part-time employees and full-time "
@@ -727,8 +743,9 @@ def build():
     el.append(h1("8. Optional modules"))
     el.append(h2("8.1 Net new impact"))
     el.append(body(
-        "The headline results are a gross economic contribution. The net-impact module also gives "
-        "the new activity that the property brings to the state:"))
+        "The headline results are a gross economic contribution, not a measure of welfare. "
+        "Without this module, they include no displacement of other activity. The net-impact "
+        "module gives the new activity that the property brings to the state:"))
     el.append(formula("net share = non-resident share + resident share × recapture share"))
     el.append(body(
         "The recapture share is the part of resident gaming expenditure that would go out of the "
@@ -777,60 +794,8 @@ def build():
         "supply chain and trade. A state with a more diversified economy has larger multipliers, "
         "because more purchases stay in the state."))
 
-    # --- 10. Limits ---------------------------------------------------------
-    el.append(h1("10. Limits of the model"))
-    el.append(body("Know these limits before you use the results:"))
-    el.append(bullets([
-        "The results are estimates from average relations between industries. Use them as "
-        "indications, not as exact values.",
-        "The model covers the 50 states. It does not include the District of Columbia, counties or "
-        "cities.",
-        "The model counts only effects in the state. Purchases from other states are leakage.",
-        "I-O models have fixed production technology and no supply limits. A very large project "
-        "can change the local economy in ways that the model does not show.",
-        "Supplier and induced effects have no observed benchmark (Section 6.5). Only the direct "
-        "jobs coefficient has an observed test.",
-        "StateIO gives each sector national coefficients for value added, compensation and TOPI. "
-        "Differences between states in labor intensity come from jobs for each dollar of output.",
-        "The model keeps the 2019 production structure with a 2023 employment satellite. This "
-        "combination is deliberate.",
-        "The online values are approximations from a small number of operators.",
-        "Gross results are not a measure of welfare. They include no displacement unless you use "
-        "the net-impact module, and they include no social costs.",
-        "Use the model for policy analysis, plans and comparisons. Do not use it for exact "
-        "forecasts, for investment decisions without professional advice or in legal proceedings.",
-    ]))
-
-    # --- 11. Versions -------------------------------------------------------
-    el.append(h1("11. Versions"))
-    el.append(body(
-        f"The model version is the edition year ({PRODUCT_NAME} {MODEL_VERSION}). A new edition "
-        "gets a new version, and this paper changes with it. The Method view lists the data files "
-        "of each result with their checksums. A share link records all inputs of an analysis. The "
-        "footer of the calculator gives the source commit of the build."))
-    el.append(table([
-        ["Version", "Released", "Changes"],
-        [f"{PRODUCT_NAME} {MODEL_VERSION}", "June 2026",
-         "First release: 2019 StateIO multipliers, 2023 QCEW jobs and USEEIO v2.0.1-411 gambling "
-         "ratios."],
-        ["Methodology update", "October 2026",
-         "Validation of direct jobs against the Economic Census, with predictive ranges. Tribal "
-         "ownership. The statutory gaming tax replaces the gaming part of direct TOPI. Verified "
-         "gaming taxes. Income taxes for each worker. Wage basis by industry. Taxes by level of "
-         "government. Dollar year of revenue. Net-impact and construction modules."],
-        ["Calculator rebuild", "October 2026",
-         "The calculator calculates the regional model in the browser, with tests against the R "
-         "pipeline. Gaming-tax adjustment of direct labor income. Supplier and induced jobs by "
-         "industry."],
-        ["Household closure", "October 2026",
-         "Households spend the share of compensation that remains after payroll and income taxes "
-         "and saving (Section 3.4). Type II output decreased by approximately 20%."],
-        ["Employee FICA", "October 2026",
-         "Federal payroll taxes include the employee Social Security and Medicare taxes."],
-    ], [1.5 * inch, 1.0 * inch, W - 2.5 * inch]))
-
-    # --- 12. References -----------------------------------------------------
-    el.append(h1("12. References"))
+    # --- 10. References -----------------------------------------------------
+    el.append(h1("10. References"))
     for ref in [
         "American Gaming Association. <i>State of the States</i>. Annual editions.",
         "Ingwersen, W. W., Li, M., Young, B., Vendries, J., &amp; Birney, C. (2022). USEEIO v2.0, "

@@ -38,31 +38,31 @@ function Headline({ r }: { r: ScenarioResult }) {
 
 function Notes({ r }: { r: ScenarioResult }) {
   const a = r.analysis;
-  const notes: string[] = [];
+  const notes: [string, string][] = [];
   const online = isOnline(a.propertyType);
   const tribal = a.ownership === 'tribal' && !online;
   if (r.payrollAdjustment) {
     const p = r.payrollAdjustment;
-    notes.push(`The gaming tax decreases direct labor income of gaming by ${pct(1 - p.factor)} (${money(p.directChange)}). Casino revenue includes this tax, at a rate of ${pct(p.rate)}. The adjustment comes from a comparison of the model with the 2022 Economic Census. Direct jobs and GDP do not change.`);
+    notes.push(['Gaming-tax adjustment', `The gaming tax decreases direct labor income of gaming by ${pct(1 - p.factor)} (${money(p.directChange)}). Casino revenue includes this tax, at a rate of ${pct(p.rate)}. The adjustment comes from a comparison of the model with the 2022 Economic Census. Direct jobs and GDP do not change.`]);
   }
   if (r.totals.jobsRange) {
     const d = r.totals.jobsRange.direct;
     const partial = r.streams.some((s) => !s.impact.jobsRange && s.impact.sources.jobs === 'model');
-    notes.push(`Direct jobs: ${jobs(r.totals.jobs.direct)}. The 90% range is ${jobs(d[0])} to ${jobs(d[1])}. The range comes from a comparison of the model with 2022 Economic Census jobs per revenue dollar in each state.${partial ? ' The range is for gaming jobs only. Other departments use their point values.' : ''} Supplier and induced jobs are model values. No observed data is available for them.`);
+    notes.push(['Jobs range', `Direct jobs: ${jobs(r.totals.jobs.direct)}. The 90% range is ${jobs(d[0])} to ${jobs(d[1])}. The range comes from a comparison of the model with 2022 Economic Census jobs per revenue dollar in each state.${partial ? ' The range is for gaming jobs only. Other departments use their point values.' : ''} Supplier and induced jobs are model values. No observed data is available for them.`]);
   }
   if (tribal) {
-    notes.push('Tribal ownership: the compact revenue share replaces the gaming tax. The gaming enterprise is on trust land, so the model includes no direct taxes on production for it. There is no range for jobs, because the Economic Census does not include most tribal casinos.');
+    notes.push(['Tribal ownership', 'The compact revenue share replaces the gaming tax. The gaming enterprise is on trust land, so the model includes no direct taxes on production for it. There is no range for jobs, because the Economic Census does not include most tribal casinos.']);
   }
   if (online) {
-    notes.push('The coefficients for online operators are approximate. They come from ratios in operator SEC filings. If you have observed jobs and wages in the state, enter them.');
+    notes.push(['Online operator', 'The coefficients for online operators are approximate. They come from ratios in operator SEC filings. If you have observed jobs and wages in the state, enter them.']);
   }
   if (a.inputMode === 'total' && !online) {
-    notes.push('The model uses the gambling coefficients for all of the total revenue. It calculates no gaming tax for this revenue. To use the correct industries for lodging, food and other revenue, enter revenue by department.');
+    notes.push(['Total revenue only', 'The model uses the gambling coefficients for all of the total revenue. It calculates no gaming tax for this revenue. To use the correct industries for lodging, food and other revenue, enter revenue by department.']);
   }
   const user = r.streams.filter((s) => s.impact.sources.jobs === 'user' || s.impact.sources.compensation === 'user');
-  if (user.length) notes.push(`Observed jobs or wages replace the direct values of the model for: ${user.map((s) => s.label.toLowerCase()).join(', ')}.`);
+  if (user.length) notes.push(['Observed data', `Observed jobs or wages replace the direct values of the model for: ${user.map((s) => s.label.toLowerCase()).join(', ')}.`]);
   if (!notes.length) return null;
-  return <ul className="notes">{notes.map((n) => <li key={n}>{n}</li>)}</ul>;
+  return <ul className="notes">{notes.map(([label, text]) => <li key={label}><strong>{label}.</strong> {text}</li>)}</ul>;
 }
 
 function EffectCells({ e, fmt }: { e: Effects; fmt: (n: number) => string }) {

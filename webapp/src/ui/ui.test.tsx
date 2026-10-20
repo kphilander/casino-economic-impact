@@ -39,11 +39,15 @@ describe('views render', () => {
       expect(results).toContain('Leontief inverse');
       expect(results).toContain('Social Security');
       expect(results).toContain('What these values measure');
+      if (r.payrollAdjustment) expect(results).toContain('<strong>Gaming-tax adjustment.</strong>');
       if (a.construction.enabled) expect(results).toContain('Job-years');
       if (a.netImpact.enabled) expect(results).toContain('Net new impact');
       if (a.ownership === 'tribal') expect(results).toContain('Tribal revenue share (compact)');
       expect(renderToStaticMarkup(<SensitivityView analysis={a} model={model} result={r} />)).toContain('Multi-year projection');
-      expect(renderToStaticMarkup(<InputsPanel analysis={a} update={() => {}} result={r} />)).toContain('Annual revenue');
+      const inputs = renderToStaticMarkup(<InputsPanel analysis={a} update={() => {}} result={r} />);
+      expect(inputs).toContain('Annual revenue');
+      expect(inputs).toContain('Reset all inputs');
+      if (a.propertyType === '721120') expect(inputs).toContain('Total revenue: $');
     });
   }
 
@@ -56,5 +60,18 @@ describe('views render', () => {
     expect(method).toContain('All 71 industries');
     const compare = renderToStaticMarkup(<CompareView scenarios={[]} onAdd={() => {}} onRemove={() => {}} onLoad={() => {}} />);
     expect(compare).toContain('There are no scenarios');
+    const one = renderToStaticMarkup(<CompareView scenarios={[{ id: 's1', name: 'Base', analysis: defaultAnalysis() }]}
+      onAdd={() => {}} onRemove={() => {}} onLoad={() => {}} onRename={() => {}} />);
+    expect(one).toContain('Rename');
+  });
+
+  test('field help is behind an info button; warnings stay visible', () => {
+    const a = defaultAnalysis();
+    const html = renderToStaticMarkup(<InputsPanel analysis={a} update={() => {}} result={null} />);
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toMatch(/<p class="hint" id="[^"]+" hidden="">The model uses the input-output tables/);
+    const total = renderToStaticMarkup(<InputsPanel analysis={{ ...a, inputMode: 'total', revenue: { ...a.revenue, total: 100 } }} update={() => {}} result={null} />);
+    expect(total).toMatch(/<p class="hint" id="[^"]+">The model uses the gambling coefficients for all of this revenue/);
+    expect(total).toContain('<legend class="pair-label">');
   });
 });

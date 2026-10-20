@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { STATES } from '../engine/data';
 import { CPI_YEARS, LATEST_CPI_YEAR } from '../engine/prices';
 import {
-  DEPARTMENTS, DEPARTMENT_LABELS, GAMING_TAX, PROPERTY_TYPES, isOnline,
+  DEPARTMENTS, DEPARTMENT_LABELS, GAMING_TAX, PROPERTY_TYPES, defaultAnalysis, isOnline,
   type Analysis, type Department, type PropertyType, type ScenarioResult,
 } from '../engine/scenario';
 import { hasGamingTax, taxRule, verticalSchedule, type GamingVertical } from '../engine/tax';
@@ -34,6 +35,8 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
     update((x) => ({ ...x, known: { ...x.known, [d]: { ...x.known[d], [k]: val } } }));
   const knownCount = DEPARTMENTS.filter((d) => a.known[d].jobs != null || a.known[d].wages != null).length;
   const departments: readonly Department[] = online ? ['gaming'] : DEPARTMENTS;
+  const revenueTotal = DEPARTMENTS.reduce((s, d) => s + (a.revenue[d] ?? 0), 0);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   return (
     <div className="inputs">
@@ -78,12 +81,15 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
             onChange={(n) => setRevenue(a.inputMode === 'total' ? 'total' : 'gaming', n)} />
         ) : a.inputMode === 'total' ? (
           <NumberField label="Total operating revenue" unit="$M" min={0} value={a.revenue.total} onChange={(n) => setRevenue('total', n)}
-            hint="The model uses the gambling coefficients for all of this revenue and calculates no gaming tax. To get the gaming tax, enter revenue by department." />
+            hint="The model uses the gambling coefficients for all of this revenue and calculates no gaming tax. To get the gaming tax, enter revenue by department." pinHint />
         ) : (
-          DEPARTMENTS.map((d) => (
-            <NumberField key={d} label={DEPARTMENT_LABELS[d]} unit="$M" min={0} value={a.revenue[d]} onChange={(n) => setRevenue(d, n)}
-              hint={DEPARTMENT_HINTS[d]} />
-          ))
+          <>
+            {DEPARTMENTS.map((d) => (
+              <NumberField key={d} label={DEPARTMENT_LABELS[d]} unit="$M" min={0} value={a.revenue[d]} onChange={(n) => setRevenue(d, n)}
+                hint={DEPARTMENT_HINTS[d]} />
+            ))}
+            {revenueTotal > 0 && <p className="computed">Total revenue: {money(revenueTotal)}</p>}
+          </>
         )}
         <SelectField
           label="Dollar year of revenue"
@@ -129,11 +135,11 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
         </p>
         <p className="hint">Jobs: annual average filled jobs. Cash wages: payroll wages, as in QCEW. The model divides cash wages by the QCEW-to-BEA wage ratio of the industry to get labor income.</p>
         {departments.map((d) => (
-          <div className="pair" key={d}>
-            <span className="pair-label">{online ? 'Operations' : DEPARTMENT_LABELS[d]}</span>
+          <fieldset className="pair" key={d}>
+            <legend className="pair-label">{online ? 'Operations' : DEPARTMENT_LABELS[d]}</legend>
             <NumberField label="Jobs" min={0} value={a.known[d].jobs} onChange={(n) => setKnown(d, 'jobs', n)} />
             <NumberField label="Cash wages" unit="$M" min={0} value={a.known[d].wages} onChange={(n) => setKnown(d, 'wages', n)} />
-          </div>
+          </fieldset>
         ))}
       </Section>
 
@@ -167,6 +173,18 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
           </>
         )}
       </Section>
+
+      <div className="reset">
+        {confirmReset ? (
+          <>
+            <span>All inputs go back to the example values.</span>
+            <button type="button" className="link danger" onClick={() => { update(() => defaultAnalysis()); setConfirmReset(false); }}>Confirm reset</button>
+            <button type="button" className="link" onClick={() => setConfirmReset(false)}>Cancel</button>
+          </>
+        ) : (
+          <button type="button" className="link" onClick={() => setConfirmReset(true)}>Reset all inputs</button>
+        )}
+      </div>
     </div>
   );
 }

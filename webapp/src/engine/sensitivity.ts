@@ -39,6 +39,19 @@ export function sweepTaxRate(a: Analysis, model: RegionalModel, maxRate = 0.4, s
   return out;
 }
 
+export interface HouseholdPoint extends Headline { key: 'low' | 'central' | 'high'; share: number }
+
+/** The analysis with the household spending share at its low, central and high values. */
+export function householdSpendingRange(a: Analysis, model: RegionalModel): HouseholdPoint[] {
+  const { low, central, high } = model.household.range;
+  const out: HouseholdPoint[] = [];
+  for (const [key, share] of [['low', low], ['central', central], ['high', high]] as const) {
+    const r = computeScenario(a, model.withHouseholdSpending(share));
+    if (r) out.push({ key, share, ...headline(r) });
+  }
+  return out;
+}
+
 export interface ProjectionPoint extends Headline { year: number; ggr: number }
 
 /** GGR grows at a compound annual rate from the first year; other revenue is held. */

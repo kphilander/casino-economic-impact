@@ -7,7 +7,8 @@ import { describe, expect, test } from 'vitest';
 import { loadModel } from './data';
 import { activityResponse } from './activities';
 import { streamImpact, type StreamOptions } from './impact';
-import { multipliers } from './io';
+import { multipliers, type StateTables } from './io';
+import { householdSpendingRange } from './sensitivity';
 import { CPI, deflator } from './prices';
 import {
   GAMING_TAX, PAYROLL_ADJUSTMENT, WAGE_BASIS, computeScenario, defaultAnalysis, fiscalDataFor,
@@ -309,5 +310,56 @@ describe('computation basis shown in the interface', () => {
     expect(t.removed).toBeCloseTo((1 - t.retainedShare) * t.gamingStreamTopi, 12);
     expect(r.fiscal.lines.find((l) => l.key === 'topi')!.direct).toBeCloseTo(t.modeledDirect - t.removed, 12);
     expect(r.fiscal.basis.effects.direct.payroll.federal).toBeCloseTo(r.fiscal.lines.find((l) => l.key === 'payroll_federal')!.direct, 12);
+  });
+});
+
+describe('household closure (Type II)', () => {
+  const tables = import.meta.glob<StateTables>('../data/io/[A-Z][A-Z].json', { eager: true, import: 'default' });
+
+  test('the spending share follows from the calculator tax rules in every state', () => {
+    const entries = Object.values(tables);
+    expect(entries).toHaveLength(50);
+    const c = entries[0].householdSpending.consumptionShare;
+    for (const t of entries) {
+      const hs = t.householdSpending;
+      const w = hs.avgWage;
+      const fd = fiscalDataFor(t.state);
+      const employer = payrollTax(w / 1e6, 1, fd.statePayroll, fd.federalPayroll).total * 1e6 / w;
+      const employee = (Math.min(w, fd.federalPayroll.fica_ss_wage_cap) * fd.federalPayroll.fica_ss_rate + w * fd.federalPayroll.fica_medicare_rate) / w;
+      const income = incomeTax(w / 1e6, 1, fd.incomeTax, t.state, fd.statePayroll).total * 1e6 / w;
+      const disposable = 1 - WAGE_BASIS.private * (employer + employee + income);
+      expect(hs.consumptionShare, t.state).toBe(c);
+      expect(hs.share, t.state).toBeCloseTo(c * disposable, 9);
+      expect(hs.high, t.state).toBeCloseTo(disposable, 9);
+      expect(hs.low, t.state).toBeLessThan(hs.share);
+      expect(hs.share, t.state).toBeGreaterThan(0.6);
+      expect(hs.share, t.state).toBeLessThan(0.8);
+    }
+  });
+
+  test('the household column spends the share in the in-state pattern', async () => {
+    const m = await nv();
+    const h = m.household;
+    expect(h.share).toBe(h.range.central);
+    expect(h.inState).toBeCloseTo(h.share! * h.instateShare, 3);
+    // The earlier closure spent all in-state consumption per dollar of compensation.
+    const legacy = m.withHouseholdSpending('legacy');
+    expect(legacy.household.share).toBeNull();
+    expect(legacy.household.inState).toBeGreaterThan(1.7 * h.inState);
+  });
+
+  test('a higher spending share raises induced effects only', async () => {
+    const m = await nv();
+    const hi = m.withHouseholdSpending(m.household.range.high);
+    expect(m.withHouseholdSpending(m.household.range.central)).toBe(m);
+    expect(m.withHouseholdSpending(m.household.range.high)).toBe(hi);
+    const [a, b] = [multipliers(m.respond('713')), multipliers(hi.respond('713'))];
+    expect(b.Type_I_Output).toBe(a.Type_I_Output);
+    expect(b.Type_II_Output).toBeGreaterThan(a.Type_II_Output);
+    const rows = householdSpendingRange(defaultAnalysis(), m);
+    expect(rows.map((r) => r.key)).toEqual(['low', 'central', 'high']);
+    expect(rows[0].jobs).toBeLessThan(rows[1].jobs);
+    expect(rows[1].jobs).toBeLessThan(rows[2].jobs);
+    expect(rows[1].jobs).toBeCloseTo(computeScenario(defaultAnalysis(), m)!.totals.jobs.total, 9);
   });
 });

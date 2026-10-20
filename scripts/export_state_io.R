@@ -22,6 +22,8 @@
 #     State_Summary_DomesticUse_2023
 #   employment_all_sectors_2023.csv  (08a_process_all_qcew_employment.R)
 #   fte_ratios_2023.csv              (08b_generate_bea_fte_ratios.R)
+#   household_spending_2023.csv      (08c_household_spending.R): pceAll and the
+#                                    household spending share (with its range)
 #   national_naics_ratios.csv        (13_extract_national_naics_ratios.R)
 #
 # Usage: Rscript scripts/export_state_io.R   (from the repository root)
@@ -63,6 +65,8 @@ sources <- lapply(list(make, use, ind_output, com_output, value_added, output_20
 
 employment <- read.csv(employment_file, stringsAsFactors = FALSE)
 fte <- read.csv("fte_ratios_2023.csv", stringsAsFactors = FALSE)
+household_spending <- read.csv(Sys.getenv("GEMS_HOUSEHOLD_SPENDING_FILE", unset = "household_spending_2023.csv"),
+                               stringsAsFactors = FALSE)
 ratios <- read.csv("national_naics_ratios.csv", stringsAsFactors = FALSE)
 
 state_names <- state.name
@@ -125,6 +129,8 @@ for (i in seq_along(state_names)) {
   va23 <- setNames(rep(NA_real_, length(ind)), ind)
   va23[va23_sectors] <- colSums(u23[c("V001", "V002", "V003"), va23_sectors, drop = FALSE])
 
+  hs <- household_spending[household_spending$state_name == st, ]
+  if (nrow(hs) != 1L) stop("No household spending share for ", st)
   emp <- employment[employment$state_name == st, ]
   jobs <- setNames(emp$employment, emp$io_sector)[ind]
 
@@ -147,6 +153,12 @@ for (i in seq_along(state_names)) {
     topi = unname(as.numeric(va_m[2, ])),
     gos = unname(as.numeric(va_m[3, ])),
     pce = pce,
+    pceAll = hs$pce_all_2019,
+    householdSpending = list(share = hs$household_spending_share,
+                             low = hs$household_spending_low,
+                             high = hs$household_spending_high,
+                             avgWage = hs$avg_wage,
+                             consumptionShare = hs$consumption_share_dpi),
     jobs2023 = na_to_null(jobs),
     output2023 = na_to_null(o23[ind]),
     valueAdded2023 = na_to_null(va23[ind])

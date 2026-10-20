@@ -33,8 +33,8 @@ export function DefinitionsExplain() {
         <dt>Direct, supplier, induced</dt>
         <dd>
           Direct effects are the activity of the property. Supplier (indirect) effects are the production in the state that its purchases cause, through all rounds
-          of the supply chain. Induced effects are the production in the state that households buy with labor income from the direct and supplier rounds. The totals add
-          the three effects.
+          of the supply chain. Induced effects are the production in the state that households buy with labor income from the direct and supplier rounds.
+          Households spend the part of each dollar that remains after payroll and income taxes and saving (see Sensitivity). The totals add the three effects.
         </dd>
         <dt>Jobs supported</dt>
         <dd>Annual average filled jobs, full time and part time, as in QCEW. A person with two jobs counts two times. The model calculates full-time equivalents separately, with BEA ratios of FTEs to jobs.</dd>

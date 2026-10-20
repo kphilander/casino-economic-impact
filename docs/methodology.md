@@ -41,7 +41,19 @@ GEMS uses the Industry Technology Assumption framework from Input-Output (IO) ec
 
 **Step 3 — Type II Augmentation:** The A matrix is augmented with a household row (labor income coefficients) and household column (consumer spending patterns). The augmented Leontief inverse yields Type II multipliers that additionally capture induced effects from household spending.
 
-**Computation.** The calculator does these steps in the browser. `scripts/export_state_io.R` writes the in-state block of each state's StateIO tables to `webapp/src/data/io/{state}.json`: the Make and domestic Use tables, industry and commodity output, the value-added components V001–V003, in-state personal consumption (F010) and the 2023 jobs satellite. The export contains no derived quantities. The engine (`webapp/src/engine/io.ts`) forms D, B, A, the Type I and Type II inverses and all coefficients, as `08_state_multipliers_2023.R` does. Its tests reproduce every value in `employment_multipliers_2023.csv`, `construction_multipliers_2023.csv`, `gambling_multipliers_2023.csv` and `online_gambling_multipliers_2023.csv` to the rounding of those files, so the R pipeline remains the reference and the browser model cannot drift from it.
+The household row is employee compensation per dollar of output (V001 ÷ g). Households spend a share θ of each dollar of compensation, and the household column is θ × in-state PCE ÷ all PCE of the state (StateIO 2019 F010; all PCE includes purchases from other states and imports), converted to industries with D. `08c_household_spending.R` estimates θ for each state:
+
+θ = c × (1 − b × (employer payroll taxes + employee Social Security and Medicare + income taxes) ÷ W)
+
+- c = 0.902, personal consumption expenditures ÷ disposable personal income, 2023 (BEA NIPA Table 2.1 via FRED).
+- b = 0.806, cash wages per dollar of compensation for all private industries (Section 3.3).
+- W = the state's average 2023 QCEW private wage. The taxes at W come from the calculator's own payroll and income tax rules (Section 3.2), so the household closure spends only the income that remains after the taxes that the fiscal estimates count. Compensation enters personal income less contributions for government social insurance, and disposable income less personal current taxes.
+
+θ is 0.64 to 0.73 across states (median 0.70); about 70% of household spending goes to in-state suppliers. The Sensitivity view shows results with a low θ (c = 0.819, the lowest annual ratio since 2000, in 2020) and a high θ (c = 1, all disposable income spent).
+
+Before October 2026 the household column was in-state PCE ÷ total compensation. That spent a median of $0.90 in the state per $1 of compensation (up to $1.20 in Florida), because it attributed consumption financed by transfers and property income to wages. With θ, the median is $0.49. Type II output and value-added multipliers for 713, 721 and 722 are about 20% lower, Type II jobs 12–16% lower; Type I multipliers do not change. Against BEA RIMS II multipliers for four non-gaming industries, the earlier closure gave induced output per dollar of supplier-round labor income about 45% above RIMS II and the new closure about 35% below it, and Type II output multipliers of 0.99 and 0.82 times RIMS II (medians). RIMS II's location-quotient regionalization also keeps more supplier and household purchases in the state.
+
+**Computation.** The calculator does these steps in the browser. `scripts/export_state_io.R` writes the in-state block of each state's StateIO tables to `webapp/src/data/io/{state}.json`: the Make and domestic Use tables, industry and commodity output, the value-added components V001–V003, in-state personal consumption (F010), all personal consumption of the state, the household spending share θ with its range and inputs, and the 2023 jobs satellite. The export contains no derived quantities. The engine (`webapp/src/engine/io.ts`) forms D, B, A, the Type I and Type II inverses and all coefficients, as `08_state_multipliers_2023.R` does. Its tests reproduce every value in `employment_multipliers_2023.csv`, `construction_multipliers_2023.csv`, `gambling_multipliers_2023.csv` and `online_gambling_multipliers_2023.csv` to the rounding of those files, so the R pipeline remains the reference and the browser model cannot drift from it.
 
 ### 2.2 Effect Decomposition
 
@@ -247,6 +259,7 @@ This replaces the earlier national NIPA wage share (0.814), which removes supple
 | State gaming commissions, AGA State of the States | Current | Gaming tax schedules |
 | BLS CPI-U annual averages | 2019–2025 | Deflation of the revenue dollar year to 2023 |
 | BEA NIPA Tables 6.2D/6.3D (via FRED) and QCEW 2023 private wages | 2023 | Compensation-to-wage conversion by industry |
+| BEA NIPA Table 2.1 (via FRED: PCECA, A067RC1A027NBEA) and QCEW 2023 average private wages | 2000–2023 | Household spending share of compensation (Type II closure) |
 | BEA 2017 detail supply-use table (via `useeior`) | 2017 | Non-gaming share of gambling TOPI |
 | IRS Rev. Proc. 2024-40, P.L. 119-21, state 2025 tax instructions and statutes | 2025 | Household income tax tables |
 | U.S. Census Bureau 2022 Economic Census (EC2271BASIC, EC2272BASIC) and QCEW 2023 | 2022–2023 | Validation of direct jobs; predictive ranges |
@@ -291,6 +304,7 @@ The model version is the release edition year (e.g., GEMS 2026). When a new edit
 | GEMS 2026 | 2026 | Initial release. 2019 EPA StateIO multipliers, 2023 QCEW employment, USEEIOv2.0.1-411 gambling adjustments. |
 | GEMS 2026 (methodology update) | October 2026 | Direct jobs validated against the Economic Census, with predictive ranges; tribal ownership option; statutory gaming tax replaces the gaming share of direct TOPI; 28 states' gaming taxes re-verified; per-worker 2025 income taxes; industry wage basis; payroll taxes by level of government; revenue dollar-year input; net-impact and construction-phase modules. |
 | GEMS 2026 (calculator rebuild) | October 2026 | Calculator rebuilt in TypeScript; the regional model is computed in the browser from the StateIO tables and tested against the R pipeline; gaming-tax adjustment of direct compensation; supplier and induced jobs by industry; report exports and licensing removed. |
+| GEMS 2026 (household closure) | October 2026 | Households spend the share of compensation that remains after payroll and income taxes and saving (Section 2.1), not all in-state consumption per dollar of compensation. Induced effects are lower; Type II output about 20% lower. Sensitivity view shows a low and high spending share. |
 
 ## 8. Key References
 

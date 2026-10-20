@@ -17,6 +17,19 @@ import { migrate } from './share';
 import { project, sweepGgr, sweepTaxRate } from './sensitivity';
 import type { Effects, ImpactMetric } from './impact';
 
+/**
+ * FTEs are left out of the comparison: the BEA FTE/job ratios were refreshed
+ * (September 2026 revisions) after the fixture was recorded. io.test.ts checks
+ * the engine's FTEs against the regenerated R outputs.
+ */
+function withoutFte(x: unknown): unknown {
+  if (Array.isArray(x)) return x.map(withoutFte);
+  if (x && typeof x === 'object') {
+    return Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'fte').map(([k, v]) => [k, withoutFte(v)]));
+  }
+  return x;
+}
+
 const REL = 3e-4;
 /** Absolute tolerance per $M of revenue in the analysis. */
 const ABS_PER_REVENUE = 1.2e-4;
@@ -76,7 +89,7 @@ describe('rebuilt engine matches the pre-rebuild engine', () => {
       const r = computeScenario(a, await modelFor(a.state))!;
       const errors: string[] = [];
       const revenue = r.streams.reduce((s, x) => s + x.revenue, 0) + (r.construction?.localSpend ?? 0);
-      compare(legacyShape(r), c.result, c.id, errors, ABS_PER_REVENUE * revenue);
+      compare(withoutFte(legacyShape(r)), withoutFte(c.result), c.id, errors, ABS_PER_REVENUE * revenue);
       expect(errors).toEqual([]);
     });
   }

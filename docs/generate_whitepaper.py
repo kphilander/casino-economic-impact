@@ -3,11 +3,11 @@
 Generate the GEMS methodology white paper PDF.
 
 Output: webapp/public/GEMS-2026-Methodology.pdf (served by the web app at
-<base>/GEMS-2026-Methodology.pdf and linked from the app footer).
+<base>/GEMS-2026-Methodology.pdf). It describes the initial 2026 release;
+docs/methodology.md is the current methodology.
 
 Regenerate after editing:  python3 docs/generate_whitepaper.py
-Keep the version and content in sync with docs/methodology.md and
-webapp/src/brand.js.
+Keep the version, author and citation in sync with webapp/src/brand.ts.
 """
 
 import os
@@ -32,7 +32,7 @@ PUBLISHER = "GP Consulting"
 URL = "https://gamblingpolicy.com/tools/economic-impact/"
 EMAIL = "info@gamblingpolicy.com"
 CITATION = (
-    f"Philander, K. (2026). {PRODUCT_NAME}: {PRODUCT_FULL_NAME} "
+    f"Simeon-Rose, K. (2026). {PRODUCT_NAME}: {PRODUCT_FULL_NAME} "
     f"(Version {MODEL_VERSION}) [Computer software]. {PUBLISHER}. {URL}"
 )
 
@@ -145,7 +145,7 @@ def draw_cover(canvas, doc):
 
     canvas.setFillColor(colors.white)
     canvas.setFont("Helvetica", 11.5)
-    canvas.drawString(x, 4.55 * inch, "Dr. Kahlil Philander")
+    canvas.drawString(x, 4.55 * inch, "Dr. Kahlil Simeon-Rose")
     canvas.setFillColor(LIGHT_BLUE)
     canvas.setFont("Helvetica", 10.5)
     canvas.drawString(x, 4.3 * inch, PUBLISHER)
@@ -193,7 +193,7 @@ def build():
     doc = BaseDocTemplate(
         os.path.abspath(OUT_PATH), pagesize=letter,
         title=f"{PRODUCT_NAME} {MODEL_VERSION} Methodology White Paper",
-        author="Dr. Kahlil Philander", subject=f"{PRODUCT_FULL_NAME} - {DESCRIPTOR}",
+        author="Dr. Kahlil Simeon-Rose", subject=f"{PRODUCT_FULL_NAME} - {DESCRIPTOR}",
         creator=PUBLISHER,
     )
     cover_frame = Frame(MARGIN, MARGIN, PAGE_W - 2 * MARGIN, PAGE_H - 2 * MARGIN, id="cover")
@@ -560,7 +560,7 @@ def build():
     el.append(HRFlowable(width="100%", thickness=0.5, color=BORDER))
     el.append(Paragraph("About the Author", S["h1"]))
     el.append(Paragraph(
-        "Dr. Kahlil Philander is an economist specializing in the analysis of policy and consumer "
+        "Dr. Kahlil Simeon-Rose is an economist specializing in the analysis of policy and consumer "
         "behavior in the gaming industry, with nearly 20 years of applied research experience in "
         "economic impact measurement across academia, industry, and government. He is a tenured "
         "Associate Professor at Washington State University's Carson College of Business, holds a "

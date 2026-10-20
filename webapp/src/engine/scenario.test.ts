@@ -16,6 +16,8 @@ import { computeScenario, headline, type ScenarioResult } from './scenario';
 import { migrate } from './share';
 import { project, sweepGgr, sweepTaxRate } from './sensitivity';
 import type { Effects, ImpactMetric } from './impact';
+import type { Fiscal } from './fiscal';
+import { EFFECTS, type Effect } from './io';
 
 /**
  * FTEs are left out of the comparison: the BEA FTE/job ratios were refreshed
@@ -57,6 +59,24 @@ function compare(actual: unknown, expected: unknown, path: string, errors: strin
 }
 
 const eff = (e: Effects) => ({ direct: e.direct, indirect: e.indirect, induced: e.induced, total: e.total });
+
+/**
+ * The fixture predates the employee halves of Social Security and Medicare
+ * (October 2026), so they are taken out of the federal payroll line and the
+ * totals before the comparison. rules.test.ts checks the employee taxes.
+ */
+function withoutEmployeeFica(f: Fiscal) {
+  const emp = Object.fromEntries(EFFECTS.map((e) => [e, f.basis.effects[e].payroll.employee])) as Record<Effect, number>;
+  const empTotal = EFFECTS.reduce((s, e) => s + emp[e], 0);
+  const less = (x: Effects) => ({ direct: x.direct - emp.direct, indirect: x.indirect - emp.indirect, induced: x.induced - emp.induced, total: x.total - empTotal });
+  return {
+    lines: f.lines.map((l) => {
+      const v = l.key === 'payroll_federal' ? less(l) : l;
+      return { key: l.key, level: l.level, direct: v.direct, indirect: v.indirect, induced: v.induced, total: v.total };
+    }),
+    totals: { all: less(f.totals.all), federal: less(f.totals.federal), stateLocal: f.totals.stateLocal },
+  };
+}
 const metrics = (x: Record<ImpactMetric, Effects>) => ({
   output: eff(x.output), gdp: eff(x.gdp), employment: eff(x.jobs), fte: eff(x.fte),
   wages: eff(x.compensation), cashWages: eff(x.cashWages), tax: eff(x.topi),
@@ -70,15 +90,11 @@ function legacyShape(r: ScenarioResult) {
     wageAdjustment: r.payrollAdjustment,
     streams: r.streams.map((s) => ({ type: s.key, revenue: s.revenue, ...metrics(s.impact) })),
     gamingTax: r.gamingTax && { amount: r.gamingTax.amount, effectiveRate: r.gamingTax.effectiveRate, ggr: r.gamingTax.ggr },
-    fiscal: {
-      lines: r.fiscal.lines.map((l) => ({ key: l.key, level: l.level, direct: l.direct, indirect: l.indirect, induced: l.induced, total: l.total })),
-      totals: r.fiscal.totals,
-      incomeTaxMethod: r.fiscal.incomeTaxMethod,
-    },
+    fiscal: { ...withoutEmployeeFica(r.fiscal), incomeTaxMethod: r.fiscal.incomeTaxMethod },
     net: r.net && { share: r.net.share, totals: metrics(r.net.totals) },
     construction: r.construction && {
       localSpend: r.construction.localSpend, annualJobs: r.construction.annualJobs,
-      ...metrics(r.construction.impact), fiscal: r.construction.fiscal.totals,
+      ...metrics(r.construction.impact), fiscal: withoutEmployeeFica(r.construction.fiscal).totals,
     },
   };
 }
@@ -104,11 +120,14 @@ describe('rebuilt engine matches the pre-rebuild engine', () => {
     const model = await modelFor(a.state);
     const errors: string[] = [];
     const abs = ABS_PER_REVENUE * 1.4 * 900;
-    const rename = (p: { output: number; gdp: number; jobs: number; compensation: number; gamingTax: number; totalTax: number }) =>
-      ({ output: p.output, gdp: p.gdp, employment: p.jobs, wages: p.compensation, gamingTax: p.gamingTax, totalTax: p.totalTax });
-    compare(sweepGgr(a, model).map((p) => ({ x: p.x, ...rename(p) })), legacy.sensitivity.ggr.map(({ label: _l, ...p }) => p), 'ggr', errors, abs);
-    compare(sweepTaxRate(a, model).map((p) => ({ x: p.x, ...rename(p) })), legacy.sensitivity.taxRate, 'tax', errors, abs);
-    compare(project(a, model, 5, 0.05).series.map((p) => ({ yearIndex: p.year - new Date().getFullYear() + 1, ggr: p.ggr, ...rename(p) })), legacy.sensitivity.projection, 'proj', errors, abs);
+    // All taxes now include employee FICA; the case comparisons above check the
+    // tax lines with it taken out, so the sweeps compare the other values.
+    const rename = (p: { output: number; gdp: number; jobs: number; compensation: number; gamingTax: number }) =>
+      ({ output: p.output, gdp: p.gdp, employment: p.jobs, wages: p.compensation, gamingTax: p.gamingTax });
+    const drop = <T extends { totalTax?: number }>({ totalTax: _t, ...p }: T) => p;
+    compare(sweepGgr(a, model).map((p) => ({ x: p.x, ...rename(p) })), legacy.sensitivity.ggr.map(({ label: _l, ...p }) => drop(p)), 'ggr', errors, abs);
+    compare(sweepTaxRate(a, model).map((p) => ({ x: p.x, ...rename(p) })), legacy.sensitivity.taxRate.map(drop), 'tax', errors, abs);
+    compare(project(a, model, 5, 0.05).series.map((p) => ({ yearIndex: p.year - new Date().getFullYear() + 1, ggr: p.ggr, ...rename(p) })), legacy.sensitivity.projection.map(drop), 'proj', errors, abs);
     expect(errors).toEqual([]);
     expect(headline(computeScenario(a, model)!).jobs).toBeGreaterThan(0);
   });

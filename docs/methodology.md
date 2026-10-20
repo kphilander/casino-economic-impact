@@ -224,9 +224,9 @@ Twenty-eight states were re-verified against statutes and regulator reports in O
 
 ### 3.2 Payroll and household income taxes
 
-- **Payroll taxes** are employer-side, applied per job:
-  - **Federal:** FICA Social Security, FICA Medicare, and FUTA.
-  - **State:** SUTA (unemployment insurance), plus SDI and PFML where they exist.
+- **Payroll taxes** are applied per job:
+  - **Federal:** employer and employee FICA Social Security (6.2% each, to the wage cap) and Medicare (1.45% each), and FUTA. The employee halves are withheld from wages and are federal revenue; they were left out before October 2026.
+  - **State:** SUTA (unemployment insurance), plus employer SDI and PFML where they exist. Employee SDI and paid-leave contributions are not included.
 - **Household income taxes** are calculated per worker. The average wage per job for each effect is taxed as the income of a single filer with no dependents, using 2025 federal and state schedules plus a typical local wage-tax rate where local income taxes are common.
   - The federal standard deduction is $15,750, under P.L. 119-21.
   - State schedules include phase-outs, recaptures and federal-tax deductions.
@@ -305,6 +305,7 @@ The model version is the release edition year (e.g., GEMS 2026). When a new edit
 | GEMS 2026 (methodology update) | October 2026 | Direct jobs validated against the Economic Census, with predictive ranges; tribal ownership option; statutory gaming tax replaces the gaming share of direct TOPI; 28 states' gaming taxes re-verified; per-worker 2025 income taxes; industry wage basis; payroll taxes by level of government; revenue dollar-year input; net-impact and construction-phase modules. |
 | GEMS 2026 (calculator rebuild) | October 2026 | Calculator rebuilt in TypeScript; the regional model is computed in the browser from the StateIO tables and tested against the R pipeline; gaming-tax adjustment of direct compensation; supplier and induced jobs by industry; report exports and licensing removed. |
 | GEMS 2026 (household closure) | October 2026 | Households spend the share of compensation that remains after payroll and income taxes and saving (Section 2.1), not all in-state consumption per dollar of compensation. Induced effects are lower; Type II output about 20% lower. Sensitivity view shows a low and high spending share. |
+| GEMS 2026 (employee FICA) | October 2026 | Federal payroll taxes include the employee halves of Social Security and Medicare. |
 
 ## 8. Key References
 

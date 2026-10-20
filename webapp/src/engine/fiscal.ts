@@ -103,7 +103,7 @@ export function buildFiscal(input: FiscalInput, data: FiscalData): Fiscal {
   }
   const pick = <T, K extends keyof T>(o: Record<Effect, T>, k: K) =>
     Object.fromEntries(EFFECTS.map((e) => [e, o[e][k] as number])) as Record<Effect, number>;
-  lines.push(line('payroll_federal', 'Federal payroll taxes (FICA, FUTA)', 'federal', pick(payroll, 'federal')));
+  lines.push(line('payroll_federal', 'Federal payroll taxes (employer and employee FICA, FUTA)', 'federal', pick(payroll, 'federal')));
   lines.push(line('payroll_state', 'State payroll taxes (UI, SDI, PFML)', 'state_local', pick(payroll, 'state')));
   if (income.direct.method === 'bea_ratio') {
     lines.push(line('income_combined', 'Household income taxes (BEA ratio)', 'state_local', pick(income, 'total'),

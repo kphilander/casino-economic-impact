@@ -277,6 +277,10 @@ describe('computation basis shown in the interface', () => {
     const p = payrollTax(30, 600, data.statePayroll, data.federalPayroll);
     const parts = Object.values(p.parts).reduce((s, x) => s + x, 0);
     expect(parts).toBeCloseTo(p.total, 12);
+    expect(p.employer + p.employee).toBeCloseTo(p.total, 12);
+    // Employee Social Security and Medicare: 7.65% of a $50,000 wage, federal revenue.
+    expect(p.employee).toBeCloseTo(30 * 0.0765, 12);
+    expect(p.federal - p.employee).toBeCloseTo(p.parts.socialSecurity + p.parts.medicare + p.parts.futa, 12);
     expect(p.avgWage).toBeCloseTo(50000, 9);
     const t = incomeTax(30, 600, data.incomeTax, 'California');
     expect(t.perWorker.federal * 600 / 1e6).toBeCloseTo(t.federal, 12);
@@ -324,8 +328,10 @@ describe('household closure (Type II)', () => {
       const hs = t.householdSpending;
       const w = hs.avgWage;
       const fd = fiscalDataFor(t.state);
-      const employer = payrollTax(w / 1e6, 1, fd.statePayroll, fd.federalPayroll).total * 1e6 / w;
-      const employee = (Math.min(w, fd.federalPayroll.fica_ss_wage_cap) * fd.federalPayroll.fica_ss_rate + w * fd.federalPayroll.fica_medicare_rate) / w;
+      const p = payrollTax(w / 1e6, 1, fd.statePayroll, fd.federalPayroll);
+      const employer = p.employer * 1e6 / w;
+      const employee = p.employee * 1e6 / w;
+      expect(employee).toBeCloseTo((Math.min(w, fd.federalPayroll.fica_ss_wage_cap) * fd.federalPayroll.fica_ss_rate + w * fd.federalPayroll.fica_medicare_rate) / w, 12);
       const income = incomeTax(w / 1e6, 1, fd.incomeTax, t.state, fd.statePayroll).total * 1e6 / w;
       const disposable = 1 - WAGE_BASIS.private * (employer + employee + income);
       expect(hs.consumptionShare, t.state).toBe(c);

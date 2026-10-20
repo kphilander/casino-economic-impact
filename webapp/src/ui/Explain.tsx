@@ -240,13 +240,14 @@ function PayrollAndIncome({ fiscal }: { fiscal: Fiscal }) {
   return (
     <>
       <h4>Payroll and income taxes</h4>
-      <p className="table-title">Employer payroll taxes</p>
+      <p className="table-title">Payroll taxes</p>
       <div className="table-wrap">
         <table className="coef-table">
           <thead>
             <tr>
               <th scope="col">Effect</th><th scope="col">Cash wages</th><th scope="col">Jobs</th><th scope="col">Average wage</th>
-              <th scope="col">Social Security</th><th scope="col">Medicare</th><th scope="col">FUTA</th><th scope="col">State UI</th>
+              <th scope="col">Employer Social Security</th><th scope="col">Employer Medicare</th><th scope="col">Employee FICA</th>
+              <th scope="col">FUTA</th><th scope="col">State UI</th>
               {hasSdi && <th scope="col">SDI, PFML</th>}
             </tr>
           </thead>
@@ -258,7 +259,8 @@ function PayrollAndIncome({ fiscal }: { fiscal: Fiscal }) {
                 <tr key={e}>
                   <th scope="row">{EFFECT_LABEL[e]}</th>
                   <td>{money(x.cashWages)}</td><td>{jobs(x.jobs)}</td><td>{usd(x.payroll.avgWage)}</td>
-                  <td>{money(p.socialSecurity, 2)}</td><td>{money(p.medicare, 2)}</td><td>{money(p.futa, 2)}</td><td>{money(p.suta, 2)}</td>
+                  <td>{money(p.socialSecurity, 2)}</td><td>{money(p.medicare, 2)}</td><td>{money(x.payroll.employee, 2)}</td>
+                  <td>{money(p.futa, 2)}</td><td>{money(p.suta, 2)}</td>
                   {hasSdi && <td>{money(p.sdi + p.pfml, 2)}</td>}
                 </tr>
               );
@@ -304,6 +306,11 @@ function PayrollAndIncome({ fiscal }: { fiscal: Fiscal }) {
             {st?.pfml_employer_rate ? <li>Employer paid leave: {pct(st.pfml_employer_rate, 2)} of wages.</li> : null}
           </ul>
           The model multiplies each tax by the number of jobs.
+        </li>
+        <li>
+          Employee payroll taxes for each job, which the employer withholds from wages: Social Security {pct(fed.fica_ss_rate, 1)} of the wage, to a maximum
+          of {usd(fed.fica_ss_wage_cap)}, and Medicare {pct(fed.fica_medicare_rate, 2)}. They are federal revenue. The model does not include employee SDI or
+          paid-leave contributions.
         </li>
         {perWorker ? (
           <li>

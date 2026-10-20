@@ -13,7 +13,7 @@ This repository contains GEMS (Gaming Economic Modeling System), the economic mo
 - **Methodology:** A versioned, citable methodology document lives at [`docs/methodology.md`](docs/methodology.md). A white paper PDF describing the initial 2026 release is served at [`/GEMS-2026-Methodology.pdf`](https://gamblingpolicy.com/tools/economic-impact/GEMS-2026-Methodology.pdf); regenerate it with `python3 docs/generate_whitepaper.py` after editing. Where the two differ, `docs/methodology.md` applies.
 - **Suggested citation:**
 
-> Philander, K. (2026). GEMS: Gaming Economic Modeling System (Version 2026) [Computer software]. GP Consulting. https://gamblingpolicy.com/tools/economic-impact/
+> Simeon-Rose, K. (2026). GEMS: Gaming Economic Modeling System (Version 2026) [Computer software]. GP Consulting. https://gamblingpolicy.com/tools/economic-impact/
 
 ## Table of Contents
 

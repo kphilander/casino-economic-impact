@@ -156,19 +156,32 @@ export interface LevelSplit { federal: number; state: number; total: number }
 export interface PayrollTax extends LevelSplit {
   /** Average cash wage per job, dollars. */
   avgWage: number;
-  /** Components, $M. */
-  parts: { socialSecurity: number; medicare: number; futa: number; suta: number; sdi: number; pfml: number };
+  /** Employer and employee (withheld) payroll taxes, $M. */
+  employer: number;
+  employee: number;
+  /**
+   * Components, $M. socialSecurity and medicare are the employer halves;
+   * employeeSocialSecurity and employeeMedicare are withheld from wages.
+   */
+  parts: {
+    socialSecurity: number; medicare: number; futa: number; suta: number; sdi: number; pfml: number;
+    employeeSocialSecurity: number; employeeMedicare: number;
+  };
 }
 
 /**
- * Employer payroll taxes on cash wages ($M) paid to a number of filled jobs,
- * each at the average wage. Federal: Social Security (to the wage cap),
- * Medicare, FUTA. State: unemployment insurance (to the state wage base) and
- * employer SDI and paid-leave contributions.
+ * Payroll taxes on cash wages ($M) paid to a number of filled jobs, each at
+ * the average wage. Federal: employer and employee Social Security (to the
+ * wage cap) and Medicare, and FUTA. State: unemployment insurance (to the
+ * state wage base) and employer SDI and paid-leave contributions. Employee
+ * SDI and paid-leave contributions are not included.
  */
 export function payrollTax(wages: number, jobs: number, st: StatePayroll | undefined, fed: FederalPayroll): PayrollTax {
   if (!(wages > 0) || !(jobs > 0) || !st) {
-    return { federal: 0, state: 0, total: 0, avgWage: 0, parts: { socialSecurity: 0, medicare: 0, futa: 0, suta: 0, sdi: 0, pfml: 0 } };
+    return {
+      federal: 0, state: 0, total: 0, avgWage: 0, employer: 0, employee: 0,
+      parts: { socialSecurity: 0, medicare: 0, futa: 0, suta: 0, sdi: 0, pfml: 0, employeeSocialSecurity: 0, employeeMedicare: 0 },
+    };
   }
   const dollars = wages * 1e6;
   const avg = dollars / jobs;
@@ -178,11 +191,17 @@ export function payrollTax(wages: number, jobs: number, st: StatePayroll | undef
   const suta = st.suta_avg_rate && st.suta_wage_base ? Math.min(avg, st.suta_wage_base) * st.suta_avg_rate * jobs : 0;
   const sdi = st.sdi_employer_rate && st.sdi_employer_rate > 0 ? dollars * st.sdi_employer_rate : 0;
   const pfml = st.pfml_employer_rate && st.pfml_employer_rate > 0 ? dollars * st.pfml_employer_rate : 0;
-  const federal = (ss + medicare + futa) / 1e6;
+  // The employee halves of Social Security and Medicare have the same rates and cap.
+  const employee = (ss + medicare) / 1e6;
+  const employer = (ss + medicare + futa + suta + sdi + pfml) / 1e6;
+  const federal = (2 * (ss + medicare) + futa) / 1e6;
   const state = (suta + sdi + pfml) / 1e6;
   return {
-    federal, state, total: federal + state, avgWage: avg,
-    parts: { socialSecurity: ss / 1e6, medicare: medicare / 1e6, futa: futa / 1e6, suta: suta / 1e6, sdi: sdi / 1e6, pfml: pfml / 1e6 },
+    federal, state, total: federal + state, avgWage: avg, employer, employee,
+    parts: {
+      socialSecurity: ss / 1e6, medicare: medicare / 1e6, futa: futa / 1e6, suta: suta / 1e6, sdi: sdi / 1e6, pfml: pfml / 1e6,
+      employeeSocialSecurity: ss / 1e6, employeeMedicare: medicare / 1e6,
+    },
   };
 }
 

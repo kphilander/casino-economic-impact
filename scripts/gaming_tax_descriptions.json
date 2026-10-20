@@ -1,0 +1,139 @@
+{
+  "Nevada": {
+    "land": "A graduated monthly license fee applies to gross revenue (NRS 463.370). The fee is 3.5% on the first $50,000 per month, 4.5% on $50,000-$134,000 and 6.75% above. The model uses annual thresholds ($0.6M, $1.608M). Large casinos pay approximately 6.75%.",
+    "sportsBetting": "Sports betting pays 6.75% of GGR. Nevada and Iowa have the lowest rate."
+  },
+  "New Jersey": {
+    "land": "Casinos pay an 8% gross revenue tax (N.J.S.A. 5:12-144) and the Investment Alternative Tax (5:12-144.1). A 1.25% investment through CRDA satisfies this tax. Otherwise, it is a 2.5% tax. The effective rate is 9.25%.",
+    "iGaming": "Since July 1, 2025, internet gaming pays 19.75% of revenue (P.L.2025, c.66). The old rate was 15%. Operators also pay the 5% statutory IAT through a 2.5% CRDA investment. The effective rate is about 22.25%. The 8% casino tax does not apply.",
+    "sportsBetting": "Since July 1, 2025, online sports wagering pays 19.75% (P.L.2025, c.66), up from 13%. With the 1.25% CRDA tax, the total is about 21%. Retail wagering still pays 8.5% plus 1.25%, or 9.75%."
+  },
+  "Pennsylvania": {
+    "land": "Category 1-2 slots pay a 34% state tax, a 2% county local share and 5.5% to the Economic Development and Tourism Fund. A 0.5% supplemental charge also applies. The Race Horse Development Fund gets 18% multiplied by the racetrack-casino revenue share, up to 12% (about 8.7% in 2025). The PGCB reported a 50.4% effective slot rate for 2025. Table games pay a 12% state tax (4 Pa.C.S. 13A62(a)(1)) and a 2% additional state tax (Tax Reform Code 2502). With a 2% local share (13A63), the total is 16%.",
+    "iGaming": "Online slots pay 52% state and 2% local tax, or 54% (4 Pa.C.S. 13B52). Online table games and poker pay 14% plus 2%, or 16%.",
+    "sportsBetting": "Sports wagering pays a 34% state tax plus a 2% local share on revenue (4 Pa.C.S. 13C62-63), or 36%."
+  },
+  "Illinois": {
+    "land": "The wagering tax on AGR is graduated (230 ILCS 10/13(a-5)(1)). Electronic gaming rates are 15%, 22.5%, 27.5%, 32.5%, 37.5%, 45% and 50%. The rate increases at $25M, $50M, $75M, $100M, $150M and $200M. Table games pay 15% to $25M and 20% above.",
+    "sportsBetting": "From July 1, 2024, AGR has graduated rates (230 ILCS 45/25-90(d)). Rates are 20% to $30M, 25% for $30-50M, 30% for $50-100M, 35% for $100-200M and 40% above $200M. Online and in-person revenue use separate tiers. Cook County wagers also pay 2%. From July 1, 2025, online wagers also pay $0.25 each for the first 20M wagers and $0.50 after that. The model does not include these charges."
+  },
+  "Indiana": {
+    "land": "Since FY2022, AGR has a graduated wagering tax (IC 4-33-13-1.5(a)). Rates are 10% to $25M, then 20%, 25%, 30%, 35% and 40% above $600M. Each licensee also pays its own supplemental wagering tax (IC 4-33-12-1.5). In 2025 this rate was about 2.3-3.5%, with a 3.5% cap. The model uses 3%.",
+    "sportsBetting": "Sports betting pays 9.5% of GGR."
+  },
+  "Iowa": {
+    "land": "The tax on AGR is graduated (Iowa Code 99F.11). The rate is 5% on the first $1M, 10% on the next $2M and 22% above $3M. Racetrack casinos with table games and prior-year AGR of $100M or more pay 24%.",
+    "sportsBetting": "Sports betting pays 6.75% of GGR. Iowa and Nevada have the lowest rate."
+  },
+  "Michigan": {
+    "land": "Detroit commercial casinos pay an 8.1% state wagering tax (MCL 432.212(1)) and a 10.9% city wagering tax (9.9% plus 1%). The sum is 19%. They also pay a municipal services fee of 1.25% of AGR or $4M, whichever is greater (MCL 432.213). The total is about 20.25%.",
+    "iGaming": "The tiered tax on adjusted gross receipts is 20-28%. Most major operators are in the 28% bracket.",
+    "sportsBetting": "Sports betting pays 8.4% of GGR. It is one of the lowest rates. The law allows promotional deductions."
+  },
+  "Mississippi": {
+    "land": "The state tax (Miss. Code 75-76-177) is 4%, 6% and 8% on monthly revenue up to $50K, $50-134K and above. The local tax (75-76-195) is 0.4%, 0.6% and 0.8% on the same tiers. The model uses annual thresholds of $0.6M and $1.608M. Most host jurisdictions also charge a flat 3.2% local tax under local and private laws. The top combined rate is 12%.",
+    "sportsBetting": "Sports betting pays 12% of GGR. It is retail only, with no statewide online betting."
+  },
+  "Missouri": {
+    "land": "Casinos pay 21% of AGR and a $2 fee per admission.",
+    "sportsBetting": "Online and retail sports wagering pay 10% of AGR (Mo. Const. Art. III, 39(g)). The deduction for promotional credits cannot be more than 25% of cash receipts."
+  },
+  "Ohio": {
+    "land": "Commercial casinos pay 33% of GGR. Racinos (VLTs) at racetracks have a different structure.",
+    "sportsBetting": "Since July 4, 2023, the tax on sports gaming receipts is 20%, up from 10% (ORC 5753.021, HB 33)."
+  },
+  "Colorado": {
+    "land": "The graduated tax on adjusted gross proceeds is 0.25%-20% across 6 tiers. Amendment 77 (2020) expanded bet limits. The maximum statutory rate is 40%.",
+    "sportsBetting": "Sports betting pays 10% of GGR. Promotional deductions make the effective rate about 5.4%."
+  },
+  "Connecticut": {
+    "iGaming": "From October 2026, the sixth year after the first license, the rate is 20% of online casino gaming GGR (CGS 12-866(b)). The rate was 18% before. Only the two tribes offer online casino gaming, through their online partners.",
+    "sportsBetting": "Sports betting pays 13.75% of adjusted GGR. It operates through tribal partnerships."
+  },
+  "Louisiana": {
+    "land": "Riverboat casinos pay a 3.5% license fee, a 15% franchise fee and an additional 3%. The total is 21.5% of net gaming proceeds (R.S. 27:91).",
+    "sportsBetting": "Online sports wagering pays 21.5% of net gaming proceeds (R.S. 27:625(B), Act 298 of 2025). The old rate was 15%. Retail pays 10%."
+  },
+  "Maryland": {
+    "land": "The statute splits slot (VLT) proceeds. Each facility has its own operator share. The FY2026 non-operator shares are MGM National Harbor 56%, Live! 51%, Horseshoe Baltimore 53%, Hollywood Perryville 58%, Ocean Downs 47% and Rocky Gap 42%. The model uses 53%, based on the three large facilities. Table games pay 20% (15% to the Education Trust Fund and 5% local).",
+    "sportsBetting": "Since July 1, 2025, mobile sports wagering pays 20%. The licensee keeps 80% (9-1E-12). Retail pays 15%."
+  },
+  "Massachusetts": {
+    "land": "Category 1 resort casinos (Encore Boston Harbor, MGM Springfield) pay 25% of GGR (G.L. c.23K 55(a)). The Category 2 slots parlor (Plainridge Park) pays 40% plus 9% to the Race Horse Development Fund, or 49%. For Plainridge Park, enter a custom rate.",
+    "sportsBetting": "Online sports betting pays 20% of GGR. Retail pays 15%."
+  },
+  "New York": {
+    "land": "Upstate commercial casinos pay 30% on slots and ETGs and 10% on table games (PML 1351(1)(b)). The 30% slot rate is a temporary reduced rate through June 30, 2031. The statutory base slot rates are 37-45% by region.",
+    "sportsBetting": "Online sports betting pays 51% of GGR, the highest online rate in the US. Retail pays 10%."
+  },
+  "West Virginia": {
+    "land": "Racetrack VLTs give the government about 52% of net terminal income above the FY2001 base (most current revenue). This is an inference from 29-22A-10b, which sends 58% of a 10% surcharge to the Excess Lottery Revenue Fund. Then about 50% goes to state funds and 2% to the county. The base tier pays about 45%. Table games pay 35% of AGR (29-22C-26). iGaming pays 15%. Sports betting pays 10%.",
+    "iGaming": "iGaming pays 15% of GGR. Proposals for a 25% rate are under review.",
+    "sportsBetting": "Sports betting pays 10% of GGR."
+  },
+  "Rhode Island": {
+    "land": "The state operates gaming through the RI Lottery at Bally's Lincoln and Bally's Tiverton. For VLTs, the state keeps the residual after operator, technology-provider and town payments. In FY2025, this was 60.4% of net terminal income. Table games pay 15.5% to the state and 1% to the host town.",
+    "iGaming": "From iGaming, the state receives 61% of slot revenue (42-61.2-5.1) and 15.5% of table game revenue (42-61.2-5.2).",
+    "sportsBetting": "The state receives 51% of sports wagering revenue (42-61.2-5). IGT gets 32% and host facilities get 17%."
+  },
+  "Delaware": {
+    "land": "The state operates gaming through the Delaware Lottery at three racinos. For VLTs, the state receives 42.5% of net proceeds after equipment costs (29 Del. C. 4815(b)(3)a). The rate is 40.5% for agents that meet the 3% capital-investment test. Table games pay 15.5% to the state and 4.5% to purses.",
+    "iGaming": "The first $3.75M each year goes to the Lottery Fund. The remainder follows the VLT and table formulas after a 20% vendor fee and administration costs (4815(e)). In FY2025, the state gross margin was approximately 25.5% of iGaming revenue. This is an inference from the Lottery ACFR.",
+    "sportsBetting": "Sports betting pays 50% of GGR. The state runs it through the Delaware Lottery."
+  },
+  "South Dakota": {
+    "land": "Casinos pay 9% of adjusted GGR. The only commercial casinos are in Deadwood.",
+    "sportsBetting": "Sports betting pays 9% of GGR. It is retail only, at Deadwood casinos and tribal locations."
+  },
+  "Maine": {
+    "land": "Rates differ by facility (8 M.R.S. 1036). Hollywood Casino Bangor pays 39% of net slot income and 1% of gross for administration. Oxford Casino pays 46% of net slot income. Table games pay 16% at both. The model uses Bangor's rates. For Oxford Casino, enter a custom rate.",
+    "sportsBetting": "Sports betting pays 10% of GGR."
+  },
+  "Arkansas": {
+    "land": "Casinos pay 13% on the first $150M of net casino gaming receipts and 20% above $150M (Amendment 100 of 2018).",
+    "sportsBetting": "Sports betting pays 13% to $150M and 20% above, the same as casinos."
+  },
+  "Arizona": {
+    "sportsBetting": "Sports betting pays a 10% privilege fee on GGR. The Governor proposed 45% for large operators."
+  },
+  "Kansas": {
+    "land": "The four state-owned casinos pay a 27% privilege fee on GGR. Private operators manage them.",
+    "sportsBetting": "Sports betting pays 10% of GGR."
+  },
+  "Virginia": {
+    "land": "The graduated tax on adjusted gross receipts is 18% on the first $200M, 23% on $200-400M and 30% above $400M per calendar year.",
+    "sportsBetting": "Sports betting pays 15% of adjusted GGR."
+  },
+  "Nebraska": {
+    "land": "Casinos at licensed horse racetracks pay 20% of GGR. The market is new (2020).",
+    "sportsBetting": "Retail-only sports betting pays 20% of GGR."
+  },
+  "Florida": {
+    "land": "Pari-mutuel facilities with slot machines pay 34% of slot revenue (Fla. Stat. 551.106, 2026). The rate was 35% through 2025. The Seminole Tribe operates the major casinos under the 2021 compact. The revenue share on slots is 12% to $2B and increases to 25% above $3.5B. On table games, it is 15% to $1B and increases to 25% above $2B. For a tribal property, enter the revenue share as a custom rate.",
+    "sportsBetting": "The Seminole Tribe offers statewide sports betting (Hard Rock Bet) under the 2021 compact. The Tribe pays 13.75% of its own net win and 10% on pari-mutuel partner brands."
+  },
+  "Kentucky": {
+    "sportsBetting": "Online sports betting pays 14.25%. Retail pays 9.75%."
+  },
+  "New Hampshire": {
+    "sportsBetting": "Sports betting pays 51% of GGR. The state lottery has a monopoly."
+  },
+  "New Mexico": {
+    "land": "Racetrack casinos pay a gaming tax of 24.8% of net take (Laws 2023, ch. 122) until July 1, 2027. Then the rate will go back to 26%. Racetracks also pay 20% to purses and 1.2% for jockey insurance. These payments do not count as tax. Tribal casinos operate under compacts with revenue shares of 3-8.5%."
+  },
+  "North Carolina": {
+    "sportsBetting": "Sports betting pays 18% of GGR."
+  },
+  "Oregon": {
+    "sportsBetting": "Sports betting pays 51% of GGR. The state lottery has a monopoly."
+  },
+  "Tennessee": {
+    "sportsBetting": "Since July 1, 2023, the tax is 1.85% of gross handle (amount wagered). It replaced the 20% GGR tax. The model changes it to a GGR rate with an assumed 9.5% hold. The result is 19.5% of GGR (1.85% divided by 9.5%). If the operator's hold is different, enter a custom rate."
+  },
+  "Vermont": {
+    "sportsBetting": "The minimum revenue share with the state is 20%."
+  },
+  "Wyoming": {
+    "sportsBetting": "Sports betting pays 10% of GGR. A proposal for a 20% rate is under review."
+  }
+}

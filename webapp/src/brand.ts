@@ -13,6 +13,9 @@ export const BRAND = {
 
 export const PRODUCT_NAME_VERSIONED = `${BRAND.productName} ${BRAND.modelVersion}`;
 
+/** The methodology white paper (docs/generate_whitepaper.py), served next to the app. */
+export const WHITE_PAPER_URL = `${import.meta.env.BASE_URL}${BRAND.productName}-${BRAND.modelVersion}-Methodology.pdf`;
+
 /** The commit this bundle was built from (vite.config.ts). */
 export const BUILD = __GEMS_BUILD__;
 

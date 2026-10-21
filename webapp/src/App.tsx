@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { BRAND, BUILD, PRODUCT_NAME_VERSIONED, buildLabel, suggestedCitation } from './brand';
+import { BRAND, BUILD, PRODUCT_NAME_VERSIONED, WHITE_PAPER_URL, buildLabel, suggestedCitation } from './brand';
 import type { RegionalModel } from './engine/io';
 import { computeScenario, defaultAnalysis, PROPERTY_TYPES, type Analysis, type ScenarioResult } from './engine/scenario';
 import { analysisFromForecaster, analysisFromUrl, clearImportParams, loadDraft, saveDraft } from './engine/share';
@@ -172,6 +172,7 @@ export function App() {
         <p>
           {PRODUCT_NAME_VERSIONED} · <a href={BRAND.repository}>Source code and data</a> ·{' '}
           <a href={`${BRAND.repository}/blob/main/docs/methodology.md`}>Methodology</a> ·{' '}
+          <a href={WHITE_PAPER_URL}>White paper (PDF)</a> ·{' '}
           <a href={`${BRAND.repository}/issues/new`}>Report an issue</a> · {BRAND.publisher}
         </p>
         <p className="citation">Suggested citation: {suggestedCitation()}</p>

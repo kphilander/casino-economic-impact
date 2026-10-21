@@ -75,3 +75,12 @@ describe('views render', () => {
     expect(total).toContain('<legend class="pair-label">');
   });
 });
+
+describe('footer links', () => {
+  test('the white paper link points to the PDF that the build serves', async () => {
+    const { WHITE_PAPER_URL } = await import('../brand');
+    const { existsSync } = await import('node:fs');
+    expect(WHITE_PAPER_URL).toBe('/tools/economic-impact/GEMS-2026-Methodology.pdf');
+    expect(existsSync(new URL('../../public/GEMS-2026-Methodology.pdf', import.meta.url))).toBe(true);
+  });
+});

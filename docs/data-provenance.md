@@ -25,6 +25,8 @@ QCEW itself supplies no hours or FTE conversion, so jobs remain the primary meas
 
 Owner-occupied housing (`HS`) and the federal/state-local government-enterprise sectors (`GFE`, `GSLE`) have no QCEW-compatible satellite, so they are explicit zeros rather than unrelated within-state averages. `GFGD`, `GFGN`, and `GSLG` use disclosed QCEW public-administration ownership proxies; uniformed military personnel are outside QCEW coverage.
 
+`scripts/employment_satellite.R` builds the satellite for script 08 and for the browser export. It divides each state's 2023 retail output and value added among sectors 441, 445, 452 and 4A0 by their 2019 shares, because the StateIO 0.4.0 division for 2023 is not usable (452 is zero in every state). It also fills state-sector cells that have output but no disclosed QCEW jobs with the national jobs per dollar of output of the sector. Rail transportation (482) is outside QCEW coverage and stays near zero.
+
 The public ZIP can be supplied with `GEMS_QCEW_SINGLEFILE_ZIP`; otherwise script 08a downloads it from BLS. The generated satellite paths can be overridden with `GEMS_QCEW_ALL_SECTORS_FILE` and `GEMS_FTE_RATIO_FILE`. Script 07 is only a compatibility extractor and no longer ingests a second collection of developer-local source files.
 
 ## USEEIO gambling calibration

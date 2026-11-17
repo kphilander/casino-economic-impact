@@ -34,7 +34,7 @@
         "md5": "8efff490c6762a9aae794a7679e81d4f"
       }
     ],
-    "employmentSatellite": "employment_all_sectors_2023.csv (08a_process_all_qcew_employment.R): 2023 QCEW private annual-average filled jobs by StateIO sector; HS, GFE and GSLE are explicit zeros",
+    "employmentSatellite": "employment_all_sectors_2023.csv (08a_process_all_qcew_employment.R): 2023 QCEW private annual-average filled jobs by StateIO sector; HS, GFE and GSLE are explicit zeros. scripts/employment_satellite.R divides each state's 2023 retail output and value added among 441, 445, 452 and 4A0 by their 2019 shares (the StateIO 2023 split is not usable) and fills suppressed QCEW cells (jobsImputed in each state file) with the national jobs per dollar of output of the sector",
     "ftePerJob": "fte_ratios_2023.csv (08b_generate_bea_fte_ratios.R): BEA NIPA tables 6.4D/6.5D, 2023"
   },
   "industries": [

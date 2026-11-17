@@ -45,6 +45,10 @@ function Notes({ r }: { r: ScenarioResult }) {
     const p = r.payrollAdjustment;
     notes.push(['Gaming-tax adjustment', `The gaming tax decreases direct labor income of gaming by ${pct(1 - p.factor)} (${money(p.directChange)}). Casino revenue includes this tax, at a rate of ${pct(p.rate)}. The adjustment comes from a comparison of the model with the 2022 Economic Census. Direct jobs and GDP do not change.`]);
   }
+  const g = r.gamingAccounts;
+  if (g && g.impliedSurplus < 0) {
+    notes.push(['High gaming tax', `Direct labor income (${money(g.compensation)}), the ${tribal ? 'revenue share' : 'gaming tax'} (${money(g.gamingTax)}) and other direct taxes (${money(g.otherTopi)}) of gaming are more than its direct GDP (${money(g.valueAdded)}). The model gives gaming the same GDP and supplier purchases for each revenue dollar in all states. At this tax rate, direct GDP is possibly too low and supplier effects are possibly too high. If you have observed jobs and wages, enter them.`]);
+  }
   if (r.totals.jobsRange) {
     const d = r.totals.jobsRange.direct;
     const partial = r.streams.some((s) => !s.impact.jobsRange && s.impact.sources.jobs === 'model');
@@ -144,7 +148,7 @@ export function FiscalTable({ fiscal, showGamingNote }: { fiscal: Fiscal; showGa
               <tr key={l.key}>
                 <th scope="row">{l.label}{l.note && <span className="row-note">{l.note}</span>}</th>
                 <EffectCells e={l} fmt={money} />
-                <td className="muted">{l.level === 'federal' ? 'Federal' : 'State and local'}</td>
+                <td className="muted">{l.level === 'federal' ? 'Federal' : l.level === 'all' ? 'All levels' : 'State and local'}</td>
               </tr>
             ))}
             {subtotal('State and local', fiscal.totals.stateLocal, 'subtotal')}

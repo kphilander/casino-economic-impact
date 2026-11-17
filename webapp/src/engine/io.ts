@@ -47,6 +47,8 @@ export interface StateTables {
    */
   householdSpending: { share: number; low: number; high: number; avgWage: number; consumptionShare: number };
   jobs2023: (number | null)[];
+  /** Sectors whose jobs are imputed for a suppressed QCEW cell (national jobs per dollar of output). */
+  jobsImputed?: string[];
   output2023: (number | null)[];
   valueAdded2023: (number | null)[];
 }

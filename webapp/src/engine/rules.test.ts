@@ -369,3 +369,59 @@ describe('household closure (Type II)', () => {
     expect(rows[1].jobs).toBeCloseTo(computeScenario(defaultAnalysis(), m)!.totals.jobs.total, 9);
   });
 });
+
+describe('corrections of November 2026', () => {
+  test('a slot share of 0 or 100 is used as entered; only a missing value takes the default', () => {
+    const pa = GAMING_TAX.rates.Pennsylvania;
+    expect(gamingTax(100, taxRule(pa, null, 0))).toBeCloseTo(100 * pa.tableRate!, 10);
+    expect(gamingTax(100, taxRule(pa, null, 100))).toBeCloseTo(100 * pa.slotsRate!, 10);
+    expect(gamingTax(100, taxRule(pa, null, 150))).toBeCloseTo(100 * pa.slotsRate!, 10);
+    expect(gamingTax(100, taxRule(pa, null, NaN))).toBeCloseTo(100 * (0.7 * pa.slotsRate! + 0.3 * pa.tableRate!), 10);
+  });
+
+  test('gaming accounts: implied surplus is negative at a high statutory rate, positive at a low one', async () => {
+    const pa = computeScenario({ ...defaultAnalysis(), state: 'Pennsylvania' }, await loadModel('PA'))!;
+    const nev = computeScenario(defaultAnalysis(), await nv())!;
+    const g = pa.gamingAccounts!;
+    expect(g.impliedSurplus).toBeCloseTo(g.valueAdded - g.compensation - g.gamingTax - g.otherTopi, 10);
+    expect(g.impliedSurplus).toBeLessThan(0);
+    expect(nev.gamingAccounts!.impliedSurplus).toBeGreaterThan(0);
+    const total = computeScenario({ ...defaultAnalysis(), inputMode: 'total', revenue: { ...defaultAnalysis().revenue, total: 300 } }, await nv())!;
+    expect(total.gamingAccounts).toBeNull();
+  });
+
+  test('the fallback income-tax line is in neither level subtotal', () => {
+    const f = buildFiscal({
+      cashWages: { direct: 10, indirect: 2, induced: 2, total: 14 }, jobs: { direct: 0, indirect: 0, induced: 0, total: 0 },
+      topi: { direct: 0, indirect: 0, induced: 0, total: 0 },
+    }, fiscalDataFor('Nevada'));
+    const combined = f.lines.find((l) => l.key === 'income_combined')!;
+    expect(combined.level).toBe('all');
+    expect(f.totals.all.total).toBeCloseTo(f.totals.federal.total + f.totals.stateLocal.total + combined.total, 10);
+  });
+
+  test('jobs satellite: plausible 2023 output and no sector with output but no jobs', async () => {
+    const loaders = import.meta.glob<StateTables>('../data/io/[A-Z][A-Z].json', { import: 'default' });
+    const noJobs = new Set(['HS', 'GFE', 'GSLE']);
+    for (const [path, load] of Object.entries(loaders)) {
+      const t = await load();
+      const model = await loadModel(t.abbrev);
+      const sum = (v: (number | null)[], codes: string[]) => codes.reduce((s, c) => s + (v[model.index[c]] ?? 0), 0);
+      const retail = ['441', '445', '452', '4A0'];
+      const growth = sum(t.output2023, retail) / sum(t.industryOutput, retail);
+      for (const c of retail) {
+        const i = model.index[c];
+        // Each retail sector grows with the state's retail total.
+        expect(t.output2023[i]! / t.industryOutput[i], `${path} ${c}`).toBeCloseTo(growth, 8);
+        // Lowest: other retail in Washington (large nonstore retailers), about 1.9.
+        expect(model.coefficients.jobs[i], `${path} ${c}`).toBeGreaterThan(1);
+        expect(model.coefficients.jobs[i], `${path} ${c}`).toBeLessThan(15);
+      }
+      model.industries.forEach((ind, i) => {
+        if (noJobs.has(ind.code) || !((t.output2023[i] ?? 0) > 0)) return;
+        // Railroads are outside QCEW; their national coefficient is close to zero.
+        if (ind.code !== '482') expect(model.coefficients.jobs[i], `${path} ${ind.code}`).toBeGreaterThan(0);
+      });
+    }
+  });
+});

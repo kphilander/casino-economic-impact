@@ -11,13 +11,14 @@
  */
 import { describe, expect, test } from 'vitest';
 import legacy from './__fixtures__/legacy-scenarios.json';
-import { loadModel, stateByName } from './data';
+import legacySatellite from './__fixtures__/legacy-satellite.json';
+import { NATIONAL, stateByName } from './data';
 import { computeScenario, headline, type ScenarioResult } from './scenario';
 import { migrate } from './share';
 import { project, sweepGgr, sweepTaxRate } from './sensitivity';
 import type { Effects, ImpactMetric } from './impact';
 import type { Fiscal } from './fiscal';
-import { EFFECTS, type Effect } from './io';
+import { buildModel, EFFECTS, type Effect, type RegionalModel, type StateTables } from './io';
 
 /**
  * FTEs are left out of the comparison: the BEA FTE/job ratios were refreshed
@@ -99,8 +100,33 @@ function legacyShape(r: ScenarioResult) {
   };
 }
 
-async function modelFor(stateName: string) {
-  return (await loadModel(stateByName(stateName)!.abbrev)).withHouseholdSpending('legacy');
+/**
+ * The fixture also predates the corrections of the jobs satellite (November
+ * 2026; scripts/employment_satellite.R): the division of 2023 retail output
+ * among 441, 445, 452 and 4A0, and the jobs filled for suppressed QCEW cells.
+ * The comparison therefore puts back the earlier satellite (the StateIO retail
+ * output of legacy-satellite.json and zero jobs for the filled cells).
+ * io.test.ts checks the current satellite against the R outputs.
+ */
+const tableLoaders = import.meta.glob<StateTables>('../data/io/[A-Z][A-Z].json', { import: 'default' });
+const legacyModels = new Map<string, Promise<RegionalModel>>();
+
+function modelFor(stateName: string): Promise<RegionalModel> {
+  const abbrev = stateByName(stateName)!.abbrev;
+  let m = legacyModels.get(abbrev);
+  if (!m) {
+    m = tableLoaders[`../data/io/${abbrev}.json`]().then((t) => {
+      const index = (code: string) => NATIONAL.industries.findIndex((i) => i.code === code);
+      const output2023 = [...t.output2023];
+      const jobs2023 = [...t.jobs2023];
+      const retail = (legacySatellite.output2023 as Record<string, Record<string, number>>)[abbrev];
+      for (const [code, v] of Object.entries(retail)) output2023[index(code)] = v;
+      for (const code of t.jobsImputed ?? []) jobs2023[index(code)] = 0;
+      return buildModel({ ...t, output2023, jobs2023 }, NATIONAL, 'legacy');
+    });
+    legacyModels.set(abbrev, m);
+  }
+  return m;
 }
 
 describe('rebuilt engine matches the pre-rebuild engine', () => {

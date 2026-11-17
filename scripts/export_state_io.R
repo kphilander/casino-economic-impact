@@ -20,7 +20,8 @@
 #     TwoRegion_Summary_IndustryOutput_2019, TwoRegion_Summary_CommodityOutput_2019,
 #     TwoRegion_Summary_ValueAdded_2019, State_Summary_IndustryOutput_2023,
 #     State_Summary_DomesticUse_2023
-#   employment_all_sectors_2023.csv  (08a_process_all_qcew_employment.R)
+#   employment_all_sectors_2023.csv  (08a_process_all_qcew_employment.R),
+#     through scripts/employment_satellite.R (retail output split, suppressed cells)
 #   fte_ratios_2023.csv              (08b_generate_bea_fte_ratios.R)
 #   household_spending_2023.csv      (08c_household_spending.R): pceAll and the
 #                                    household spending share (with its range)
@@ -33,6 +34,8 @@ suppressPackageStartupMessages({
   library(stateior)
   library(jsonlite)
 })
+
+source(file.path("scripts", "employment_satellite.R"))
 
 io_year <- 2019
 employment_year <- 2023
@@ -78,6 +81,8 @@ ends <- function(x, sfx) x[grepl(paste0(sfx, "$"), x)]
 industries <- NULL
 commodities <- NULL
 index <- list()
+satellite <- NULL
+imputed_count <- 0L
 
 for (i in seq_along(state_names)) {
   st <- state_names[i]
@@ -122,18 +127,18 @@ for (i in seq_along(state_names)) {
   va_rows <- paste0(c("V001", "V002", "V003"), sfx)
   va_m <- as.matrix(va[va_rows, paste0(ind, sfx)])
 
-  o23 <- output_2023[[st]]
-  o23 <- setNames(as.numeric(o23[[1]]), rownames(o23))
-  u23 <- use_2023[[st]]
-  va23_sectors <- intersect(ind, colnames(u23))
-  va23 <- setNames(rep(NA_real_, length(ind)), ind)
-  va23[va23_sectors] <- colSums(u23[c("V001", "V002", "V003"), va23_sectors, drop = FALSE])
+  # Jobs, 2023 output and 2023 value added from the shared satellite, which
+  # corrects the StateIO 2023 retail split and fills suppressed QCEW cells.
+  if (is.null(satellite)) {
+    satellite <- build_employment_satellite(employment, output_2023, use_2023,
+                                            ind_output, value_added, ind)
+  }
+  sat <- satellite[satellite$state_name == st, ]
+  sat <- sat[match(ind, sat$io_sector), ]
+  imputed_count <- imputed_count + sum(sat$jobs_imputed)
 
   hs <- household_spending[household_spending$state_name == st, ]
   if (nrow(hs) != 1L) stop("No household spending share for ", st)
-  emp <- employment[employment$state_name == st, ]
-  jobs <- setNames(emp$employment, emp$io_sector)[ind]
-
   na_to_null <- function(x) {
     x <- as.numeric(x)
     lapply(x, function(v) if (is.na(v)) NULL else v)
@@ -159,9 +164,10 @@ for (i in seq_along(state_names)) {
                              high = hs$household_spending_high,
                              avgWage = hs$avg_wage,
                              consumptionShare = hs$consumption_share_dpi),
-    jobs2023 = na_to_null(jobs),
-    output2023 = na_to_null(o23[ind]),
-    valueAdded2023 = na_to_null(va23[ind])
+    jobs2023 = na_to_null(sat$jobs),
+    jobsImputed = I(ind[sat$jobs_imputed]),
+    output2023 = na_to_null(sat$output),
+    valueAdded2023 = na_to_null(sat$value_added)
   )
   writeLines(toJSON(rec, auto_unbox = TRUE, digits = I(12), null = "null", matrix = "rowmajor"),
              file.path(out_dir, paste0(ab, ".json")), useBytes = TRUE)
@@ -181,7 +187,7 @@ national <- list(
     ioYear = io_year,
     employmentYear = employment_year,
     sources = sources,
-    employmentSatellite = "employment_all_sectors_2023.csv (08a_process_all_qcew_employment.R): 2023 QCEW private annual-average filled jobs by StateIO sector; HS, GFE and GSLE are explicit zeros",
+    employmentSatellite = "employment_all_sectors_2023.csv (08a_process_all_qcew_employment.R): 2023 QCEW private annual-average filled jobs by StateIO sector; HS, GFE and GSLE are explicit zeros. scripts/employment_satellite.R divides each state's 2023 retail output and value added among 441, 445, 452 and 4A0 by their 2019 shares (the StateIO 2023 split is not usable) and fills suppressed QCEW cells (jobsImputed in each state file) with the national jobs per dollar of output of the sector",
     ftePerJob = "fte_ratios_2023.csv (08b_generate_bea_fte_ratios.R): BEA NIPA tables 6.4D/6.5D, 2023"
   ),
   industries = lapply(seq_along(industries), function(k) list(code = industries[k], name = fte$bea_industry[k])),

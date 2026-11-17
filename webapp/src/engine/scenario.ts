@@ -175,6 +175,23 @@ export interface GamingTaxResult {
   tribal: boolean;
 }
 
+/**
+ * Direct accounts of the gaming stream ($M). Direct value added has the
+ * national composition in every state, while the gaming tax is the state's
+ * own. Implied surplus = value added - compensation - gaming tax (or revenue
+ * share) - retained other taxes on production. A negative value means the
+ * state's tax is too high for the national cost structure: direct GDP is too
+ * low or supplier purchases are too high for this property.
+ */
+export interface GamingAccounts {
+  revenue: number;
+  valueAdded: number;
+  compensation: number;
+  gamingTax: number;
+  otherTopi: number;
+  impliedSurplus: number;
+}
+
 export interface ConstructionResult {
   cost: number;
   localSpend: number;
@@ -194,6 +211,8 @@ export interface ScenarioResult {
   /** Rate used by the payroll adjustment, where it comes from, and the change in direct compensation. */
   payrollAdjustment: { rate: number; rateSource: 'computed' | 'custom' | 'blended'; factor: number; directChange: number } | null;
   fiscal: Fiscal;
+  /** Accounts of the taxed gaming stream; implied surplus is negative where they exceed its value added. */
+  gamingAccounts: GamingAccounts | null;
   net: { share: number; totals: Record<ImpactMetric, Effects> } | null;
   construction: ConstructionResult | null;
   stateTax: StateGamingTax | undefined;
@@ -287,6 +306,17 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
     gamingStreamTopi: (gamingTax || tribal) && gamingStream ? gamingStream.impact.topi.direct : 0,
   }, fiscalData);
 
+  let gamingAccounts: GamingAccounts | null = null;
+  if (gamingTax && gamingStream) {
+    const g = gamingStream.impact;
+    const otherTopi = tribal ? 0 : NON_GAMING_TOPI_SHARE * g.topi.direct;
+    gamingAccounts = {
+      revenue: gamingStream.revenue, valueAdded: g.gdp.direct, compensation: g.compensation.direct,
+      gamingTax: gamingTax.amount, otherTopi,
+      impliedSurplus: g.gdp.direct - g.compensation.direct - gamingTax.amount - otherTopi,
+    };
+  }
+
   const share = netShare(a.netImpact);
   const net = share != null ? { share, totals: scaleImpact(totals, share) } : null;
 
@@ -309,7 +339,7 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
 
   return {
     analysis: a, dollarYear, deflator, streams, totals, gamingTax, payrollAdjustment,
-    fiscal, net, construction, stateTax,
+    fiscal, gamingAccounts, net, construction, stateTax,
   };
 }
 

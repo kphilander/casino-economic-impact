@@ -70,7 +70,8 @@ export function taxRule(s: GamingTaxSchedule | undefined, customRate: number | n
   if (customRate != null) return { kind: 'custom', rate: customRate };
   if (!s) return { kind: 'none' };
   const addOn = s.additionalRate ?? 0;
-  const slotShare = (slotSharePct || 70) / 100;
+  // A slot share of 0 (table games only) is valid; only a missing value takes the default.
+  const slotShare = Math.min(100, Math.max(0, Number.isFinite(slotSharePct) ? slotSharePct : 70)) / 100;
   if (s.rateStructure === 'split_tiered' && s.slotTiers && s.tableTiers) {
     return { kind: 'splitTiered', slotTiers: s.slotTiers, tableTiers: s.tableTiers, slotShare, addOn };
   }

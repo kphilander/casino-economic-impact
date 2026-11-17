@@ -6,7 +6,7 @@
 **Model version:** 2026 (release edition)
 **Publisher:** GP Consulting
 **Live calculator:** https://gamblingpolicy.com/tools/economic-impact/
-**White paper (PDF):** https://gamblingpolicy.com/tools/economic-impact/GEMS-2026-Methodology.pdf — generated from [`generate_whitepaper.py`](generate_whitepaper.py); regenerate after content changes with `python3 docs/generate_whitepaper.py` (requires `pip install reportlab`). The PDF describes the model as deployed in October 2026, in ASD-STE100 Simplified Technical English. Keep the two documents in agreement; where they differ, this document applies.
+**White paper (PDF):** https://gamblingpolicy.com/tools/economic-impact/GEMS-2026-Methodology.pdf — generated from [`generate_whitepaper.py`](generate_whitepaper.py); regenerate after content changes with `python3 docs/generate_whitepaper.py` (requires `pip install reportlab`). The PDF describes the model as deployed in November 2026, in ASD-STE100 Simplified Technical English. Keep the two documents in agreement; where they differ, this document applies.
 
 ### Suggested Citation
 
@@ -309,6 +309,7 @@ The model version is the release edition year (e.g., GEMS 2026). When a new edit
 | GEMS 2026 (calculator rebuild) | October 2026 | Calculator rebuilt in TypeScript; the regional model is computed in the browser from the StateIO tables and tested against the R pipeline; gaming-tax adjustment of direct compensation; supplier and induced jobs by industry; report exports and licensing removed. |
 | GEMS 2026 (household closure) | October 2026 | Households spend the share of compensation that remains after payroll and income taxes and saving (Section 2.1), not all in-state consumption per dollar of compensation. Induced effects are lower; Type II output about 20% lower. Sensitivity view shows a low and high spending share. |
 | GEMS 2026 (employee FICA) | October 2026 | Federal payroll taxes include the employee halves of Social Security and Medicare. |
+| GEMS 2026 (jobs satellite corrections) | November 2026 | 2023 retail output divided among the four retail sectors by 2019 shares; national jobs per dollar of output where QCEW does not disclose a state-sector cell; a slot share of 0% is accepted; note where the gaming tax, labor income and other direct taxes are more than direct value added. Supplier and induced jobs changed slightly (Section 2.3). |
 
 ## 8. Key References
 

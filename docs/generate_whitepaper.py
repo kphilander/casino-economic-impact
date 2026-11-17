@@ -4,7 +4,7 @@ Generate the GEMS methodology white paper PDF.
 
 Output: webapp/public/GEMS-2026-Methodology.pdf (served by the web app at
 <base>/GEMS-2026-Methodology.pdf). The paper describes the model as deployed
-in October 2026 and agrees with docs/methodology.md. It is written in
+in November 2026 and agrees with docs/methodology.md. It is written in
 ASD-STE100 Simplified Technical English; technical names, formulas, file
 names, statutes and citations keep their usual form.
 
@@ -35,7 +35,7 @@ PUBLISHER = "GP Consulting"
 URL = "https://gamblingpolicy.com/tools/economic-impact/"
 EMAIL = "info@gamblingpolicy.com"
 AUTHOR = "Dr. Kahlil Simeon-Rose"
-EDITION_DATE = "October 2026"
+EDITION_DATE = "November 2026"
 CITATION = (
     f"Simeon-Rose, K. (2026). {PRODUCT_NAME}: {PRODUCT_FULL_NAME} "
     f"(Version {MODEL_VERSION}) [Computer software]. {PUBLISHER}. {URL}"
@@ -472,6 +472,17 @@ def build():
         "measure of GEMS. Owner-occupied housing (HS) and government enterprises (GFE, GSLE) have "
         "no QCEW measure, so their job coefficients are zero."))
     el.append(body(
+        "The satellite has two corrections (scripts/employment_satellite.R). First, StateIO 0.4.0 "
+        "divides 2023 retail output among the four retail sectors (441, 445, 452, 4A0) incorrectly. "
+        "Sector 452 has no output in any state, and sector 441 has approximately five times its "
+        "2019 output. The retail total is plausible. Thus, the satellite keeps the 2023 retail "
+        "total of each state and divides it among the four sectors by their 2019 shares. Second, "
+        "QCEW does not disclose the jobs of some state-sector cells. Where a sector has output in "
+        "a state but no recorded jobs, the satellite uses the national jobs for each dollar of "
+        "output of that sector. Each state file lists these sectors. The corrections changed only "
+        "supplier and induced jobs. For the four casino-related sectors, Type II jobs for each "
+        "dollar of output changed by -5% to 0% across the states."))
+    el.append(body(
         "StateIO gives each sector national coefficients for value added, compensation and TOPI. "
         "Thus, the differences between states in labor intensity come from jobs for each dollar "
         "of output."))
@@ -647,6 +658,13 @@ def build():
         "not change. Lower labor income gives lower cash wages, lower payroll and income taxes, and "
         "lower induced effects. Entered wages replace the adjusted value. The adjustment "
         "does not apply to online operators or to lodging, food and other revenue."))
+    el.append(body(
+        "Direct value added and supplier purchases for each revenue dollar are national values. "
+        "At a high gaming tax rate, the sum of direct labor income, the gaming tax and the other "
+        "direct taxes can be more than direct value added. With the default inputs, this occurs "
+        "in Maryland, Pennsylvania, Rhode Island and West Virginia. Direct GDP is then possibly "
+        "too low, and supplier effects are possibly too high. The calculator shows a note when "
+        "this occurs. It does not change the estimates."))
     el.append(h2("6.5 Convergent validity of the multipliers"))
     el.append(body(
         "Supplier and induced effects have no observed benchmark. No agency measures them, and "

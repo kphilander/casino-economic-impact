@@ -407,6 +407,7 @@ The calculator can be pre-filled via URL parameters from the [Casino Revenue For
 | `food` | `28.1` | Food & beverage revenue in $M |
 | `lodging` | `51.1` | Lodging revenue in $M (0 if no hotel) |
 | `other` | `31.5` | Other revenue in $M |
+| `dollarYear` | `2025` | Dollar year of the revenue. Optional; ignored unless it is a year in the CPI table, in which case it sets the dollar year of the analysis |
 | `gaming_emp`, `archetype` | `2,405`, `mega_resort` | Accepted and ignored |
 
 When imported, a banner links back to the forecaster.

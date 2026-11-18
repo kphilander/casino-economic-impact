@@ -239,6 +239,10 @@ describe('save and share', () => {
     expect(a.revenue).toEqual({ gaming: 149.4, food: 28.1, lodging: null, other: 31.5, total: null });
     expect(analysisFromForecaster('?from=forecaster&state=Atlantis&propertyType=XYZ')).toMatchObject({ state: 'Nevada', propertyType: '721120' });
     expect(analysisFromForecaster('?state=Ohio')).toBeNull();
+    // The link can carry the dollar year of the revenue; a year outside the CPI table is ignored.
+    expect(a.dollarYear).toBeNull();
+    expect(analysisFromForecaster('?from=forecaster&state=Ohio&gaming=100&dollarYear=2024')!.dollarYear).toBe(2024);
+    expect(analysisFromForecaster('?from=forecaster&state=Ohio&gaming=100&dollarYear=2031')!.dollarYear).toBeNull();
   });
 
   test('v2 links migrate to the current shape', () => {

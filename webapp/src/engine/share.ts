@@ -8,6 +8,7 @@ import {
   type Analysis, type Department, type PropertyType,
 } from './scenario';
 import { stateByName } from './data';
+import { CPI } from './prices';
 
 const URL_PARAM = 'a';
 const PROJECTS_KEY = 'gems_projects';
@@ -104,7 +105,8 @@ export function analysisFromUrl(search = window.location.search): Analysis | nul
  * Pre-fill from the Casino Revenue Forecaster
  * (gamblingpolicy.com/tools/revenue-forecaster), which links here with
  * ?from=forecaster&state=&name=&propertyType=&gaming=&food=&lodging=&other=
- * (revenue in $M).
+ * (revenue in $M) and optionally &dollarYear= (the dollar year of that
+ * revenue; ignored unless it is a year in the CPI table).
  */
 export function analysisFromForecaster(search = window.location.search): Analysis | null {
   const p = new URLSearchParams(search);
@@ -116,6 +118,7 @@ export function analysisFromForecaster(search = window.location.search): Analysi
     const n = num(p.get(k)?.replace(/,/g, ''));
     return n != null && n > 0 ? n : null;
   };
+  const year = num(p.get('dollarYear'));
   return {
     ...a,
     state: state && stateByName(state) ? state : a.state,
@@ -123,6 +126,7 @@ export function analysisFromForecaster(search = window.location.search): Analysi
     propertyType: pt && pt in PROPERTY_TYPES ? (pt as PropertyType) : a.propertyType,
     inputMode: 'department',
     revenue: { gaming: rev('gaming'), food: rev('food'), lodging: rev('lodging'), other: rev('other'), total: null },
+    dollarYear: year != null && CPI[year] ? year : a.dollarYear,
   };
 }
 

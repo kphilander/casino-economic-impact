@@ -542,6 +542,43 @@ describe('optional complimentaries', () => {
     }
   });
 
+  test('stand-alone casino with comps: the jobs rate applies to all of GGR', async () => {
+    const model = await loadModel('PA');
+    const casino = (): Analysis => ({
+      ...defaultAnalysis(), state: 'Pennsylvania', propertyType: '713210', dollarYear: 2025,
+      revenue: { gaming: 200, food: 20, lodging: null, other: 5, total: null },
+    });
+    const comps = { food: 12, lodging: null, other: 3 };
+    const plain = computeScenario(casino(), model)!;
+    const r = computeScenario({ ...casino(), comps }, model)!;
+    const g = r.streams.find((s) => s.key === 'gaming')!;
+    const g0 = plain.streams.find((s) => s.key === 'gaming')!;
+    // Output of the gaming stream is GGR less the comps; the tax is on GGR.
+    expect(g.revenue).toBeCloseTo(200 - 15, 12);
+    expect(r.gamingTax!.amount).toBeCloseTo(plain.gamingTax!.amount, 12);
+    // Direct gaming jobs and FTEs do not change: rate x all of GGR in 2023 dollars.
+    const per = DIRECT_JOBS_RATE.level * Math.exp(-DIRECT_JOBS_RATE.slope * r.gamingTax!.effectiveRate);
+    expect(g.impact.sources.jobs).toBe('rate');
+    expect(g.impact.basis.directJobsRevenue).toBe(200);
+    expect(g.impact.jobs.direct).toBeCloseTo(200 * r.deflator * per, 9);
+    expect(g.impact.jobs.direct).toBeCloseTo(g0.impact.jobs.direct, 9);
+    expect(g.impact.fte.direct).toBeCloseTo(g0.impact.fte.direct, 9);
+    // Everything else in the gaming stream follows the smaller output.
+    expect(g.impact.output.direct).toBeCloseTo(185, 12);
+    expect(g.impact.jobs.indirect / g0.impact.jobs.indirect).toBeCloseTo(185 / 200, 12);
+    // The departments that receive the comps gain jobs on them.
+    const food = r.streams.find((s) => s.key === 'food')!, food0 = plain.streams.find((s) => s.key === 'food')!;
+    expect(food.revenue).toBeCloseTo(32, 12);
+    expect(food.impact.jobs.direct / food0.impact.jobs.direct).toBeCloseTo(32 / 20, 12);
+    // Without comps the base is the stream's own revenue.
+    expect(g0.impact.basis.directJobsRevenue).toBe(200);
+    // A casino hotel keeps the rate on GGR less the comps.
+    const hotel = computeScenario({ ...casino(), propertyType: '721120', comps }, model)!;
+    const gh = hotel.streams.find((s) => s.key === 'gaming')!;
+    expect(gh.impact.basis.directJobsRevenue).toBeCloseTo(185, 12);
+    expect(gh.impact.jobs.direct).toBeCloseTo(185 * hotel.deflator * per, 9);
+  });
+
   test('comps above GGR are scaled down; total mode and online ignore them', () => {
     const a = { ...base(), revenue: { ...base().revenue, gaming: 50 }, comps: { food: 60, lodging: 40, other: null } };
     const c = compsApplied(a)!;

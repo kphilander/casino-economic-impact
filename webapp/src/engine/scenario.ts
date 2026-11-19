@@ -337,6 +337,9 @@ export function computeScenario(a: Analysis, model: RegionalModel, options: Scen
 
   // Revenue streams.
   const plan: { key: StreamKey; label: string; activity: ActivityKey; revenue: number; known: KnownData }[] = [];
+  // Revenue that the national direct-jobs rate applies to, when it is not the
+  // gaming stream's own revenue (see below).
+  let gamingJobsRevenue: number | null = null;
   if (a.inputMode === 'total') {
     const sumKnown = (k: keyof KnownData) => DEPARTMENTS.reduce((s, d) => s + positive(a.known[d][k]), 0) || null;
     plan.push({
@@ -356,6 +359,12 @@ export function computeScenario(a: Analysis, model: RegionalModel, options: Scen
     for (const d of DEPARTMENTS) {
       plan.push({ key: d, label: DEPARTMENT_LABELS[d], activity: DEPARTMENT_ACTIVITY[d], revenue: Math.max(0, positive(a.revenue[d]) + moved(d)), known: a.known[d] });
     }
+    // The rate for stand-alone casinos comes from Census total receipts, in
+    // which complimentaries cancel between departments, so it is a rate per
+    // dollar of gross win: it applies to all of GGR. The casino-hotel cells
+    // use Census gaming receipts, which are mostly net of complimentaries, so
+    // for casino hotels the rate stays on the gaming stream's output.
+    if (comps && a.propertyType === '713210') gamingJobsRevenue = positive(a.revenue.gaming);
   }
 
   const streams: Stream[] = [];
@@ -372,6 +381,7 @@ export function computeScenario(a: Analysis, model: RegionalModel, options: Scen
       jobsRange: (useRate ? jobsRangeFor : coefficientRangeFor)(a.propertyType, tribal ? 'tribal' : 'commercial', a.inputMode, p.key),
       directFtePerJob: directFtePerJob(model, p.activity),
       directJobsPerMillion: useRate ? directJobsRate(taxRate, a.propertyType, tribal ? 'tribal' : 'commercial', a.inputMode, p.key) : null,
+      directJobsRevenue: p.key === 'gaming' ? gamingJobsRevenue : null,
     });
     if (impact) streams.push({ key: p.key, label: p.label, activity: p.activity, revenue: p.revenue, impact });
   }

@@ -408,6 +408,7 @@ The calculator can be pre-filled via URL parameters from the [Casino Revenue For
 | `lodging` | `51.1` | Lodging revenue in $M (0 if no hotel) |
 | `other` | `31.5` | Other revenue in $M |
 | `dollarYear` | `2025` | Dollar year of the revenue. Optional; ignored unless it is a year in the CPI table, in which case it sets the dollar year of the analysis |
+| `slotShare` | `60` | Slot win as a percent of GGR. Optional; sets the slot share used where a state taxes slots and table games at different rates. Ignored unless it is between 0 and 100 (default 70) |
 | `gaming_emp`, `archetype` | `2,405`, `mega_resort` | Accepted and ignored |
 
 When imported, a banner links back to the forecaster.

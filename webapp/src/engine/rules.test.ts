@@ -249,6 +249,38 @@ describe('save and share', () => {
     expect(analysisFromForecaster('?from=forecaster&state=Ohio&gaming=100&dollarYear=2031')!.dollarYear).toBeNull();
   });
 
+  test('Revenue Forecaster links can set the slot share of GGR', () => {
+    const share = (q: string) => analysisFromForecaster(`?from=forecaster&state=Pennsylvania&gaming=100${q}`)!.gamingTax.slotSharePct;
+    expect(share('')).toBe(70);
+    expect(share('&slotShare=60')).toBe(60);
+    expect(share('&slotShare=0')).toBe(0);
+    expect(share('&slotShare=100')).toBe(100);
+    expect(share('&slotShare=93.5')).toBe(93.5);
+    // Out of range or not a number: the default stays.
+    expect(share('&slotShare=101')).toBe(70);
+    expect(share('&slotShare=-5')).toBe(70);
+    expect(share('&slotShare=abc')).toBe(70);
+    expect(share('&slotShare=')).toBe(70);
+    // The custom rate is not touched.
+    expect(analysisFromForecaster('?from=forecaster&gaming=100&slotShare=60')!.gamingTax.customRate).toBeNull();
+  });
+
+  test('a Revenue Forecaster export link sets the slot share used by a split gaming tax', async () => {
+    // Link built by the forecaster's buildEconomicImpactURL for a $293.5M mega_resort forecast.
+    const link = '?from=forecaster&state=Pennsylvania&name=Example&propertyType=721120&inputMode=department&gaming=293.5&food=160.3&lodging=191.4&other=101.3&archetype=mega_resort&slotShare=60&dollarYear=2025';
+    const a = analysisFromForecaster(link)!;
+    expect(a.revenue).toEqual({ gaming: 293.5, food: 160.3, lodging: 191.4, other: 101.3, total: null });
+    expect(a.gamingTax.slotSharePct).toBe(60);
+    expect(a.dollarYear).toBe(2025);
+    const model = await loadModel('PA');
+    const r = computeScenario(a, model)!;
+    const pa = GAMING_TAX.rates.Pennsylvania;
+    expect(r.gamingTax!.amount).toBeCloseTo(293.5 * (0.6 * pa.slotsRate! + 0.4 * pa.tableRate!), 9);
+    // Without the parameter the default 70% applies.
+    const old = computeScenario(analysisFromForecaster(link.replace('&slotShare=60', ''))!, model)!;
+    expect(old.gamingTax!.amount).toBeCloseTo(293.5 * (0.7 * pa.slotsRate! + 0.3 * pa.tableRate!), 9);
+  });
+
   test('v2 links migrate to the current shape', () => {
     const v2 = {
       v: 2, state: 'Iowa', casinoName: 'Old link', propertyType: '713210', inputMode: 'department',

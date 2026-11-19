@@ -106,7 +106,8 @@ export function analysisFromUrl(search = window.location.search): Analysis | nul
  * (gamblingpolicy.com/tools/revenue-forecaster), which links here with
  * ?from=forecaster&state=&name=&propertyType=&gaming=&food=&lodging=&other=
  * (revenue in $M) and optionally &dollarYear= (the dollar year of that
- * revenue; ignored unless it is a year in the CPI table).
+ * revenue; ignored unless it is a year in the CPI table) and &slotShare= (slot
+ * win as a percent of GGR; ignored unless it is between 0 and 100).
  */
 export function analysisFromForecaster(search = window.location.search): Analysis | null {
   const p = new URLSearchParams(search);
@@ -119,6 +120,7 @@ export function analysisFromForecaster(search = window.location.search): Analysi
     return n != null && n > 0 ? n : null;
   };
   const year = num(p.get('dollarYear'));
+  const slotShare = num(p.get('slotShare'));
   return {
     ...a,
     state: state && stateByName(state) ? state : a.state,
@@ -127,6 +129,10 @@ export function analysisFromForecaster(search = window.location.search): Analysi
     inputMode: 'department',
     revenue: { gaming: rev('gaming'), food: rev('food'), lodging: rev('lodging'), other: rev('other'), total: null },
     dollarYear: year != null && CPI[year] ? year : a.dollarYear,
+    gamingTax: {
+      ...a.gamingTax,
+      slotSharePct: slotShare != null && slotShare >= 0 && slotShare <= 100 ? slotShare : a.gamingTax.slotSharePct,
+    },
   };
 }
 

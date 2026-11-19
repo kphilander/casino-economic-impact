@@ -130,23 +130,46 @@ Direct jobs are the one employment quantity with an observed, non-circular bench
 
 1. **QCEW, jobs per wage dollar** (2023, all states, cells with at least 50 jobs). The coefficient appears short: geometric-mean ratios of 0.71 for stand-alone casinos, 0.84 for casino hotels and 0.90 for slot parlors. This requires converting model compensation to QCEW-comparable wages by industry (Section 3.3); without the conversion the shortfall roughly doubles.
 2. **2022 Economic Census, jobs and payroll per revenue dollar.** Unlike QCEW, the Census observes receipts, so it can separate jobs per dollar of output from compensation per dollar of output.
-   - **Jobs per revenue dollar show no bias:** ratios of 0.94, 1.06 and 0.96, with p > 0.5.
+   - **Jobs per revenue dollar show no average bias:** ratios of 0.94, 1.06 and 0.96, with p > 0.5. But the variation of the coefficient between states carries no information for casinos (see below).
    - **The payroll share of revenue is 18–53% too high**, and the observed share falls as the state's effective gaming tax rises. StateIO gives every state the national value-added composition, so the coefficient cannot reflect that gaming taxes take a large share of revenue in high-tax states.
    - The jobs-per-wage shortfall in the QCEW test is therefore a compensation overstatement, not a shortage of jobs.
 
-GEMS therefore applies **no adjustment to direct jobs**. For land-based commercial casinos it reports a **90% predictive range** for direct and total jobs (`webapp/src/data/jobsRange.json`). The range is the 5th–95th percentile of a lognormal fitted to the cross-state dispersion of the Census residuals:
+**National rate for direct gaming jobs (November 2026).** The absence of average bias hid two problems. Across 21 gaming-stream cells in 15 states with commercial casinos, the state gambling coefficient has no correlation with observed jobs per revenue dollar (r = −0.08). And observed jobs per revenue dollar fall as the gaming tax rate rises, at about the same rate as the payroll share (Section 2.7), while the coefficient does not. The coefficient was therefore too high in high-tax states (model ÷ Census of 1.5 for Pennsylvania) and too low in low-tax states (0.62 to 0.66 for Nevada and New Jersey).
 
-| Property type | Cells | Model / Census jobs per revenue $ | 90% range (× coefficient) |
-|---|---:|---:|---|
-| Stand-alone casino (713210) | 15 | 0.94 (p = 0.56) | 0.56–2.01 |
-| Slot parlor / other gambling (713290) | 22 | 1.06 (p = 0.65) | 0.33–2.70 |
-| Casino hotel (721120) | 19 | 0.96 (p = 0.60) | 0.59–1.83 |
+For the gaming stream of commercial stand-alone casinos (713210) and casino hotels (721120), GEMS replaces the state coefficient with a national rate (`webapp/src/data/directJobsRate.json`; `directJobsRate` in `webapp/src/engine/scenario.ts`):
+
+```text
+direct gaming jobs per $1M of revenue (2023 dollars) = 4.57 × exp(−0.992 × τ)
+```
+
+- τ is the same effective gaming tax rate as in Section 2.7.
+- Estimation: log(observed jobs per $1M) on τ, standard errors clustered by state; slope 0.992 (SE 0.42, p = 0.034), level 4.57 (SE of the log 0.11). The cells are stand-alone casinos (employees ÷ receipts, 8 states) and casino hotels (employees less modeled non-gaming jobs, per dollar of gaming receipts from the Census product lines, 13 states). Stand-alone casinos alone give 4.80 × exp(−1.06 τ) (slope SE 0.21).
+- Leave-one-state-out mean absolute log error: state coefficient 0.236; state coefficient with a tax factor exp(−bτ) 0.251; national constant 0.185; national rate 0.169. A tax factor on the state coefficient, the form used for compensation, does not help, because the state coefficient is the larger source of error.
+- The rate changes direct jobs and direct estimated FTEs of the gaming stream (FTEs keep the FTE-per-job ratio of the sector). Compensation, value added and supplier and induced effects do not change. User-entered jobs replace the rate.
+- With the rate, the casino-hotel department-mode test (17 states) gives a geometric-mean ratio of 1.06 and an aggregate ratio of 1.02 (1.08 and 0.97 with the state coefficient), and the mean absolute log error falls from 0.21 to 0.16. Thirteen of these states are in the estimation sample.
+- Not applied to slot parlors and bingo halls (the rate does not lower their error; the industry is heterogeneous), bars with slots, tribal properties (outside the sample) or online operators. These keep the state coefficient.
+
+Limits of the rate:
+
+- For the casino-hotel cells alone the slope is not significant (p = 0.18) and the rate is not better than a national constant; the result rests mostly on the eight stand-alone cells. The casino-hotel cells also depend on the lodging, food and other coefficients of the model.
+- The rate is linear in revenue. The Nevada Gaming Abstract for fiscal year 2025 shows 4.6 jobs per $1M of total revenue (2023 dollars) at casinos with rooms and gaming revenue of $72M or more, against 7.8 to 8.6 in the smaller classes. The model is therefore closest for large properties and too low for small ones. In the same data the Nevada lodging coefficient (5.04) is above the 3.5 observed for the largest class, and the coefficient for other revenue (1.70) is below the 3.9 observed.
+- Gaming revenue should be net of complimentaries where department revenue includes them. In Nevada, complimentaries are 28% of gross gaming win. Gross win entered with department revenue that includes complimentaries counts that revenue two times.
+
+For land-based commercial casinos GEMS reports a **90% predictive range** for direct and total jobs. The range is the 5th–95th percentile of a lognormal fitted to the log errors across states:
+
+| Stream | Cells | Predicted ÷ Census jobs per revenue $ | 90% range (× direct jobs) | Basis |
+|---|---:|---:|---|---|
+| Gaming department (national rate) | 21 | 1.00 | 0.67–1.48 | leave-one-state-out |
+| Stand-alone casino, total revenue (national rate) | 8 | 0.97 | 0.87–1.21 | leave-one-state-out |
+| Casino hotel, total revenue (national rate on all receipts) | 15 | 0.88 | 0.87–1.49 | in-sample; includes the bias |
+| Slot parlor / other gambling (713290, state coefficient) | 22 | 1.06 (p = 0.65) | 0.33–2.70 | `jobsRange.json` |
 
 Scope and assumptions:
 
-- In total mode, the selected property type's range applies. In department mode, only the gaming stream carries a range, using the stand-alone-casino range as the gaming-floor proxy (the slot-parlor range for slot parlors).
+- In total mode, the selected property type's range applies. In department mode, only the gaming stream carries a range: the gaming-department range (the slot-parlor range for slot parlors).
+- The stand-alone range rests on eight cells and is narrow; treat it as a lower limit of the uncertainty.
 - No range is shown in these cases:
-  - Bars/restaurants with slots: there is no gaming-tavern benchmark.
+  - Bars/restaurants with slots in total mode: there is no gaming-tavern benchmark.
   - Tribal properties: the Economic Census excludes most tribal casinos, and BEA records tribal gaming as a government enterprise.
   - Online operations.
   - User-entered jobs.
@@ -154,7 +177,7 @@ Scope and assumptions:
 - Census receipts include non-gaming revenue, consistent with the total-revenue input; Census employment is the mid-March pay period. Census and QCEW agree on jobs per payroll dollar within 2–4% for casinos and casino hotels.
 - The overstated compensation share is corrected by the gaming-tax adjustment of Section 2.7.
 
-Replication: `kphilander/casino-io-validation`, scripts 15 (QCEW) and 19 (Economic Census); private until publication.
+Replication: `kphilander/casino-io-validation`, scripts 15 (QCEW), 19 and 19b (Economic Census) and 19c (national rate); private until publication.
 
 ### 2.7 Gaming-Tax Adjustment of Direct Compensation
 
@@ -175,7 +198,7 @@ adjusted direct compensation = model direct compensation × exp(−b τ)
 Application:
 
 - τ is the effective rate the analysis applies to gaming revenue: the computed statutory or custom rate when GGR is entered, otherwise the state's blended effective rate. Tribal compact revenue shares are treated the same way, although tribal casinos are outside the estimation sample.
-- Direct jobs and direct value added do not change.
+- Direct value added does not change. Direct jobs of commercial casinos fall with the tax rate through the national rate of Section 2.6, not through this adjustment.
 - Direct value added and supplier purchases per revenue dollar are national values. At a high gaming tax rate, direct labor income, the gaming tax and other direct taxes together can be more than direct value added (at default inputs: Maryland, Pennsylvania, Rhode Island and West Virginia). Direct GDP is then possibly too low and supplier effects possibly too high. The calculator shows a note when this occurs (`gamingAccounts` in `webapp/src/engine/scenario.ts`); it does not change the estimates.
 - Lower direct compensation lowers cash wages and the payroll and income taxes based on them.
 - Induced effects scale with the change in direct plus supplier compensation. This is exact in the Type II model, where household spending is proportional to labor income.
@@ -293,6 +316,7 @@ Legacy land-based total operating revenue is not treated as GGR for the statutor
 - State-level analysis captures only impacts within the state boundary; spending that leaks to other states is excluded.
 - The model is appropriate for policy analysis, planning, and comparative assessment. It is **not** appropriate for precise forecasting, investment decisions without professional advice, or legal proceedings.
 - IO models assume fixed production technology and no supply constraints; very large projects may alter local economic structure in ways the model does not capture.
+- Direct jobs per revenue dollar are the same for small and large properties. Large casinos have fewer jobs per revenue dollar than small ones (Section 2.6); enter observed jobs where they are known.
 - Indirect and induced effects cannot be validated against observation without circularity: no agency measures them, and published "total impact" figures are themselves model output. Only the direct jobs coefficient is checked against observed data (Section 2.6).
 - The direct value-added, compensation and TOPI coefficients in the StateIO summary tables are national constants within each sector; state variation in modeled labor intensity comes from jobs per output.
 
@@ -310,6 +334,7 @@ The model version is the release edition year (e.g., GEMS 2026). When a new edit
 | GEMS 2026 (household closure) | October 2026 | Households spend the share of compensation that remains after payroll and income taxes and saving (Section 2.1), not all in-state consumption per dollar of compensation. Induced effects are lower; Type II output about 20% lower. Sensitivity view shows a low and high spending share. |
 | GEMS 2026 (employee FICA) | October 2026 | Federal payroll taxes include the employee halves of Social Security and Medicare. |
 | GEMS 2026 (jobs satellite corrections) | November 2026 | 2023 retail output divided among the four retail sectors by 2019 shares; national jobs per dollar of output where QCEW does not disclose a state-sector cell; a slot share of 0% is accepted; note where the gaming tax, labor income and other direct taxes are more than direct value added. Supplier and induced jobs changed slightly (Section 2.3). |
+| GEMS 2026 (national gaming jobs rate) | November 2026 | Direct gaming jobs of commercial stand-alone casinos and casino hotels use a national rate that falls with the gaming tax rate, 4.57 × exp(−0.992 τ) jobs per $1M, in place of the state gambling coefficient (Section 2.6). Predictive ranges re-estimated. |
 
 ## 8. Key References
 

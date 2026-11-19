@@ -485,7 +485,8 @@ def build():
     el.append(body(
         "StateIO gives each sector national coefficients for value added, compensation and TOPI. "
         "Thus, the differences between states in labor intensity come from jobs for each dollar "
-        "of output."))
+        "of output. Direct gaming jobs of commercial casinos are an exception. They use a "
+        "national rate that changes with the gaming tax rate (Section 6.3)."))
     el.append(h2("4.2 Estimated FTEs"))
     el.append(body(
         "BEA NIPA Tables 6.4D and 6.5D give full-time and part-time employees and full-time "
@@ -598,8 +599,9 @@ def build():
         "The 2022 Economic Census records receipts. Thus, it can separate jobs for each output "
         "dollar from compensation for each output dollar."))
     el.append(bullets([
-        "Jobs for each revenue dollar show no bias. The ratios are 0.94, 1.06 and 0.96 "
-        "(p > 0.5).",
+        "Jobs for each revenue dollar show no average bias. The ratios are 0.94, 1.06 and 0.96 "
+        "(p > 0.5). But the differences of the coefficient between states contain no data for "
+        "casinos (Section 6.3).",
         "The payroll share of revenue is 18% to 53% too high. The observed share decreases as the "
         "effective gaming tax of the state increases.",
         "Thus, the QCEW shortfall is an overstatement of compensation, not a shortage of jobs. "
@@ -615,25 +617,72 @@ def build():
         "casino hotel total for 17 states increases from 0.77 to 0.97 of observed jobs. Nevada "
         "increases to 0.89. Thus, for a property with much non-gaming revenue, use "
         "department mode."))
-    el.append(h2("6.3 Predictive ranges"))
+    el.append(h2("6.3 National rate for direct gaming jobs, and predictive ranges"))
     el.append(body(
-        "GEMS does not adjust direct jobs. For land-based commercial casinos, it gives a "
-        "90% predictive range for direct and total jobs (webapp/src/data/jobsRange.json). The "
-        "range is from the 5th to the 95th percentile of a lognormal distribution. The distribution "
-        "uses the dispersion of the Census residuals across states."))
+        "The test of Section 6.2 shows no average bias, but it hides two problems. First, in 21 "
+        "gaming cells of 15 states with commercial casinos, the state gambling coefficient has no "
+        "correlation with observed jobs for each revenue dollar (r = -0.08). Second, observed jobs "
+        "for each revenue dollar decrease as the gaming tax rate increases, and the coefficient "
+        "does not. Thus, the coefficient was too high in states with a high tax (1.5 times the "
+        "Census value for Pennsylvania) and too low in states with a low tax (0.62 to 0.66 for "
+        "Nevada and New Jersey)."))
+    el.append(body(
+        "For the gaming stream of commercial stand-alone casinos and casino hotels, GEMS uses a "
+        "national rate (webapp/src/data/directJobsRate.json) and not the state coefficient."))
+    el.append(formula("direct gaming jobs for each $1M of revenue (2023 dollars) = 4.57 × exp(-0.992 τ)"))
+    el.append(bullets([
+        "τ is the effective gaming tax rate of Section 6.4.",
+        "The slope is 0.992 (SE 0.42, p = 0.034, standard errors clustered by state). The cells "
+        "are stand-alone casinos in 8 states and the gaming part of casino hotels in 13 states. "
+        "For casino hotels, the gaming part is Census employees minus the modeled non-gaming jobs, "
+        "for each dollar of gaming receipts. Stand-alone casinos alone give "
+        "4.80 × exp(-1.06 τ).",
+        "In the prediction of each state from the other states, the mean absolute log error is "
+        "0.236 for the state coefficient, 0.251 for the state coefficient with a tax factor, 0.185 "
+        "for a national constant and 0.169 for the national rate.",
+        "The rate changes direct jobs and direct estimated FTEs of the gaming stream only. Labor "
+        "income, GDP and supplier and induced effects do not change. Entered jobs replace the "
+        "rate.",
+        "With the rate, the department-mode test of casino hotels in 17 states gives 1.02 of "
+        "observed jobs in total. The mean absolute log error decreases from 0.21 to 0.16.",
+        "Slot parlors and bingo halls, bars with slots, tribal properties and online operators "
+        "keep the state coefficient. The rate does not decrease the error for slot parlors, and "
+        "the other types are not in the sample.",
+    ]))
+    el.append(body("The rate has these limits."))
+    el.append(bullets([
+        "For casino hotels alone, the slope is not significant (p = 0.18). The result comes "
+        "mostly from the eight stand-alone cells.",
+        "The rate is the same for small and large properties. In the Nevada Gaming Abstract for "
+        "fiscal year 2025, casinos with rooms and gaming revenue of $72M or more have 4.6 jobs "
+        "for each $1M of total revenue (2023 dollars). The smaller classes have 7.8 to 8.6. "
+        "Thus, the model is nearest for large properties and too low for small properties. In "
+        "the same data, the Nevada lodging coefficient (5.04) is more than the 3.5 of the largest "
+        "class.",
+        "Enter gaming revenue without complimentaries if department revenue includes them. In "
+        "Nevada, complimentaries are 28% of gross gaming win.",
+    ]))
+    el.append(body(
+        "For land-based commercial casinos, GEMS gives a 90% predictive range for direct and "
+        "total jobs. The range is from the 5th to the 95th percentile of a lognormal distribution "
+        "of the log errors across states."))
     el.append(table([
-        ["Property type", "Cells", "Model ÷ Census jobs for each revenue dollar", "90% range (× coefficient)"],
-        ["Stand-alone casino (713210)", "15", "0.94 (p = 0.56)", "0.56 to 2.01"],
-        ["Slot parlor or bingo hall (713290)", "22", "1.06 (p = 0.65)", "0.33 to 2.70"],
-        ["Casino hotel (721120)", "19", "0.96 (p = 0.60)", "0.59 to 1.83"],
-    ], [2.2 * inch, 0.6 * inch, 2.1 * inch, W - 4.9 * inch]))
+        ["Stream", "Cells", "Predicted ÷ Census jobs", "90% range (× direct jobs)"],
+        ["Gaming department (national rate)", "21", "1.00", "0.67 to 1.48"],
+        ["Stand-alone casino, total revenue (national rate)", "8", "0.97", "0.87 to 1.21"],
+        ["Casino hotel, total revenue (national rate)", "15", "0.88", "0.87 to 1.49"],
+        ["Slot parlor or bingo hall (state coefficient)", "22", "1.06 (p = 0.65)", "0.33 to 2.70"],
+    ], [2.9 * inch, 0.6 * inch, 1.6 * inch, W - 5.1 * inch]))
     el.append(Spacer(1, 10))
     el.append(bullets([
+        "The first two ranges use predictions for states that the estimate did not include. The "
+        "casino hotel range applies the rate to all receipts and includes the bias that results.",
+        "The stand-alone range uses eight cells and is narrow. The real uncertainty is "
+        "possibly larger.",
         "In total-revenue mode, the range for the property type applies. In department mode, only "
-        "the gaming stream has a range. It uses the stand-alone casino range. Slot parlors use the "
-        "slot parlor range.",
-        "There is no range for bars and restaurants with slots, for tribal properties, for online "
-        "operators or for jobs that you enter. These cases have no benchmark.",
+        "the gaming stream has a range.",
+        "There is no range for bars and restaurants with slots in total-revenue mode, for tribal "
+        "properties, for online operators or for jobs that you enter. These cases have no benchmark.",
         "Supplier and induced jobs have no observed benchmark. They enter the range as modeled.",
     ]))
     el.append(h2("6.4 Gaming-tax adjustment of direct labor income"))
@@ -654,8 +703,8 @@ def build():
         "from 0.26 to 0.147.",
     ]))
     el.append(body(
-        "The adjustment changes only direct labor income. Direct jobs and direct value added do "
-        "not change. Lower labor income gives lower cash wages, lower payroll and income taxes, and "
+        "The adjustment changes only direct labor income. Direct value added does not change. "
+        "Direct jobs change with the tax rate through the rate of Section 6.3, not through this adjustment. Lower labor income gives lower cash wages, lower payroll and income taxes, and "
         "lower induced effects. Entered wages replace the adjusted value. The adjustment "
         "does not apply to online operators or to lodging, food and other revenue."))
     el.append(body(

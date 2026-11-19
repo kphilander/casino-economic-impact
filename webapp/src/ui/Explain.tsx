@@ -8,7 +8,7 @@ import { ACTIVITIES } from '../engine/activities';
 import { NATIONAL } from '../engine/data';
 import { EFFECTS, type Effect, type Metric, type RegionalModel } from '../engine/io';
 import { CPI, CPI_BASE_YEAR } from '../engine/prices';
-import { JOBS_RANGES, PAYROLL_ADJUSTMENT, type ScenarioResult, type Stream } from '../engine/scenario';
+import { DIRECT_JOBS_RATE, JOBS_RANGES, PAYROLL_ADJUSTMENT, type ScenarioResult, type Stream } from '../engine/scenario';
 import type { Fiscal } from '../engine/fiscal';
 import type { TaxStep } from '../engine/tax';
 import { coef, jobs, money, pct, usd } from './format';
@@ -80,17 +80,22 @@ function StreamTrace({ r, s }: { r: ScenarioResult; s: Stream }) {
   const applied = (m: Metric, e: Effect) => {
     let v = pm[m][e];
     if (m === 'compensation' && e === 'direct' && imp.sources.compensation === 'adjusted') v *= b.compensationFactor;
+    if (m === 'jobs' && e === 'direct' && b.directJobsPerMillion != null) v = b.directJobsPerMillion;
+    if (m === 'fte' && e === 'direct' && b.directJobsPerMillion != null) v = b.directJobsPerMillion * b.directFtePerJob;
     if (e === 'induced') v *= imp.inducedScale;
     return v;
   };
   const marked = (m: Metric, e: Effect) =>
     (m === 'compensation' && e === 'direct' && imp.sources.compensation !== 'model')
     || (e === 'induced' && imp.inducedScale !== 1)
-    || ((m === 'jobs' || m === 'fte') && e === 'direct' && imp.sources.jobs === 'user');
+    || ((m === 'jobs' || m === 'fte') && e === 'direct' && imp.sources.jobs !== 'model');
   const rev2023 = b.revenue * b.deflator;
   const modelTypeI = b.revenue * (pm.compensation.direct + pm.compensation.indirect);
   const typeI = imp.compensation.direct + imp.compensation.indirect;
-  const range = b.jobsRangeRatios ? Object.values(JOBS_RANGES.propertyTypes).find((x) => x.p05 === b.jobsRangeRatios!.p05) : undefined;
+  const range = b.jobsRangeRatios
+    ? [...Object.values(DIRECT_JOBS_RATE.ranges), ...Object.values(JOBS_RANGES.propertyTypes)].find((x) => x.p05 === b.jobsRangeRatios!.p05)
+    : undefined;
+  const jr = r.directJobsRate;
   const profile = profileSentence(s);
 
   return (
@@ -134,7 +139,13 @@ function StreamTrace({ r, s }: { r: ScenarioResult; s: Stream }) {
           (CPI-U {CPI[CPI_BASE_YEAR]} for {CPI_BASE_YEAR} ÷ {CPI[r.dollarYear]} for {r.dollarYear}) = {money(rev2023)} in {CPI_BASE_YEAR} dollars.{' '}
           {imp.sources.jobs === 'user'
             ? <>Direct jobs are observed: {jobs(b.knownJobs)}. Direct FTEs = {jobs(b.knownJobs)} × {coef(b.directFtePerJob)} FTE per job = {jobs(imp.fte.direct)}.</>
-            : <>Direct jobs = {money(rev2023)} × {coef(pm.jobs.direct, 2)} per $1M = {jobs(imp.jobs.direct)}.</>}
+            : imp.sources.jobs === 'rate' && jr
+              ? <>Direct jobs use the national rate for commercial casino gaming, not the state coefficient ({coef(pm.jobs.direct, 2)} per $1M). The rate is
+                {' '}{coef(DIRECT_JOBS_RATE.level, 2)} × exp(−{coef(DIRECT_JOBS_RATE.slope, 3)} × {coef(jr.rate, 4)}) = {coef(jr.perMillion, 2)} jobs per $1M, where {coef(jr.rate, 4)} is
+                {jr.rateSource === 'computed' ? ' the effective gaming tax rate below' : jr.rateSource === 'custom' ? ' the custom rate that you entered' : ' the blended effective rate of the state, because you entered no GGR'}.
+                {' '}Direct jobs = {money(rev2023)} × {coef(jr.perMillion, 2)} = {jobs(imp.jobs.direct)}. Direct FTEs = {jobs(imp.jobs.direct)} × {coef(b.directFtePerJob)} FTE per job = {jobs(imp.fte.direct)}.
+                The rate comes from 2022 Economic Census jobs per revenue dollar in {DIRECT_JOBS_RATE.n} cells of {DIRECT_JOBS_RATE.states} states (marked *).</>
+              : <>Direct jobs = {money(rev2023)} × {coef(pm.jobs.direct, 2)} per $1M = {jobs(imp.jobs.direct)}.</>}
           {' '}Supplier jobs = {money(rev2023)} × {coef(pm.jobs.indirect, 2)} = {jobs(imp.jobs.indirect)}.
         </li>
         {imp.sources.compensation === 'adjusted' && r.payrollAdjustment && (
@@ -165,7 +176,7 @@ function StreamTrace({ r, s }: { r: ScenarioResult; s: Stream }) {
           <li>
             <strong>Jobs range.</strong> 90% range of direct jobs = {jobs(imp.jobs.direct)} × {coef(b.jobsRangeRatios.p05, 3)} to {jobs(imp.jobs.direct)} × {coef(b.jobsRangeRatios.p95, 3)}
             = {jobs(imp.jobsRange.direct[0])} to {jobs(imp.jobsRange.direct[1])}. The factors are the 5th and 95th percentiles of the ratio of 2022 Economic Census
-            jobs to model jobs per revenue dollar.{range ? ` The comparison uses ${range.n} states for this property type (${range.label.toLowerCase()}).` : ''} The model
+            jobs to model jobs per revenue dollar.{range ? ` The comparison uses ${range.n} state cells (${range.label.toLowerCase()}).` : ''} The model
             adds supplier and induced jobs without change.
           </li>
         )}

@@ -11,7 +11,7 @@ import { multipliers, type StateTables } from './io';
 import { householdSpendingRange } from './sensitivity';
 import { CPI, deflator } from './prices';
 import {
-  GAMING_TAX, PAYROLL_ADJUSTMENT, WAGE_BASIS, computeScenario, defaultAnalysis, fiscalDataFor,
+  GAMING_TAX, PAYROLL_ADJUSTMENT, WAGE_BASIS, compsApplied, computeScenario, defaultAnalysis, fiscalDataFor,
   jobsRangeFor, netShare, payrollFactor, type Analysis,
 } from './scenario';
 import { gamingTax, gamingTaxSteps, payrollTax, taxAtWage, incomeTax, taxRule, verticalSchedule, type GamingVertical } from './tax';
@@ -459,5 +459,71 @@ describe('corrections of November 2026', () => {
         if (ind.code !== '482') expect(model.coefficients.jobs[i], `${path} ${ind.code}`).toBeGreaterThan(0);
       });
     }
+  });
+});
+
+describe('optional complimentaries', () => {
+  const base = (): Analysis => ({
+    ...defaultAnalysis(), state: 'Nevada', propertyType: '721120',
+    revenue: { gaming: 293.5, food: 160.3, lodging: 191.4, other: 101.3, total: null },
+  });
+  const revenues = (r: ReturnType<typeof computeScenario>) => Object.fromEntries(r!.streams.map((s) => [s.key, s.revenue]));
+
+  test('empty complimentaries leave the analysis unchanged', async () => {
+    const model = await nv();
+    const a = base();
+    expect(a.comps).toEqual({ food: null, lodging: null, other: null });
+    expect(compsApplied(a)).toBeNull();
+    expect(compsApplied({ ...a, comps: { food: 0, lodging: null, other: 0 } })).toBeNull();
+    const r = computeScenario(a, model)!;
+    expect(revenues(r)).toEqual({ gaming: 293.5, food: 160.3, lodging: 191.4, other: 101.3 });
+  });
+
+  test('comps move from the gaming stream to the departments; the gaming tax stays on GGR', async () => {
+    const model = await nv();
+    const comps = { food: 39.6, lodging: 59.9, other: 4.1 };
+    const a = { ...base(), comps };
+    const r = computeScenario(a, model)!;
+    const total = 39.6 + 59.9 + 4.1;
+    const rev = revenues(r);
+    expect(rev.gaming).toBeCloseTo(293.5 - total, 12);
+    expect(rev.food).toBeCloseTo(160.3 + 39.6, 12);
+    expect(rev.lodging).toBeCloseTo(191.4 + 59.9, 12);
+    expect(rev.other).toBeCloseTo(101.3 + 4.1, 12);
+    // Total output is unchanged in revenue terms; the tax is on the full GGR.
+    expect(r.streams.reduce((s, x) => s + x.revenue, 0)).toBeCloseTo(293.5 + 160.3 + 191.4 + 101.3, 9);
+    const plain = computeScenario(base(), model)!;
+    expect(r.gamingTax!.ggr).toBe(293.5);
+    expect(r.gamingTax!.amount).toBeCloseTo(plain.gamingTax!.amount, 12);
+    // Each stream equals a plain analysis with the moved revenue, apart from the tax base.
+    const moved = computeScenario({ ...base(), revenue: { gaming: 293.5 - total, food: 160.3 + 39.6, lodging: 191.4 + 59.9, other: 101.3 + 4.1, total: null } }, model)!;
+    for (const k of ['food', 'lodging', 'other'] as const) {
+      const s1 = r.streams.find((s) => s.key === k)!, s2 = moved.streams.find((s) => s.key === k)!;
+      expect(s1.impact.output.total).toBeCloseTo(s2.impact.output.total, 9);
+      expect(s1.impact.jobs.total).toBeCloseTo(s2.impact.jobs.total, 9);
+    }
+    expect(r.gamingAccounts!.revenue).toBeCloseTo(293.5 - total, 12);
+    expect(r.gamingAccounts!.gamingTax).toBeCloseTo(plain.gamingTax!.amount, 12);
+  });
+
+  test('comps above GGR are scaled down; total mode and online ignore them', () => {
+    const a = { ...base(), revenue: { ...base().revenue, gaming: 50 }, comps: { food: 60, lodging: 40, other: null } };
+    const c = compsApplied(a)!;
+    expect(c.scale).toBeCloseTo(0.5, 12);
+    expect(c.total).toBeCloseTo(50, 12);
+    expect(c.byDepartment).toEqual({ food: 30, lodging: 20, other: 0 });
+    expect(compsApplied({ ...a, inputMode: 'total' })).toBeNull();
+    expect(compsApplied({ ...a, propertyType: 'ONLINE_CASINO' })).toBeNull();
+  });
+
+  test('forecaster links and share links carry complimentaries', () => {
+    const link = '?from=forecaster&state=Nevada&name=Example&propertyType=721120&inputMode=department&gaming=293.5&food=160.3&lodging=191.4&other=101.3&archetype=mega_resort&slotShare=60&dollarYear=2025&compFood=39.6&compLodging=59.9&compOther=4.1';
+    const a = analysisFromForecaster(link)!;
+    expect(a.comps).toEqual({ food: 39.6, lodging: 59.9, other: 4.1 });
+    expect(a.revenue.gaming).toBe(293.5);
+    expect(analysisFromForecaster('?from=forecaster&gaming=100&compFood=abc&compLodging=-3')!.comps).toEqual({ food: null, lodging: null, other: null });
+    expect(decodeAnalysis(encodeAnalysis(a))).toEqual(a);
+    // Saved analyses from before the input have no comps.
+    expect(migrate({ ...a, comps: undefined })!.comps).toEqual({ food: null, lodging: null, other: null });
   });
 });

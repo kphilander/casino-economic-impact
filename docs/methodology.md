@@ -195,6 +195,18 @@ The recapture share is the part of residents' gaming spending that would otherwi
 
 **Construction phase.** A one-time impact of building or expanding a property, using the state's StateIO construction (sector 23) response. Inputs are construction cost, the share spent in state (excluding land, gaming equipment and out-of-state purchases), and the build period. Jobs are **job-years** over the build period; the module also reports average annual jobs. Construction impacts are temporary and are reported separately from operating impacts.
 
+**Complimentaries.** GGR (gross gaming win) includes the retail value of the rooms, meals, drinks and other items that a casino gives to players as complimentaries ("comps"). Casino financial statements under ASC 606 record that value as revenue of the department that provides it, and they report gaming revenue net of it. The Nevada Gaming Abstract, for example, shows "Complimentary Room Sales" in the rooms department and a negative "Contra Revenue (Complimentary Expense)" in the casino department. Without this input, GEMS models all of GGR as gaming output and models only the cash revenue entered for the other departments. When the user enters the comped value by receiving department (food and beverage, lodging, other; $M), GEMS changes the outputs as follows:
+
+```
+gaming stream output     = GGR − (comped food and beverage + comped lodging + comped other)
+department d output      = cash revenue of d + comped value of d
+gaming tax               = statutory schedule applied to GGR (unchanged)
+```
+
+Total revenue does not change. Only its split between the gambling coefficients and the food, lodging and other coefficients changes. The gaming tax still replaces the gaming share of the gaming stream's direct TOPI (Section 3.1), and that TOPI is now computed on the smaller gaming output. The gaming-tax adjustment of direct compensation (Section 2.7) still uses the effective rate on GGR. The implied surplus of the gaming accounts compares value added on the net gaming output with the tax on GGR.
+
+The input applies only to land-based revenue entered by department. If the comps entered exceed GGR, they are scaled down to GGR. When the fields are blank, results are identical to an analysis without the input. The Revenue Forecaster sends archetype-based estimates (`compFood`, `compLodging`, `compOther`).
+
 ## 3. Tax Estimates
 
 Every tax line is additive and is assigned to the federal or the state and local level; reports show both subtotals and the total.

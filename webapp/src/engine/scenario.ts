@@ -50,6 +50,10 @@ const DEPARTMENT_ACTIVITY: Record<Department, ActivityKey> = {
 
 export interface KnownData { jobs: number | null; wages: number | null }
 
+/** Departments that receive complimentaries (comped rooms, meals, drinks, shows). */
+export const COMP_DEPARTMENTS = ['food', 'lodging', 'other'] as const;
+export type CompDepartment = (typeof COMP_DEPARTMENTS)[number];
+
 export interface Analysis {
   v: 3;
   state: string;
@@ -62,11 +66,18 @@ export interface Analysis {
   /** Observed direct jobs and cash wages ($M) by department. */
   known: Record<Department, KnownData>;
   gamingTax: { customRate: number | null; slotSharePct: number };
+  /**
+   * Optional: retail value ($M) of complimentaries by receiving department,
+   * included in gaming revenue (GGR). Empty = no reallocation.
+   */
+  comps: Record<CompDepartment, number | null>;
   /** Dollar year of the revenue inputs; null = latest complete CPI year. */
   dollarYear: number | null;
   netImpact: { enabled: boolean; nonResidentShare: number | null; recaptureShare: number };
   construction: { enabled: boolean; cost: number | null; localShare: number; years: number };
 }
+
+export const emptyComps = (): Record<CompDepartment, number | null> => ({ food: null, lodging: null, other: null });
 
 export const emptyKnown = (): Record<Department, KnownData> => ({
   gaming: { jobs: null, wages: null }, food: { jobs: null, wages: null },
@@ -84,6 +95,7 @@ export function defaultAnalysis(): Analysis {
     revenue: { gaming: 250, food: 40, lodging: 60, other: 10, total: null },
     known: emptyKnown(),
     gamingTax: { customRate: null, slotSharePct: 70 },
+    comps: emptyComps(),
     dollarYear: null,
     netImpact: { enabled: false, nonResidentShare: null, recaptureShare: 0 },
     construction: { enabled: false, cost: null, localShare: 60, years: 2 },
@@ -226,6 +238,33 @@ function vertical(pt: PropertyType): GamingVertical {
 
 const positive = (v: number | null | undefined): number => (v != null && v > 0 ? v : 0);
 
+export interface CompsApplied {
+  /** Comped value moved out of the gaming stream into each department, $M. */
+  byDepartment: Record<CompDepartment, number>;
+  total: number;
+  /** Factor applied to the entered values; below 1 only when they exceed GGR. */
+  scale: number;
+}
+
+/**
+ * Complimentaries that move from the gaming stream to the departments that
+ * provide them. GGR includes the retail value of comped rooms, food, beverage
+ * and other items; when the user enters that value, the gaming stream's output
+ * is GGR less the comps and each department's output is its cash revenue plus
+ * its comps. The gaming tax stays on GGR. Applies only to land-based revenue
+ * entered by department; the entered values are scaled down if they exceed GGR.
+ * Null when nothing moves, so results are the same as without the input.
+ */
+export function compsApplied(a: Analysis): CompsApplied | null {
+  if (a.inputMode !== 'department' || isOnline(a.propertyType)) return null;
+  const entered = COMP_DEPARTMENTS.reduce((s, d) => s + positive(a.comps?.[d]), 0);
+  const ggr = positive(a.revenue.gaming);
+  if (!(entered > 0) || !(ggr > 0)) return null;
+  const scale = Math.min(1, ggr / entered);
+  const byDepartment = Object.fromEntries(COMP_DEPARTMENTS.map((d) => [d, positive(a.comps[d]) * scale])) as Record<CompDepartment, number>;
+  return { byDepartment, total: entered * scale, scale };
+}
+
 export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResult | null {
   const online = isOnline(a.propertyType);
   const tribal = a.ownership === 'tribal' && !online;
@@ -264,8 +303,12 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
       activity: 'online', revenue: positive(a.revenue.gaming), known: a.known.gaming,
     });
   } else {
+    // Optional complimentaries: out of the gaming stream, into the departments that provide them.
+    const comps = compsApplied(a);
+    const moved = (d: Department): number =>
+      !comps ? 0 : d === 'gaming' ? -comps.total : comps.byDepartment[d as CompDepartment];
     for (const d of DEPARTMENTS) {
-      plan.push({ key: d, label: DEPARTMENT_LABELS[d], activity: DEPARTMENT_ACTIVITY[d], revenue: positive(a.revenue[d]), known: a.known[d] });
+      plan.push({ key: d, label: DEPARTMENT_LABELS[d], activity: DEPARTMENT_ACTIVITY[d], revenue: Math.max(0, positive(a.revenue[d]) + moved(d)), known: a.known[d] });
     }
   }
 

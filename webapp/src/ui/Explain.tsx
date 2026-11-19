@@ -90,6 +90,10 @@ function StreamTrace({ r, s }: { r: ScenarioResult; s: Stream }) {
     || (e === 'induced' && imp.inducedScale !== 1)
     || ((m === 'jobs' || m === 'fte') && e === 'direct' && imp.sources.jobs !== 'model');
   const rev2023 = b.revenue * b.deflator;
+  // The national rate can apply to a different base: all of GGR for a
+  // stand-alone casino with complimentaries.
+  const rateRev2023 = b.directJobsRevenue * b.deflator;
+  const rateOnGgr = b.directJobsRevenue !== b.revenue;
   const modelTypeI = b.revenue * (pm.compensation.direct + pm.compensation.indirect);
   const typeI = imp.compensation.direct + imp.compensation.indirect;
   const range = b.jobsRangeRatios
@@ -143,7 +147,8 @@ function StreamTrace({ r, s }: { r: ScenarioResult; s: Stream }) {
               ? <>Direct jobs use the national rate for commercial casino gaming, not the state coefficient ({coef(pm.jobs.direct, 2)} per $1M). The rate is
                 {' '}{coef(DIRECT_JOBS_RATE.level, 2)} × exp(−{coef(DIRECT_JOBS_RATE.slope, 3)} × {coef(jr.rate, 4)}) = {coef(jr.perMillion, 2)} jobs per $1M, where {coef(jr.rate, 4)} is
                 {jr.rateSource === 'computed' ? ' the effective gaming tax rate below' : jr.rateSource === 'custom' ? ' the custom rate that you entered' : ' the blended effective rate of the state, because you entered no GGR'}.
-                {' '}Direct jobs = {money(rev2023)} × {coef(jr.perMillion, 2)} = {jobs(imp.jobs.direct)}. Direct FTEs = {jobs(imp.jobs.direct)} × {coef(b.directFtePerJob)} FTE per job = {jobs(imp.fte.direct)}.
+                {rateOnGgr && <>{' '}For a stand-alone casino, the rate applies to all of GGR, not to GGR minus the complimentaries: {money(b.directJobsRevenue)} × {coef(b.deflator, 4)} = {money(rateRev2023)}.</>}
+                {' '}Direct jobs = {money(rateRev2023)} × {coef(jr.perMillion, 2)} = {jobs(imp.jobs.direct)}. Direct FTEs = {jobs(imp.jobs.direct)} × {coef(b.directFtePerJob)} FTE per job = {jobs(imp.fte.direct)}.
                 The rate comes from 2022 Economic Census jobs per revenue dollar in {DIRECT_JOBS_RATE.n} cells of {DIRECT_JOBS_RATE.states} states (marked *).</>
               : <>Direct jobs = {money(rev2023)} × {coef(pm.jobs.direct, 2)} per $1M = {jobs(imp.jobs.direct)}.</>}
           {' '}Supplier jobs = {money(rev2023)} × {coef(pm.jobs.indirect, 2)} = {jobs(imp.jobs.indirect)}.

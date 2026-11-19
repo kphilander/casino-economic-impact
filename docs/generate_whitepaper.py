@@ -677,12 +677,14 @@ def build():
         "class.",
         "GGR includes the retail value of complimentaries. In Nevada, complimentaries are 28% of "
         "gross gaming win. Do not subtract the complimentaries from GGR, because the gaming tax "
-        "is on GGR. Enter them in the complimentaries fields (Section 8.3). Then the rate applies "
-        "to GGR minus the complimentaries, at the tax rate on GGR. If you do not know the "
-        "complimentaries, the rate applies to all of GGR. Then direct gaming jobs are larger by "
-        "the rate × the complimentaries, and the departments that give them get no jobs for this "
-        "value. In the two cases, enter only cash revenue for lodging, food and other. Department "
-        "revenue that includes complimentaries, with GGR, counts this revenue two times.",
+        "is on GGR. Enter them in the complimentaries fields (Section 8.3). Then, for a casino "
+        "hotel, the rate applies to GGR minus the complimentaries. For a stand-alone casino, the "
+        "rate applies to all of GGR. The two items below give the reason. The rate always uses "
+        "the tax rate on GGR. If you do not know the complimentaries, the rate applies to all of "
+        "GGR. Then, for a casino hotel, direct gaming jobs are larger by the rate × the "
+        "complimentaries, and the departments that give them get no jobs for this value. In the "
+        "two cases, enter only cash revenue for lodging, food and other. Department revenue that "
+        "includes complimentaries, with GGR, counts this revenue two times.",
         "The rate comes from 2022 Economic Census receipts. For casino hotels, the gaming "
         "receipts are mostly without complimentaries. The Census Bureau form for the 2022 Service "
         "Annual Survey tells casino hotels to report sales net of promotional allowances. For "
@@ -694,11 +696,13 @@ def build():
         "gross gaming revenue that the regulator reports.",
         "For stand-alone casinos, the rate uses total receipts. Complimentaries move between "
         "departments, and total receipts do not change much. Thus, total receipts are almost "
-        "equal to gross win plus the cash revenue of the other departments. When you enter "
-        "complimentaries for a stand-alone casino, the model applies the rate to GGR minus the "
-        "complimentaries and gives too few direct gaming jobs. The difference is approximately "
-        "the share of complimentaries in GGR. The Economic Census forms do not tell respondents "
-        "how to report complimentaries.",
+        "equal to gross win plus the cash revenue of the other departments. Thus, when you "
+        "enter complimentaries for a stand-alone casino, the model applies the rate to all of "
+        "GGR. The other effects of the gaming stream use GGR minus the complimentaries. The "
+        "departments that give the complimentaries also get jobs for this value. Thus, total "
+        "direct jobs of a stand-alone casino increase a small quantity when you enter "
+        "complimentaries. The Economic Census forms do not tell respondents how to report "
+        "complimentaries.",
     ]))
     el.append(body(
         "For land-based commercial casinos, GEMS gives a 90% predictive range for direct and "
@@ -897,9 +901,9 @@ def build():
         "7.1). The model calculates this TOPI on the smaller gaming output.",
         "The gaming-tax adjustment of direct labor income (Section 6.4) uses τ on GGR. The model "
         "applies it to the labor income of the smaller gaming output.",
-        "For commercial stand-alone casinos and casino hotels, the national rate for direct "
-        "gaming jobs (Section 6.3) uses τ on GGR. The model applies the rate to the smaller "
-        "gaming output.",
+        "The national rate for direct gaming jobs (Section 6.3) uses τ on GGR. For commercial "
+        "casino hotels, the model applies the rate to the smaller gaming output. For commercial "
+        "stand-alone casinos, the model applies the rate to all of GGR.",
         "The note for a high gaming tax (Section 6.4) compares the value added of the smaller "
         "gaming output with the tax on GGR.",
     ]))

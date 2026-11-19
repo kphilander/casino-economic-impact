@@ -43,7 +43,11 @@ function Notes({ r }: { r: ScenarioResult }) {
   const tribal = a.ownership === 'tribal' && !online;
   if (r.payrollAdjustment) {
     const p = r.payrollAdjustment;
-    notes.push(['Gaming-tax adjustment', `The gaming tax decreases direct labor income of gaming by ${pct(1 - p.factor)} (${money(p.directChange)}). Casino revenue includes this tax, at a rate of ${pct(p.rate)}. The adjustment comes from a comparison of the model with the 2022 Economic Census. Direct jobs and GDP do not change.`]);
+    notes.push(['Gaming-tax adjustment', `The gaming tax decreases direct labor income of gaming by ${pct(1 - p.factor)} (${money(p.directChange)}). Casino revenue includes this tax, at a rate of ${pct(p.rate)}. The adjustment comes from a comparison of the model with the 2022 Economic Census. Direct GDP does not change.`]);
+  }
+  if (r.directJobsRate) {
+    const j = r.directJobsRate;
+    notes.push(['Direct gaming jobs', `Direct jobs of gaming use a national rate of ${j.perMillion.toFixed(2)} jobs per $1M of revenue (2023 dollars) at a gaming tax rate of ${pct(j.rate)}. The state coefficient is ${j.stateCoefficient.toFixed(2)}. The rate comes from the 2022 Economic Census. It is the same for small and large casinos, but large casinos usually have fewer jobs per revenue dollar. If you have observed jobs, enter them.`]);
   }
   const g = r.gamingAccounts;
   if (g && g.impliedSurplus < 0) {
@@ -52,7 +56,7 @@ function Notes({ r }: { r: ScenarioResult }) {
   if (r.totals.jobsRange) {
     const d = r.totals.jobsRange.direct;
     const partial = r.streams.some((s) => !s.impact.jobsRange && s.impact.sources.jobs === 'model');
-    notes.push(['Jobs range', `Direct jobs: ${jobs(r.totals.jobs.direct)}. The 90% range is ${jobs(d[0])} to ${jobs(d[1])}. The range comes from a comparison of the model with 2022 Economic Census jobs per revenue dollar in each state.${partial ? ' The range is for gaming jobs only. Other departments use their point values.' : ''} Supplier and induced jobs are model values. No observed data is available for them.`]);
+    notes.push(['Jobs range', `Direct jobs: ${jobs(r.totals.jobs.direct)}. The 90% range is ${jobs(d[0])} to ${jobs(d[1])}. The range comes from a comparison of the model with 2022 Economic Census jobs per revenue dollar across states.${partial ? ' The range is for gaming jobs only. Other departments use their point values.' : ''} Supplier and induced jobs are model values. No observed data is available for them.`]);
   }
   if (tribal) {
     notes.push(['Tribal ownership', 'The compact revenue share replaces the gaming tax. The gaming enterprise is on trust land, so the model includes no direct taxes on production for it. There is no range for jobs, because the Economic Census does not include most tribal casinos.']);

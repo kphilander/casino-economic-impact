@@ -1,7 +1,7 @@
 import { ACTIVITIES, activityResponse, type ActivityKey } from '../engine/activities';
 import { NATIONAL } from '../engine/data';
 import { multipliers, type RegionalModel } from '../engine/io';
-import { NON_GAMING_TOPI_SHARE, PAYROLL_ADJUSTMENT, WAGE_BASIS } from '../engine/scenario';
+import { DIRECT_JOBS_RATE, NON_GAMING_TOPI_SHARE, PAYROLL_ADJUSTMENT, WAGE_BASIS } from '../engine/scenario';
 import { coef, ratio, pct } from './format';
 import { Explain } from './Explain';
 import { buildLabel } from '../brand';
@@ -193,8 +193,15 @@ export function MethodView({ model }: { model: RegionalModel }) {
             Census (n = {PAYROLL_ADJUSTMENT.n}). The leave-one-out error decreases from {PAYROLL_ADJUSTMENT.leaveOneOutMAE.before} to {PAYROLL_ADJUSTMENT.leaveOneOutMAE.after} log points.
           </li>
           <li>
-            <strong>Range for direct jobs.</strong> The coefficient shows no bias against 2022 Economic Census jobs per revenue dollar. The 90% range is the
-            spread of that comparison across states.
+            <strong>Direct jobs of casino gaming.</strong> For commercial stand-alone casinos and casino hotels, direct gaming jobs per $1M of revenue (2023 dollars)
+            are {DIRECT_JOBS_RATE.level.toFixed(2)} × exp(−{DIRECT_JOBS_RATE.slope.toFixed(3)} × rate). The rate comes from the 2022 Economic Census
+            (n = {DIRECT_JOBS_RATE.n} cells in {DIRECT_JOBS_RATE.states} states). The state coefficient has no relation to observed jobs per revenue dollar across
+            states. The leave-one-state-out error decreases from {DIRECT_JOBS_RATE.leaveOneStateOutMAE.stateCoefficient} to {DIRECT_JOBS_RATE.leaveOneStateOutMAE.nationalRate} log
+            points. Slot parlors, bars, tribal properties and online operators keep the state coefficient.
+          </li>
+          <li>
+            <strong>Range for direct jobs.</strong> The 90% range is the spread of the comparison with 2022 Economic Census jobs per revenue dollar across
+            states. For the national rate, it uses predictions for states that the estimate did not include.
           </li>
           <li>
             <strong>Taxes.</strong> The statutory gaming tax replaces the gaming part of direct taxes on production. The model keeps {pct(NON_GAMING_TOPI_SHARE)} (other

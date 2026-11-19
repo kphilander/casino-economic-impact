@@ -107,6 +107,10 @@ function legacyShape(r: ScenarioResult) {
  * The comparison therefore puts back the earlier satellite (the StateIO retail
  * output of legacy-satellite.json and zero jobs for the filled cells).
  * io.test.ts checks the current satellite against the R outputs.
+ *
+ * It also predates the national gaming rate for direct jobs (November 2026),
+ * so the comparison keeps the state coefficient ({ directJobs: 'coefficient' }).
+ * rules.test.ts checks the rate.
  */
 const tableLoaders = import.meta.glob<StateTables>('../data/io/[A-Z][A-Z].json', { import: 'default' });
 const legacyModels = new Map<string, Promise<RegionalModel>>();
@@ -133,7 +137,7 @@ describe('rebuilt engine matches the pre-rebuild engine', () => {
   for (const c of legacy.cases) {
     test(c.id, async () => {
       const a = migrate(c.analysis)!;
-      const r = computeScenario(a, await modelFor(a.state))!;
+      const r = computeScenario(a, await modelFor(a.state), { directJobs: 'coefficient' })!;
       const errors: string[] = [];
       const revenue = r.streams.reduce((s, x) => s + x.revenue, 0) + (r.construction?.localSpend ?? 0);
       compare(withoutFte(legacyShape(r)), withoutFte(c.result), c.id, errors, ABS_PER_REVENUE * revenue);
@@ -146,14 +150,15 @@ describe('rebuilt engine matches the pre-rebuild engine', () => {
     const model = await modelFor(a.state);
     const errors: string[] = [];
     const abs = ABS_PER_REVENUE * 1.4 * 900;
+    const old = { directJobs: 'coefficient' } as const;
     // All taxes now include employee FICA; the case comparisons above check the
     // tax lines with it taken out, so the sweeps compare the other values.
     const rename = (p: { output: number; gdp: number; jobs: number; compensation: number; gamingTax: number }) =>
       ({ output: p.output, gdp: p.gdp, employment: p.jobs, wages: p.compensation, gamingTax: p.gamingTax });
     const drop = <T extends { totalTax?: number }>({ totalTax: _t, ...p }: T) => p;
-    compare(sweepGgr(a, model).map((p) => ({ x: p.x, ...rename(p) })), legacy.sensitivity.ggr.map(({ label: _l, ...p }) => drop(p)), 'ggr', errors, abs);
-    compare(sweepTaxRate(a, model).map((p) => ({ x: p.x, ...rename(p) })), legacy.sensitivity.taxRate.map(drop), 'tax', errors, abs);
-    compare(project(a, model, 5, 0.05).series.map((p) => ({ yearIndex: p.year - new Date().getFullYear() + 1, ggr: p.ggr, ...rename(p) })), legacy.sensitivity.projection.map(drop), 'proj', errors, abs);
+    compare(sweepGgr(a, model, 0.4, 9, old).map((p) => ({ x: p.x, ...rename(p) })), legacy.sensitivity.ggr.map(({ label: _l, ...p }) => drop(p)), 'ggr', errors, abs);
+    compare(sweepTaxRate(a, model, 0.4, 9, old).map((p) => ({ x: p.x, ...rename(p) })), legacy.sensitivity.taxRate.map(drop), 'tax', errors, abs);
+    compare(project(a, model, 5, 0.05, new Date().getFullYear(), old).series.map((p) => ({ yearIndex: p.year - new Date().getFullYear() + 1, ggr: p.ggr, ...rename(p) })), legacy.sensitivity.projection.map(drop), 'proj', errors, abs);
     expect(errors).toEqual([]);
     expect(headline(computeScenario(a, model)!).jobs).toBeGreaterThan(0);
   });

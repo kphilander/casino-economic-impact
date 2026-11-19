@@ -510,6 +510,38 @@ describe('optional complimentaries', () => {
     expect(r.gamingAccounts!.gamingTax).toBeCloseTo(plain.gamingTax!.amount, 12);
   });
 
+  test('with comps, the national jobs rate applies to GGR less comps at the tax rate on GGR', async () => {
+    // Pennsylvania has a high gaming tax, so the tax base and the rate both matter.
+    const model = await loadModel('PA');
+    const comps = { food: 39.6, lodging: 59.9, other: 4.1 };
+    const total = 39.6 + 59.9 + 4.1;
+    const pa = (): Analysis => ({ ...base(), state: 'Pennsylvania', dollarYear: 2025 });
+    const plain = computeScenario(pa(), model)!;
+    const r = computeScenario({ ...pa(), comps }, model)!;
+    expect(r.deflator).not.toBe(1);
+    // The gaming tax and its effective rate are those of the full GGR.
+    expect(r.gamingTax!.ggr).toBe(293.5);
+    expect(r.gamingTax!.amount).toBeCloseTo(plain.gamingTax!.amount, 12);
+    expect(r.gamingTax!.effectiveRate).toBeCloseTo(plain.gamingTax!.effectiveRate, 12);
+    // Direct gaming jobs = national rate at that tax rate x (GGR - comps) in 2023 dollars.
+    const per = DIRECT_JOBS_RATE.level * Math.exp(-DIRECT_JOBS_RATE.slope * r.gamingTax!.effectiveRate);
+    const g = r.streams.find((s) => s.key === 'gaming')!;
+    expect(g.revenue).toBeCloseTo(293.5 - total, 12);
+    expect(g.impact.sources.jobs).toBe('rate');
+    expect(g.impact.jobs.direct).toBeCloseTo((293.5 - total) * r.deflator * per, 9);
+    const g0 = plain.streams.find((s) => s.key === 'gaming')!.impact;
+    expect(g.impact.jobs.direct / g0.jobs.direct).toBeCloseTo((293.5 - total) / 293.5, 12);
+    // The rate summary reports the same rate, its source and the per-$1M value.
+    expect(r.directJobsRate).toEqual({ ...plain.directJobsRate, perMillion: expect.any(Number) });
+    expect(r.directJobsRate!.rate).toBeCloseTo(r.gamingTax!.effectiveRate, 12);
+    expect(r.directJobsRate!.rateSource).toBe('computed');
+    expect(r.directJobsRate!.perMillion).toBeCloseTo(per, 12);
+    // The departments that receive comps keep their own coefficients.
+    for (const k of ['food', 'lodging', 'other'] as const) {
+      expect(r.streams.find((s) => s.key === k)!.impact.sources.jobs).toBe('model');
+    }
+  });
+
   test('comps above GGR are scaled down; total mode and online ignore them', () => {
     const a = { ...base(), revenue: { ...base().revenue, gaming: 50 }, comps: { food: 60, lodging: 40, other: null } };
     const c = compsApplied(a)!;

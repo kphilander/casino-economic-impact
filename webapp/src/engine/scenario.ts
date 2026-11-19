@@ -8,6 +8,7 @@ import gamingTaxRates from '../data/gamingTaxRates.json';
 import employmentTaxRates from '../data/employmentTaxRates.json';
 import incomeTaxRates from '../data/incomeTaxRates.json';
 import jobsRangeData from '../data/jobsRange.json';
+import directJobsRateData from '../data/directJobsRate.json';
 import fiscalAssumptions from '../data/fiscalAssumptions.json';
 import wageBasisData from '../data/wageBasis.json';
 import payrollAdjustmentData from '../data/payrollAdjustment.json';
@@ -96,12 +97,18 @@ export const GAMING_TAX = gamingTaxRates as unknown as { metadata: Record<string
 const EMPLOYMENT_TAX = employmentTaxRates as unknown as { federal: FederalPayroll; states: Record<string, StatePayroll> };
 const INCOME_TAX = incomeTaxRates as unknown as IncomeTaxTables;
 
-interface RangeEntry { label: string; n: number; biasFactor: number; pValueNoBias: number; p05: number; p95: number }
+interface RangeEntry { label: string; n: number; biasFactor: number; pValueNoBias?: number; p05: number; p95: number }
 export const JOBS_RANGES = jobsRangeData as unknown as { gamingDepartmentProxy: string; propertyTypes: Record<string, RangeEntry> };
 export const WAGE_BASIS = wageBasisData as unknown as { sectors: Record<string, number>; private: number };
 export const PAYROLL_ADJUSTMENT = payrollAdjustmentData as unknown as {
   slope: number; slopeSE: number; slopeCI95: [number, number]; n: number;
   leaveOneOutMAE: { before: number; after: number };
+};
+export const DIRECT_JOBS_RATE = directJobsRateData as unknown as {
+  level: number; slope: number; slopeSE: number; n: number; states: number;
+  leaveOneStateOutMAE: { stateCoefficient: number; nationalRate: number };
+  propertyTypes: string[];
+  ranges: Record<string, RangeEntry>;
 };
 export const NON_GAMING_TOPI_SHARE: number = fiscalAssumptions.gamingTopi.nonGamingShare;
 
@@ -131,13 +138,41 @@ export function payrollFactor(rate: number, online: boolean, inputMode: Analysis
   return gamingStream ? Math.exp(-PAYROLL_ADJUSTMENT.slope * rate) : 1;
 }
 
+const isGamingStream = (inputMode: Analysis['inputMode'], stream: StreamKey): boolean =>
+  stream === 'gaming' || (inputMode === 'total' && stream === 'total');
+
 /**
- * Direct-jobs predictive range for a stream (jobsRange.json): the property
- * type's range in total mode; in department mode the gaming stream uses the
- * stand-alone casino range (the slot-parlor range for slot parlors). None for
- * bars with slots, tribal properties, online operators or other departments.
+ * Direct jobs per $1M of 2023 revenue for the gaming stream of a commercial
+ * stand-alone casino or casino hotel: level x exp(-slope x rate), estimated on
+ * 2022 Economic Census cells (directJobsRate.json). It replaces the state
+ * gambling coefficient, which has no relation to observed jobs per revenue
+ * dollar across states. Null for other streams and property types, which keep
+ * the coefficient.
+ */
+export function directJobsRate(rate: number, pt: PropertyType, ownership: Analysis['ownership'], inputMode: Analysis['inputMode'], stream: StreamKey): number | null {
+  if (ownership === 'tribal' || !DIRECT_JOBS_RATE.propertyTypes.includes(pt) || !isGamingStream(inputMode, stream)) return null;
+  return DIRECT_JOBS_RATE.level * Math.exp(-DIRECT_JOBS_RATE.slope * Math.max(0, rate || 0));
+}
+
+/**
+ * Direct-jobs predictive range for a stream. Streams on the national gaming
+ * rate use its ranges (directJobsRate.json): the property type's range in
+ * total mode, the gaming-department range in department mode. Slot parlors
+ * keep the range of the state coefficient (jobsRange.json). None for bars
+ * with slots in total mode, tribal properties, online operators or other
+ * departments.
  */
 export function jobsRangeFor(pt: PropertyType, ownership: Analysis['ownership'], inputMode: Analysis['inputMode'], stream: StreamKey): { p05: number; p95: number } | null {
+  if (ownership === 'tribal' || isOnline(pt)) return null;
+  if (DIRECT_JOBS_RATE.propertyTypes.includes(pt)) {
+    if (inputMode === 'total' && stream === 'total') return DIRECT_JOBS_RATE.ranges[pt] ?? null;
+    return stream === 'gaming' ? DIRECT_JOBS_RATE.ranges.gamingDepartment : null;
+  }
+  return coefficientRangeFor(pt, ownership, inputMode, stream);
+}
+
+/** Predictive range of direct jobs from the state gambling coefficient (jobsRange.json). */
+export function coefficientRangeFor(pt: PropertyType, ownership: Analysis['ownership'], inputMode: Analysis['inputMode'], stream: StreamKey): { p05: number; p95: number } | null {
   if (ownership === 'tribal' || isOnline(pt)) return null;
   const types = JOBS_RANGES.propertyTypes;
   if (inputMode === 'total' && stream === 'total') return types[pt] ?? null;
@@ -210,6 +245,8 @@ export interface ScenarioResult {
   gamingTax: GamingTaxResult | null;
   /** Rate used by the payroll adjustment, where it comes from, and the change in direct compensation. */
   payrollAdjustment: { rate: number; rateSource: 'computed' | 'custom' | 'blended'; factor: number; directChange: number } | null;
+  /** The national gaming rate that replaced the state jobs coefficient, where it applies. */
+  directJobsRate: { rate: number; rateSource: 'computed' | 'custom' | 'blended'; perMillion: number; stateCoefficient: number } | null;
   fiscal: Fiscal;
   /** Accounts of the taxed gaming stream; implied surplus is negative where they exceed its value added. */
   gamingAccounts: GamingAccounts | null;
@@ -226,7 +263,16 @@ function vertical(pt: PropertyType): GamingVertical {
 
 const positive = (v: number | null | undefined): number => (v != null && v > 0 ? v : 0);
 
-export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResult | null {
+export interface ScenarioOptions {
+  /**
+   * 'coefficient' keeps the state gambling jobs coefficient for all streams
+   * (the model before the national gaming rate of November 2026).
+   */
+  directJobs?: 'rate' | 'coefficient';
+}
+
+export function computeScenario(a: Analysis, model: RegionalModel, options: ScenarioOptions = {}): ScenarioResult | null {
+  const useRate = options.directJobs !== 'coefficient';
   const online = isOnline(a.propertyType);
   const tribal = a.ownership === 'tribal' && !online;
   const dollarYear = a.dollarYear ?? LATEST_CPI_YEAR;
@@ -280,8 +326,9 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
       // operators); all-private for supplier and induced effects.
       cashShare: { direct: WAGE_BASIS.sectors[ACTIVITIES[p.activity].sector] ?? WAGE_BASIS.private, ripple: WAGE_BASIS.private },
       compensationFactor: payrollFactor(taxRate, online, a.inputMode, p.key),
-      jobsRange: jobsRangeFor(a.propertyType, tribal ? 'tribal' : 'commercial', a.inputMode, p.key),
+      jobsRange: (useRate ? jobsRangeFor : coefficientRangeFor)(a.propertyType, tribal ? 'tribal' : 'commercial', a.inputMode, p.key),
       directFtePerJob: directFtePerJob(model, p.activity),
+      directJobsPerMillion: useRate ? directJobsRate(taxRate, a.propertyType, tribal ? 'tribal' : 'commercial', a.inputMode, p.key) : null,
     });
     if (impact) streams.push({ key: p.key, label: p.label, activity: p.activity, revenue: p.revenue, impact });
   }
@@ -294,6 +341,12 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
     rateSource: rateSource as 'computed' | 'custom' | 'blended',
     factor: adjusted[0].impact.compensationAdjustment!.factor,
     directChange: adjusted.reduce((s, x) => s + x.impact.compensation.direct - x.impact.compensationAdjustment!.modelDirect, 0),
+  } : null;
+
+  const rated = streams.find((s) => s.impact.sources.jobs === 'rate');
+  const jobsRateSummary = rated ? {
+    rate: Math.max(0, taxRate), rateSource: rateSource as 'computed' | 'custom' | 'blended',
+    perMillion: rated.impact.basis.directJobsPerMillion!, stateCoefficient: rated.impact.basis.perMillion.jobs.direct,
   } : null;
 
   // The gaming tax replaces direct TOPI of the stream it is levied on. For a
@@ -338,7 +391,7 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
   }
 
   return {
-    analysis: a, dollarYear, deflator, streams, totals, gamingTax, payrollAdjustment,
+    analysis: a, dollarYear, deflator, streams, totals, gamingTax, payrollAdjustment, directJobsRate: jobsRateSummary,
     fiscal, gamingAccounts, net, construction, stateTax,
   };
 }

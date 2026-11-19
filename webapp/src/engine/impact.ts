@@ -29,10 +29,12 @@ export interface ImpactBasis {
   directFtePerJob: number;
   knownJobs: number | null;
   knownWages: number | null;
+  /** Direct jobs per $1M of 2023 revenue that replaced the coefficient, or null. */
+  directJobsPerMillion: number | null;
 }
 
 export interface Impact extends Record<ImpactMetric, Effects> {
-  sources: { jobs: 'model' | 'user'; compensation: 'model' | 'user' | 'adjusted' };
+  sources: { jobs: 'model' | 'user' | 'rate'; compensation: 'model' | 'user' | 'adjusted' };
   /** Direct compensation before the gaming-tax adjustment, where one applies. */
   compensationAdjustment: { factor: number; modelDirect: number } | null;
   /** 90% predictive interval for direct and total jobs (model jobs only). */
@@ -61,6 +63,11 @@ export interface StreamOptions {
   jobsRange?: { p05: number; p95: number } | null;
   /** FTEs per job of the direct workforce, for observed jobs. */
   directFtePerJob: number;
+  /**
+   * Direct jobs per $1M of 2023 revenue that replace the coefficient of the
+   * response (the national casino gaming rate), or null.
+   */
+  directJobsPerMillion?: number | null;
 }
 
 export function streamImpact(response: Response, revenue: number, o: StreamOptions): Impact | null {
@@ -96,7 +103,8 @@ export function streamImpact(response: Response, revenue: number, o: StreamOptio
   const compInduced = per('compensation', 'induced') * inducedScale;
 
   const userJobs = o.knownJobs != null && o.knownJobs > 0;
-  const jobsDirect = userJobs ? o.knownJobs! : jobsDollars * t.jobs.direct;
+  const jobsRate = !userJobs && o.directJobsPerMillion != null && o.directJobsPerMillion > 0 ? o.directJobsPerMillion : null;
+  const jobsDirect = userJobs ? o.knownJobs! : jobsDollars * (jobsRate ?? t.jobs.direct);
   const jobsIndirect = jobsDollars * t.jobs.indirect;
   const jobsInduced = jobsDollars * t.jobs.induced * inducedScale;
   const ripple = jobsIndirect + jobsInduced;
@@ -123,12 +131,12 @@ export function streamImpact(response: Response, revenue: number, o: StreamOptio
     ),
     jobs: effects(jobsDirect, jobsIndirect, jobsInduced),
     fte: effects(
-      userJobs ? jobsDirect * o.directFtePerJob : jobsDollars * t.fte.direct,
+      userJobs || jobsRate != null ? jobsDirect * o.directFtePerJob : jobsDollars * t.fte.direct,
       jobsDollars * t.fte.indirect,
       jobsDollars * t.fte.induced * inducedScale,
     ),
     topi: effects(per('topi', 'direct'), per('topi', 'indirect'), per('topi', 'induced') * inducedScale),
-    sources: { jobs: userJobs ? 'user' : 'model', compensation: compSource },
+    sources: { jobs: userJobs ? 'user' : jobsRate != null ? 'rate' : 'model', compensation: compSource },
     compensationAdjustment: compSource === 'adjusted' ? { factor, modelDirect: modelCompDirect } : null,
     jobsRange,
     inducedScale,
@@ -138,6 +146,7 @@ export function streamImpact(response: Response, revenue: number, o: StreamOptio
       revenue, deflator: o.deflator, perMillion: t, cashShare: o.cashShare, compensationFactor: factor,
       jobsRangeRatios: o.jobsRange ?? null, directFtePerJob: o.directFtePerJob,
       knownJobs: userJobs ? o.knownJobs! : null, knownWages: compSource === 'user' ? o.knownWages! : null,
+      directJobsPerMillion: jobsRate,
     },
   };
 }

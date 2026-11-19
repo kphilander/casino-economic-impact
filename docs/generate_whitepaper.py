@@ -306,6 +306,9 @@ def build():
         "<b>Annual revenue.</b> Enter total revenue or revenue by department. The departments are "
         "gaming (GGR), lodging, food and beverage, and entertainment and other. Enter GGR for an "
         "online operator.",
+        "<b>Complimentaries.</b> You can enter this optional value for land-based revenue by "
+        "department. It is the retail value of the complimentaries in GGR, in $M, for each "
+        "department that gives them: food and beverage, lodging, and other (Section 8.3).",
         "<b>Dollar year of the revenue.</b> Select a year from 2019 to 2025.",
         "<b>Gaming tax.</b> Use the statutory schedule of the state or enter a custom rate. For a "
         "tribal property, enter the compact revenue share.",
@@ -314,6 +317,14 @@ def build():
         "<b>Optional modules.</b> You can use the net new impact and construction phase modules "
         "(Section 8).",
     ]))
+    el.append(body(
+        "The Casino Revenue Forecaster can fill in the inputs with a link. The link contains the "
+        "state, the property type and revenue by department. It can also contain the dollar year "
+        "of the revenue, the slot share of GGR and the comped value for each department. The "
+        "calculator ignores a dollar year that is not in its CPI table. It ignores a slot share "
+        "that is not from 0% to 100%, and then uses the default of 70%. The slot share changes "
+        "the gaming tax only in states with different rates for slots and table games. The "
+        "calculator ignores a comped value that is not more than zero."))
     el.append(h2("2.2 Results"))
     el.append(body("The calculator gives these results:"))
     el.append(table([
@@ -345,7 +356,8 @@ def build():
         "<b>Method.</b> The Method view lists the data files of each result with their checksums. "
         "The footer gives the source commit of the build.",
         "<b>Casino Revenue Forecaster.</b> The forecaster can send its revenue estimates to the "
-        "calculator as inputs.",
+        "calculator as inputs. It can also send the dollar year, the slot share of GGR and the "
+        "comped value for each department (Section 2.1).",
     ]))
 
     # --- 3. Model structure -------------------------------------------------
@@ -570,6 +582,10 @@ def build():
         "The gaming tax is a tax on GGR. Thus, the model calculates the gaming tax only when you "
         "enter GGR by department or use an online operator. In total-revenue mode, an entered rate changes only "
         "the gaming-tax adjustment of direct labor income (Section 6.4)."))
+    el.append(body(
+        "If you enter complimentaries, the gaming stream uses GGR minus the complimentaries. Each "
+        "department that gives complimentaries uses its cash revenue plus its complimentaries. "
+        "The gaming tax stays on all of GGR (Section 8.3)."))
     el.append(h2("5.4 Tribal properties"))
     el.append(body(
         "Tribal gaming pays compact revenue shares, not state gaming taxes. Tribal properties on "
@@ -659,8 +675,30 @@ def build():
         "Thus, the model is nearest for large properties and too low for small properties. In "
         "the same data, the Nevada lodging coefficient (5.04) is more than the 3.5 of the largest "
         "class.",
-        "Enter gaming revenue without complimentaries if department revenue includes them. In "
-        "Nevada, complimentaries are 28% of gross gaming win.",
+        "GGR includes the retail value of complimentaries. In Nevada, complimentaries are 28% of "
+        "gross gaming win. Do not subtract the complimentaries from GGR, because the gaming tax "
+        "is on GGR. Enter them in the complimentaries fields (Section 8.3). Then the rate applies "
+        "to GGR minus the complimentaries, at the tax rate on GGR. If you do not know the "
+        "complimentaries, the rate applies to all of GGR. Then direct gaming jobs are larger by "
+        "the rate × the complimentaries, and the departments that give them get no jobs for this "
+        "value. In the two cases, enter only cash revenue for lodging, food and other. Department "
+        "revenue that includes complimentaries, with GGR, counts this revenue two times.",
+        "The rate comes from 2022 Economic Census receipts. For casino hotels, the gaming "
+        "receipts are mostly without complimentaries. The Census Bureau form for the 2022 Service "
+        "Annual Survey tells casino hotels to report sales net of promotional allowances. For "
+        "Nevada, the Census gaming receipts of casino hotels are $10.84B. The Nevada Gaming "
+        "Abstract gives $9.83B of gaming revenue without complimentaries and $13.43B of gross win "
+        "(casinos with rooms, mean of fiscal years 2022 and 2023). The totals agree: $27.33B and "
+        "$27.23B. Thus, for casino hotels, GGR minus the complimentaries is the better base for "
+        "the rate. It is not exact. In Mississippi, the Census gaming receipts are 93% of the "
+        "gross gaming revenue that the regulator reports.",
+        "For stand-alone casinos, the rate uses total receipts. Complimentaries move between "
+        "departments, and total receipts do not change much. Thus, total receipts are almost "
+        "equal to gross win plus the cash revenue of the other departments. When you enter "
+        "complimentaries for a stand-alone casino, the model applies the rate to GGR minus the "
+        "complimentaries and gives too few direct gaming jobs. The difference is approximately "
+        "the share of complimentaries in GGR. The Economic Census forms do not tell respondents "
+        "how to report complimentaries.",
     ]))
     el.append(body(
         "For land-based commercial casinos, GEMS gives a 90% predictive range for direct and "
@@ -832,6 +870,50 @@ def build():
         "state does not include land, gaming equipment or purchases from other states. Jobs are "
         "job-years for the period, and the module also gives the average jobs for each year. The "
         "calculator shows construction effects separately from the effects of operations."))
+    el.append(h2("8.3 Complimentaries"))
+    el.append(body(
+        "GGR (gross gaming win) includes the retail value of the rooms, meals, drinks and other "
+        "items that a casino gives to players. These items are complimentaries (comps). Casino "
+        "financial statements under ASC 606 record this value as revenue of the department that "
+        "gives the item. They record gaming revenue without this value. For example, the Nevada "
+        "Gaming Abstract shows complimentary room sales in the rooms department. It shows a "
+        "negative contra revenue (complimentary expense) in the casino department."))
+    el.append(body(
+        "Without this module, the model uses all of GGR as gaming output. For the other "
+        "departments, it uses only the cash revenue that you enter. You can enter the comped "
+        "value for each department that gives comps: food and beverage, lodging, and other ($M). "
+        "Then the model calculates the output as follows:"))
+    el.append(formula(
+        "gaming output = GGR<br/>"
+        "&nbsp;&nbsp;- (comped food and beverage + comped lodging + comped other)<br/>"
+        "output of department d = cash revenue of d + comped value of d<br/>"
+        "gaming tax = statutory schedule applied to GGR (no change)"))
+    el.append(body(
+        "Total revenue does not change. Only its division between the gambling coefficients and "
+        "the food, lodging and other coefficients changes. The effective gaming tax rate τ is "
+        "still the gaming tax divided by GGR. The items below use the smaller gaming output:"))
+    el.append(bullets([
+        "The gaming tax replaces the gaming part of the direct TOPI of the gaming stream (Section "
+        "7.1). The model calculates this TOPI on the smaller gaming output.",
+        "The gaming-tax adjustment of direct labor income (Section 6.4) uses τ on GGR. The model "
+        "applies it to the labor income of the smaller gaming output.",
+        "For commercial stand-alone casinos and casino hotels, the national rate for direct "
+        "gaming jobs (Section 6.3) uses τ on GGR. The model applies the rate to the smaller "
+        "gaming output.",
+        "The note for a high gaming tax (Section 6.4) compares the value added of the smaller "
+        "gaming output with the tax on GGR.",
+    ]))
+    el.append(body(
+        "The module applies only to land-based revenue by department. If the comps that you enter "
+        "are more than GGR, the model decreases them to GGR. If the fields are empty, the results "
+        "are the same as without the module. The Casino Revenue Forecaster can send estimates of "
+        "the comped value for its property archetypes (Section 2.1)."))
+    el.append(body(
+        "Enter all of GGR as gaming revenue, not GGR minus the comps. A smaller value gives a "
+        "gaming tax that is too low. Enter only cash revenue for lodging, food and other. If "
+        "department revenue includes comps, subtract them before you enter it. If you do not, "
+        "the model counts the comped value two times. Section 6.3 gives a limit of the jobs rate "
+        "for comps."))
 
     # --- 9. Data sources ----------------------------------------------------
     el.append(h1("9. Data sources"))

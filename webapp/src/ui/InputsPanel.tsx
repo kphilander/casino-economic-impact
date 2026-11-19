@@ -108,6 +108,7 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
           <p className="note">
             GGR includes the retail value of comped rooms, meals, drinks and other items. If you enter that value, the model counts it as output of the
             department that provides it and takes it out of the gaming output. The gaming tax stays on the full GGR. Leave blank to model all GGR as gaming.
+            Enter the full GGR above, not GGR minus comps, and enter only cash revenue for the other departments.
           </p>
           {COMP_DEPARTMENTS.map((d) => (
             <NumberField key={d} label={`Comps from ${DEPARTMENT_LABELS[d].toLowerCase()}`} unit="$M" min={0} value={a.comps[d]} onChange={(n) => setComp(d, n)} />

@@ -409,6 +409,7 @@ The calculator can be pre-filled via URL parameters from the [Casino Revenue For
 | `other` | `31.5` | Other revenue in $M |
 | `dollarYear` | `2025` | Dollar year of the revenue. Optional; ignored unless it is a year in the CPI table, in which case it sets the dollar year of the analysis |
 | `slotShare` | `60` | Slot win as a percent of GGR. Optional; sets the slot share used where a state taxes slots and table games at different rates. Ignored unless it is between 0 and 100 (default 70) |
+| `compFood`, `compLodging`, `compOther` | `39.6`, `59.9`, `4.1` | Optional. Retail value of complimentaries included in `gaming`, in $M, by receiving department (food and beverage, lodging, other). When present, the gaming stream's output is `gaming` less the comps and each department's output is its cash revenue plus its comps; the gaming tax stays on `gaming` (GGR). Ignored unless positive |
 | `gaming_emp`, `archetype` | `2,405`, `mega_resort` | Accepted and ignored |
 
 When imported, a banner links back to the forecaster.

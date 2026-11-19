@@ -683,12 +683,22 @@ def build():
         "the rate × the complimentaries, and the departments that give them get no jobs for this "
         "value. In the two cases, enter only cash revenue for lodging, food and other. Department "
         "revenue that includes complimentaries, with GGR, counts this revenue two times.",
-        "The rate comes from Census gaming receipts. The data in this repository do not show if "
-        "these receipts include complimentaries. The replication repository is private. When you "
-        "enter complimentaries, the model applies the rate to gaming revenue without them. Thus, "
-        "it assumes that the Census receipts also do not include them. If the receipts include "
-        "complimentaries, the model then gives too few direct gaming jobs. The difference is "
-        "approximately the share of complimentaries in GGR.",
+        "The rate comes from 2022 Economic Census receipts. For casino hotels, the gaming "
+        "receipts are mostly without complimentaries. The Census Bureau form for the 2022 Service "
+        "Annual Survey tells casino hotels to report sales net of promotional allowances. For "
+        "Nevada, the Census gaming receipts of casino hotels are $10.84B. The Nevada Gaming "
+        "Abstract gives $9.83B of gaming revenue without complimentaries and $13.43B of gross win "
+        "(casinos with rooms, mean of fiscal years 2022 and 2023). The totals agree: $27.33B and "
+        "$27.23B. Thus, for casino hotels, GGR minus the complimentaries is the better base for "
+        "the rate. It is not exact. In Mississippi, the Census gaming receipts are 93% of the "
+        "gross gaming revenue that the regulator reports.",
+        "For stand-alone casinos, the rate uses total receipts. Complimentaries move between "
+        "departments, and total receipts do not change much. Thus, total receipts are almost "
+        "equal to gross win plus the cash revenue of the other departments. When you enter "
+        "complimentaries for a stand-alone casino, the model applies the rate to GGR minus the "
+        "complimentaries and gives too few direct gaming jobs. The difference is approximately "
+        "the share of complimentaries in GGR. The Economic Census forms do not tell respondents "
+        "how to report complimentaries.",
     ]))
     el.append(body(
         "For land-based commercial casinos, GEMS gives a 90% predictive range for direct and "

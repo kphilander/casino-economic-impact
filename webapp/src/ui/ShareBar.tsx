@@ -47,13 +47,13 @@ export function ShareBar({ analysis, onLoad, onCompare }: { analysis: Analysis; 
 
   return (
     <div className="sharebar" ref={rootRef}>
-      <button type="button" className="btn" onClick={() => { setName(defaultName(analysis)); setOpen(open === 'save' ? null : 'save'); }}>Save</button>
+      {flash && <span className="flash" role="status">{flash}</span>}
       <button type="button" className="btn" onClick={() => { setProjects(loadProjects()); setOpen(open === 'projects' ? null : 'projects'); }}>
         Projects{projects.length ? ` (${projects.length})` : ''}
       </button>
       <button type="button" className="btn" onClick={copyLink}>Copy share link</button>
       <button type="button" className="btn" onClick={onCompare}>Add to comparison</button>
-      {flash && <span className="flash" role="status">{flash}</span>}
+      <button type="button" className="btn primary" onClick={() => { setName(defaultName(analysis)); setOpen(open === 'save' ? null : 'save'); }}>Save</button>
 
       {open === 'save' && (
         <form className="popover" onSubmit={(e) => {

@@ -9,8 +9,8 @@ export function LineChart(props: {
   const { points } = props;
   if (points.length < 2) return null;
   const W = 640;
-  const H = 260;
-  const pad = { l: 64, r: 40, t: 16, b: 36 };
+  const H = 270;
+  const pad = { l: 84, r: 40, t: 28, b: 36 };
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
   const x0 = Math.min(...xs);
@@ -22,26 +22,33 @@ export function LineChart(props: {
   const d = points.map((p, i) => `${i ? 'L' : 'M'}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => yMin + f * (yMax - yMin));
   const xTicks = points.filter((_, i) => i % Math.ceil(points.length / 5) === 0 || i === points.length - 1);
+  const showMark = props.markX != null && props.markX >= x0 && props.markX <= x1;
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={props.title}>
-      {yTicks.map((y) => (
-        <g key={y}>
-          <line x1={pad.l} x2={W - pad.r} y1={sy(y)} y2={sy(y)} className="grid" />
-          <text x={pad.l - 8} y={sy(y)} dy="0.32em" textAnchor="end" className="tick">{props.yLabel(y)}</text>
-        </g>
-      ))}
-      {xTicks.map((p) => (
-        <text key={p.x} x={sx(p.x)} y={H - pad.b + 20} textAnchor="middle" className="tick">{props.xLabel(p.x)}</text>
-      ))}
-      {props.markX != null && props.markX >= x0 && props.markX <= x1 && (
-        <line x1={sx(props.markX)} x2={sx(props.markX)} y1={pad.t} y2={H - pad.b} className="mark" />
-      )}
-      <path d={d} className="line" />
-      {points.map((p) => (
-        <circle key={p.x} cx={sx(p.x)} cy={sy(p.y)} r={4} className="dot">
-          <title>{`${props.xLabel(p.x)}: ${props.yLabel(p.y)}`}</title>
-        </circle>
-      ))}
-    </svg>
+    // The wrapper scrolls sideways on narrow screens, so tick labels keep a legible size.
+    <div className="chart-wrap">
+      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={props.title}>
+        {yTicks.map((y, i) => (
+          <g key={y}>
+            <line x1={pad.l} x2={W - pad.r} y1={sy(y)} y2={sy(y)} className={i === 0 ? 'axis-base' : 'grid'} />
+            <text x={pad.l - 8} y={sy(y)} dy="0.32em" textAnchor="end" className="tick">{props.yLabel(y)}</text>
+          </g>
+        ))}
+        {xTicks.map((p) => (
+          <text key={p.x} x={sx(p.x)} y={H - pad.b + 22} textAnchor="middle" className="tick">{props.xLabel(p.x)}</text>
+        ))}
+        {showMark && (
+          <g>
+            <line x1={sx(props.markX!)} x2={sx(props.markX!)} y1={pad.t} y2={H - pad.b} className="mark" />
+            <text x={sx(props.markX!)} y={pad.t - 8} textAnchor="middle" className="mark-label">Current</text>
+          </g>
+        )}
+        <path d={d} className="line" />
+        {points.map((p) => (
+          <circle key={p.x} cx={sx(p.x)} cy={sy(p.y)} r={4} className="dot">
+            <title>{`${props.xLabel(p.x)}: ${props.yLabel(p.y)}`}</title>
+          </circle>
+        ))}
+      </svg>
+    </div>
   );
 }

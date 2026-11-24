@@ -307,15 +307,15 @@ message("  - Updated BEA data")
 message("\n=== SAVING OUTPUT ===\n")
 
 # Save the full property type ratios
-write.csv(property_type_ratios, "national_naics_ratios.csv", row.names = FALSE)
+write.csv(property_type_ratios, "data/national_naics_ratios.csv", row.names = FALSE)
 message("Saved: national_naics_ratios.csv")
 
 # Save the blended parent coefficients for reference
-write.csv(blended_parents, "blended_parent_coefficients.csv", row.names = FALSE)
+write.csv(blended_parents, "data/blended_parent_coefficients.csv", row.names = FALSE)
 message("Saved: blended_parent_coefficients.csv")
 
 # Save the detailed BEA sector coefficients
-write.csv(coefficients, "bea_detail_coefficients.csv", row.names = FALSE)
+write.csv(coefficients, "data/bea_detail_coefficients.csv", row.names = FALSE)
 message("Saved: bea_detail_coefficients.csv")
 
 # ============================================================================

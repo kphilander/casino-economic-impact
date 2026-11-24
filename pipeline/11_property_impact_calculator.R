@@ -10,7 +10,7 @@
 #
 # Usage:
 #   1. Edit the USER INPUTS section below with your property data
-#   2. Run the entire script: source("11_property_impact_calculator.R")
+#   2. Run the entire script: source("pipeline/11_property_impact_calculator.R")
 #   3. View results in console and exported CSV file
 # ============================================================================
 
@@ -45,7 +45,7 @@ output_file <- NULL                    # Filename (auto-generated if NULL)
 library(tidyverse)
 
 # Load the multiplier data
-source("10_casino_impact_model.R")
+source("pipeline/10_casino_impact_model.R")
 
 # ============================================================================
 # INPUT VALIDATION

@@ -23,11 +23,11 @@ qcew_url <- paste0(
 )
 qcew_zip <- Sys.getenv(
   "GEMS_QCEW_SINGLEFILE_ZIP",
-  unset = paste0(qcew_year, "_annual_singlefile.zip")
+  unset = paste0("data/", qcew_year, "_annual_singlefile.zip")
 )
 output_file <- Sys.getenv(
   "GEMS_QCEW_ALL_SECTORS_FILE",
-  unset = paste0("employment_all_sectors_", qcew_year, ".csv")
+  unset = paste0("data/employment_all_sectors_", qcew_year, ".csv")
 )
 
 if (!file.exists(qcew_zip)) {

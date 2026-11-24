@@ -40,9 +40,9 @@ source(file.path("scripts", "employment_satellite.R"))
 io_year <- 2019
 employment_year <- 2023
 out_dir <- Sys.getenv("GEMS_IO_EXPORT_DIR", unset = file.path("webapp", "src", "data", "io"))
-employment_file <- Sys.getenv("GEMS_QCEW_ALL_SECTORS_FILE", unset = "employment_all_sectors_2023.csv")
+employment_file <- Sys.getenv("GEMS_QCEW_ALL_SECTORS_FILE", unset = "data/employment_all_sectors_2023.csv")
 
-for (f in c(employment_file, "fte_ratios_2023.csv", "national_naics_ratios.csv")) {
+for (f in c(employment_file, "data/fte_ratios_2023.csv", "data/national_naics_ratios.csv")) {
   if (!file.exists(f)) stop("Missing input: ", f)
 }
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
@@ -67,10 +67,10 @@ sources <- lapply(list(make, use, ind_output, com_output, value_added, output_20
                   function(x) list(file = attr(x, "source_file"), md5 = attr(x, "md5")))
 
 employment <- read.csv(employment_file, stringsAsFactors = FALSE)
-fte <- read.csv("fte_ratios_2023.csv", stringsAsFactors = FALSE)
-household_spending <- read.csv(Sys.getenv("GEMS_HOUSEHOLD_SPENDING_FILE", unset = "household_spending_2023.csv"),
+fte <- read.csv("data/fte_ratios_2023.csv", stringsAsFactors = FALSE)
+household_spending <- read.csv(Sys.getenv("GEMS_HOUSEHOLD_SPENDING_FILE", unset = "data/household_spending_2023.csv"),
                                stringsAsFactors = FALSE)
-ratios <- read.csv("national_naics_ratios.csv", stringsAsFactors = FALSE)
+ratios <- read.csv("data/national_naics_ratios.csv", stringsAsFactors = FALSE)
 
 state_names <- state.name
 state_abbrevs <- state.abb

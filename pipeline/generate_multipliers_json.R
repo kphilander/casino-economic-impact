@@ -4,11 +4,11 @@
 
 library(tidyverse)
 library(jsonlite)
-employment <- read.csv("employment_multipliers_2023.csv", stringsAsFactors = FALSE)
-gambling <- read.csv("gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
-properties <- read.csv("property_type_multipliers_2023.csv", stringsAsFactors = FALSE)
-online <- read.csv("online_gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
-construction <- read.csv("construction_multipliers_2023.csv", stringsAsFactors = FALSE)
+employment <- read.csv("data/employment_multipliers_2023.csv", stringsAsFactors = FALSE)
+gambling <- read.csv("data/gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
+properties <- read.csv("data/property_type_multipliers_2023.csv", stringsAsFactors = FALSE)
+online <- read.csv("data/online_gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
+construction <- read.csv("data/construction_multipliers_2023.csv", stringsAsFactors = FALSE)
 stopifnot(nrow(construction) == 50L, all(construction$Sector == "23"))
 
 stopifnot(nrow(employment) == 200, nrow(gambling) == 50,
@@ -125,5 +125,5 @@ json_output <- toJSON(output, pretty = TRUE, auto_unbox = TRUE, digits = 10,
                       na = "null")
 # The web application computes its model from the state tables written by
 # scripts/export_state_io.R; this JSON is a convenience export of the CSVs.
-writeLines(json_output, "multipliers_with_tax.json")
+writeLines(json_output, "data/multipliers_with_tax.json")
 message("Exported multipliers_with_tax.json")

@@ -14,7 +14,7 @@
 #   before using in official reports. Legislative changes may have occurred.
 #
 # Usage:
-#   source("state_gaming_tax_rates.R")
+#   source("pipeline/state_gaming_tax_rates.R")
 #   # Access the flat lookup:
 #   GAMING_TAX_RATES$effective_rate[GAMING_TAX_RATES$state == "Nevada"]
 #   # Access detailed tiers:

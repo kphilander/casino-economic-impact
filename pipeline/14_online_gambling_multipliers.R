@@ -98,12 +98,12 @@ message("  Employment coef ratio:  ", ONLINE_ADJUSTMENT_FACTORS$emp_coef_ratio)
 
 message("\n=== Loading Gambling (7132) Multipliers ===\n")
 
-gambling_mult <- read.csv("gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
+gambling_mult <- read.csv("data/gambling_multipliers_2023.csv", stringsAsFactors = FALSE)
 message("Loaded ", nrow(gambling_mult), " state records")
 
 fte_ratio_file <- Sys.getenv(
   "GEMS_FTE_RATIO_FILE",
-  unset = "fte_ratios_2023.csv"
+  unset = "data/fte_ratios_2023.csv"
 )
 if (!file.exists(fte_ratio_file)) stop("Missing input: ", fte_ratio_file)
 fte_ratios <- read.csv(fte_ratio_file, stringsAsFactors = FALSE)
@@ -204,7 +204,7 @@ output_online <- online_multipliers %>%
 # SAVE
 # ============================================================================
 
-online_mult_file <- "online_gambling_multipliers_2023.csv"
+online_mult_file <- "data/online_gambling_multipliers_2023.csv"
 write.csv(output_online, online_mult_file, row.names = FALSE)
 message("Saved: ", online_mult_file)
 

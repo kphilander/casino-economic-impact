@@ -8,7 +8,7 @@ library(tidyverse)
 
 input_file <- Sys.getenv(
   "GEMS_STATE_MULTIPLIERS_FILE",
-  unset = "state_multipliers_2023.csv"
+  unset = "data/state_multipliers_2023.csv"
 )
 if (!file.exists(input_file)) {
   stop("Missing ", input_file, "; run 08_state_multipliers_2023.R first")
@@ -22,5 +22,5 @@ tax_export <- state_multipliers %>%
          Type_II_Output, Type_II_VA, Type_II_Wage, Type_II_Tax,
          IO_Structure_Year)
 
-write.csv(tax_export, "state_multipliers_with_tax.csv", row.names = FALSE)
+write.csv(tax_export, "data/state_multipliers_with_tax.csv", row.names = FALSE)
 message("Saved state_multipliers_with_tax.csv (compatibility export)")

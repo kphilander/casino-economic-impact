@@ -13,7 +13,7 @@ library(tidyverse)
 
 gambling_file <- Sys.getenv(
   "GEMS_GAMBLING_MULTIPLIERS_FILE",
-  unset = "gambling_multipliers_2023.csv"
+  unset = "data/gambling_multipliers_2023.csv"
 )
 if (!file.exists(gambling_file)) stop("Missing input: ", gambling_file)
 
@@ -43,5 +43,5 @@ property_multipliers <- bind_rows(lapply(seq_len(nrow(property_definitions)), fu
 }))
 
 stopifnot(nrow(property_multipliers) == 200)
-write.csv(property_multipliers, "property_type_multipliers_2023.csv", row.names = FALSE)
+write.csv(property_multipliers, "data/property_type_multipliers_2023.csv", row.names = FALSE)
 message("Saved property_type_multipliers_2023.csv (200 rows)")

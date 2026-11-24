@@ -5,4 +5,4 @@
 # produced by 13_extract_national_naics_ratios.R and applied by
 # generate_complete_multipliers.R.
 
-source("generate_complete_multipliers.R")
+source("pipeline/generate_complete_multipliers.R")

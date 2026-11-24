@@ -4,7 +4,7 @@ Generate the GEMS methodology white paper PDF.
 
 Output: webapp/public/GEMS-2026-Methodology.pdf (served by the web app at
 <base>/GEMS-2026-Methodology.pdf). The paper describes the model as deployed
-in October 2026 and agrees with docs/methodology.md. It is written in
+in November 2026 and agrees with docs/methodology.md. It is written in
 ASD-STE100 Simplified Technical English; technical names, formulas, file
 names, statutes and citations keep their usual form.
 
@@ -35,7 +35,7 @@ PUBLISHER = "GP Consulting"
 URL = "https://gamblingpolicy.com/tools/economic-impact/"
 EMAIL = "info@gamblingpolicy.com"
 AUTHOR = "Dr. Kahlil Simeon-Rose"
-EDITION_DATE = "October 2026"
+EDITION_DATE = "November 2026"
 CITATION = (
     f"Simeon-Rose, K. (2026). {PRODUCT_NAME}: {PRODUCT_FULL_NAME} "
     f"(Version {MODEL_VERSION}) [Computer software]. {PUBLISHER}. {URL}"
@@ -306,6 +306,9 @@ def build():
         "<b>Annual revenue.</b> Enter total revenue or revenue by department. The departments are "
         "gaming (GGR), lodging, food and beverage, and entertainment and other. Enter GGR for an "
         "online operator.",
+        "<b>Complimentaries.</b> You can enter this optional value for land-based revenue by "
+        "department. It is the retail value of the complimentaries in GGR, in $M, for each "
+        "department that gives them: food and beverage, lodging, and other (Section 8.3).",
         "<b>Dollar year of the revenue.</b> Select a year from 2019 to 2025.",
         "<b>Gaming tax.</b> Use the statutory schedule of the state or enter a custom rate. For a "
         "tribal property, enter the compact revenue share.",
@@ -314,6 +317,14 @@ def build():
         "<b>Optional modules.</b> You can use the net new impact and construction phase modules "
         "(Section 8).",
     ]))
+    el.append(body(
+        "The Casino Revenue Forecaster can fill in the inputs with a link. The link contains the "
+        "state, the property type and revenue by department. It can also contain the dollar year "
+        "of the revenue, the slot share of GGR and the comped value for each department. The "
+        "calculator ignores a dollar year that is not in its CPI table. It ignores a slot share "
+        "that is not from 0% to 100%, and then uses the default of 70%. The slot share changes "
+        "the gaming tax only in states with different rates for slots and table games. The "
+        "calculator ignores a comped value that is not more than zero."))
     el.append(h2("2.2 Results"))
     el.append(body("The calculator gives these results:"))
     el.append(table([
@@ -345,7 +356,8 @@ def build():
         "<b>Method.</b> The Method view lists the data files of each result with their checksums. "
         "The footer gives the source commit of the build.",
         "<b>Casino Revenue Forecaster.</b> The forecaster can send its revenue estimates to the "
-        "calculator as inputs.",
+        "calculator as inputs. It can also send the dollar year, the slot share of GGR and the "
+        "comped value for each department (Section 2.1).",
     ]))
 
     # --- 3. Model structure -------------------------------------------------
@@ -472,9 +484,21 @@ def build():
         "measure of GEMS. Owner-occupied housing (HS) and government enterprises (GFE, GSLE) have "
         "no QCEW measure, so their job coefficients are zero."))
     el.append(body(
+        "The satellite has two corrections (scripts/employment_satellite.R). First, StateIO 0.4.0 "
+        "divides 2023 retail output among the four retail sectors (441, 445, 452, 4A0) incorrectly. "
+        "Sector 452 has no output in any state, and sector 441 has approximately five times its "
+        "2019 output. The retail total is plausible. Thus, the satellite keeps the 2023 retail "
+        "total of each state and divides it among the four sectors by their 2019 shares. Second, "
+        "QCEW does not disclose the jobs of some state-sector cells. Where a sector has output in "
+        "a state but no recorded jobs, the satellite uses the national jobs for each dollar of "
+        "output of that sector. Each state file lists these sectors. The corrections changed only "
+        "supplier and induced jobs. For the four casino-related sectors, Type II jobs for each "
+        "dollar of output changed by -5% to 0% across the states."))
+    el.append(body(
         "StateIO gives each sector national coefficients for value added, compensation and TOPI. "
         "Thus, the differences between states in labor intensity come from jobs for each dollar "
-        "of output."))
+        "of output. Direct gaming jobs of commercial casinos are an exception. They use a "
+        "national rate that changes with the gaming tax rate (Section 6.3)."))
     el.append(h2("4.2 Estimated FTEs"))
     el.append(body(
         "BEA NIPA Tables 6.4D and 6.5D give full-time and part-time employees and full-time "
@@ -558,6 +582,10 @@ def build():
         "The gaming tax is a tax on GGR. Thus, the model calculates the gaming tax only when you "
         "enter GGR by department or use an online operator. In total-revenue mode, an entered rate changes only "
         "the gaming-tax adjustment of direct labor income (Section 6.4)."))
+    el.append(body(
+        "If you enter complimentaries, the gaming stream uses GGR minus the complimentaries. Each "
+        "department that gives complimentaries uses its cash revenue plus its complimentaries. "
+        "The gaming tax stays on all of GGR (Section 8.3)."))
     el.append(h2("5.4 Tribal properties"))
     el.append(body(
         "Tribal gaming pays compact revenue shares, not state gaming taxes. Tribal properties on "
@@ -587,8 +615,9 @@ def build():
         "The 2022 Economic Census records receipts. Thus, it can separate jobs for each output "
         "dollar from compensation for each output dollar."))
     el.append(bullets([
-        "Jobs for each revenue dollar show no bias. The ratios are 0.94, 1.06 and 0.96 "
-        "(p > 0.5).",
+        "Jobs for each revenue dollar show no average bias. The ratios are 0.94, 1.06 and 0.96 "
+        "(p > 0.5). But the differences of the coefficient between states contain no data for "
+        "casinos (Section 6.3).",
         "The payroll share of revenue is 18% to 53% too high. The observed share decreases as the "
         "effective gaming tax of the state increases.",
         "Thus, the QCEW shortfall is an overstatement of compensation, not a shortage of jobs. "
@@ -604,25 +633,98 @@ def build():
         "casino hotel total for 17 states increases from 0.77 to 0.97 of observed jobs. Nevada "
         "increases to 0.89. Thus, for a property with much non-gaming revenue, use "
         "department mode."))
-    el.append(h2("6.3 Predictive ranges"))
+    el.append(h2("6.3 National rate for direct gaming jobs, and predictive ranges"))
     el.append(body(
-        "GEMS does not adjust direct jobs. For land-based commercial casinos, it gives a "
-        "90% predictive range for direct and total jobs (webapp/src/data/jobsRange.json). The "
-        "range is from the 5th to the 95th percentile of a lognormal distribution. The distribution "
-        "uses the dispersion of the Census residuals across states."))
+        "The test of Section 6.2 shows no average bias, but it hides two problems. First, in 21 "
+        "gaming cells of 15 states with commercial casinos, the state gambling coefficient has no "
+        "correlation with observed jobs for each revenue dollar (r = -0.08). Second, observed jobs "
+        "for each revenue dollar decrease as the gaming tax rate increases, and the coefficient "
+        "does not. Thus, the coefficient was too high in states with a high tax (1.5 times the "
+        "Census value for Pennsylvania) and too low in states with a low tax (0.62 to 0.66 for "
+        "Nevada and New Jersey)."))
+    el.append(body(
+        "For the gaming stream of commercial stand-alone casinos and casino hotels, GEMS uses a "
+        "national rate (webapp/src/data/directJobsRate.json) and not the state coefficient."))
+    el.append(formula("direct gaming jobs for each $1M of revenue (2023 dollars) = 4.57 × exp(-0.992 τ)"))
+    el.append(bullets([
+        "τ is the effective gaming tax rate of Section 6.4.",
+        "The slope is 0.992 (SE 0.42, p = 0.034, standard errors clustered by state). The cells "
+        "are stand-alone casinos in 8 states and the gaming part of casino hotels in 13 states. "
+        "For casino hotels, the gaming part is Census employees minus the modeled non-gaming jobs, "
+        "for each dollar of gaming receipts. Stand-alone casinos alone give "
+        "4.80 × exp(-1.06 τ).",
+        "In the prediction of each state from the other states, the mean absolute log error is "
+        "0.236 for the state coefficient, 0.251 for the state coefficient with a tax factor, 0.185 "
+        "for a national constant and 0.169 for the national rate.",
+        "The rate changes direct jobs and direct estimated FTEs of the gaming stream only. Labor "
+        "income, GDP and supplier and induced effects do not change. Entered jobs replace the "
+        "rate.",
+        "With the rate, the department-mode test of casino hotels in 17 states gives 1.02 of "
+        "observed jobs in total. The mean absolute log error decreases from 0.21 to 0.16.",
+        "Slot parlors and bingo halls, bars with slots, tribal properties and online operators "
+        "keep the state coefficient. The rate does not decrease the error for slot parlors, and "
+        "the other types are not in the sample.",
+    ]))
+    el.append(body("The rate has these limits."))
+    el.append(bullets([
+        "For casino hotels alone, the slope is not significant (p = 0.18). The result comes "
+        "mostly from the eight stand-alone cells.",
+        "The rate is the same for small and large properties. In the Nevada Gaming Abstract for "
+        "fiscal year 2025, casinos with rooms and gaming revenue of $72M or more have 4.6 jobs "
+        "for each $1M of total revenue (2023 dollars). The smaller classes have 7.8 to 8.6. "
+        "Thus, the model is nearest for large properties and too low for small properties. In "
+        "the same data, the Nevada lodging coefficient (5.04) is more than the 3.5 of the largest "
+        "class.",
+        "GGR includes the retail value of complimentaries. In Nevada, complimentaries are 28% of "
+        "gross gaming win. Do not subtract the complimentaries from GGR, because the gaming tax "
+        "is on GGR. Enter them in the complimentaries fields (Section 8.3). Then, for a casino "
+        "hotel, the rate applies to GGR minus the complimentaries. For a stand-alone casino, the "
+        "rate applies to all of GGR. The two items below give the reason. The rate always uses "
+        "the tax rate on GGR. If you do not know the complimentaries, the rate applies to all of "
+        "GGR. Then, for a casino hotel, direct gaming jobs are larger by the rate × the "
+        "complimentaries, and the departments that give them get no jobs for this value. In the "
+        "two cases, enter only cash revenue for lodging, food and other. Department revenue that "
+        "includes complimentaries, with GGR, counts this revenue two times.",
+        "The rate comes from 2022 Economic Census receipts. For casino hotels, the gaming "
+        "receipts are mostly without complimentaries. The Census Bureau form for the 2022 Service "
+        "Annual Survey tells casino hotels to report sales net of promotional allowances. For "
+        "Nevada, the Census gaming receipts of casino hotels are $10.84B. The Nevada Gaming "
+        "Abstract gives $9.83B of gaming revenue without complimentaries and $13.43B of gross win "
+        "(casinos with rooms, mean of fiscal years 2022 and 2023). The totals agree: $27.33B and "
+        "$27.23B. Thus, for casino hotels, GGR minus the complimentaries is the better base for "
+        "the rate. It is not exact. In Mississippi, the Census gaming receipts are 93% of the "
+        "gross gaming revenue that the regulator reports.",
+        "For stand-alone casinos, the rate uses total receipts. Complimentaries move between "
+        "departments, and total receipts do not change much. Thus, total receipts are almost "
+        "equal to gross win plus the cash revenue of the other departments. Thus, when you "
+        "enter complimentaries for a stand-alone casino, the model applies the rate to all of "
+        "GGR. The other effects of the gaming stream use GGR minus the complimentaries. The "
+        "departments that give the complimentaries also get jobs for this value. Thus, total "
+        "direct jobs of a stand-alone casino increase a small quantity when you enter "
+        "complimentaries. The Economic Census forms do not tell respondents how to report "
+        "complimentaries.",
+    ]))
+    el.append(body(
+        "For land-based commercial casinos, GEMS gives a 90% predictive range for direct and "
+        "total jobs. The range is from the 5th to the 95th percentile of a lognormal distribution "
+        "of the log errors across states."))
     el.append(table([
-        ["Property type", "Cells", "Model ÷ Census jobs for each revenue dollar", "90% range (× coefficient)"],
-        ["Stand-alone casino (713210)", "15", "0.94 (p = 0.56)", "0.56 to 2.01"],
-        ["Slot parlor or bingo hall (713290)", "22", "1.06 (p = 0.65)", "0.33 to 2.70"],
-        ["Casino hotel (721120)", "19", "0.96 (p = 0.60)", "0.59 to 1.83"],
-    ], [2.2 * inch, 0.6 * inch, 2.1 * inch, W - 4.9 * inch]))
+        ["Stream", "Cells", "Predicted ÷ Census jobs", "90% range (× direct jobs)"],
+        ["Gaming department (national rate)", "21", "1.00", "0.67 to 1.48"],
+        ["Stand-alone casino, total revenue (national rate)", "8", "0.97", "0.87 to 1.21"],
+        ["Casino hotel, total revenue (national rate)", "15", "0.88", "0.87 to 1.49"],
+        ["Slot parlor or bingo hall (state coefficient)", "22", "1.06 (p = 0.65)", "0.33 to 2.70"],
+    ], [2.9 * inch, 0.6 * inch, 1.6 * inch, W - 5.1 * inch]))
     el.append(Spacer(1, 10))
     el.append(bullets([
+        "The first two ranges use predictions for states that the estimate did not include. The "
+        "casino hotel range applies the rate to all receipts and includes the bias that results.",
+        "The stand-alone range uses eight cells and is narrow. The real uncertainty is "
+        "possibly larger.",
         "In total-revenue mode, the range for the property type applies. In department mode, only "
-        "the gaming stream has a range. It uses the stand-alone casino range. Slot parlors use the "
-        "slot parlor range.",
-        "There is no range for bars and restaurants with slots, for tribal properties, for online "
-        "operators or for jobs that you enter. These cases have no benchmark.",
+        "the gaming stream has a range.",
+        "There is no range for bars and restaurants with slots in total-revenue mode, for tribal "
+        "properties, for online operators or for jobs that you enter. These cases have no benchmark.",
         "Supplier and induced jobs have no observed benchmark. They enter the range as modeled.",
     ]))
     el.append(h2("6.4 Gaming-tax adjustment of direct labor income"))
@@ -643,10 +745,17 @@ def build():
         "from 0.26 to 0.147.",
     ]))
     el.append(body(
-        "The adjustment changes only direct labor income. Direct jobs and direct value added do "
-        "not change. Lower labor income gives lower cash wages, lower payroll and income taxes, and "
+        "The adjustment changes only direct labor income. Direct value added does not change. "
+        "Direct jobs change with the tax rate through the rate of Section 6.3, not through this adjustment. Lower labor income gives lower cash wages, lower payroll and income taxes, and "
         "lower induced effects. Entered wages replace the adjusted value. The adjustment "
         "does not apply to online operators or to lodging, food and other revenue."))
+    el.append(body(
+        "Direct value added and supplier purchases for each revenue dollar are national values. "
+        "At a high gaming tax rate, the sum of direct labor income, the gaming tax and the other "
+        "direct taxes can be more than direct value added. With the default inputs, this occurs "
+        "in Maryland, Pennsylvania, Rhode Island and West Virginia. Direct GDP is then possibly "
+        "too low, and supplier effects are possibly too high. The calculator shows a note when "
+        "this occurs. It does not change the estimates."))
     el.append(h2("6.5 Convergent validity of the multipliers"))
     el.append(body(
         "Supplier and induced effects have no observed benchmark. No agency measures them, and "
@@ -765,6 +874,50 @@ def build():
         "state does not include land, gaming equipment or purchases from other states. Jobs are "
         "job-years for the period, and the module also gives the average jobs for each year. The "
         "calculator shows construction effects separately from the effects of operations."))
+    el.append(h2("8.3 Complimentaries"))
+    el.append(body(
+        "GGR (gross gaming win) includes the retail value of the rooms, meals, drinks and other "
+        "items that a casino gives to players. These items are complimentaries (comps). Casino "
+        "financial statements under ASC 606 record this value as revenue of the department that "
+        "gives the item. They record gaming revenue without this value. For example, the Nevada "
+        "Gaming Abstract shows complimentary room sales in the rooms department. It shows a "
+        "negative contra revenue (complimentary expense) in the casino department."))
+    el.append(body(
+        "Without this module, the model uses all of GGR as gaming output. For the other "
+        "departments, it uses only the cash revenue that you enter. You can enter the comped "
+        "value for each department that gives comps: food and beverage, lodging, and other ($M). "
+        "Then the model calculates the output as follows:"))
+    el.append(formula(
+        "gaming output = GGR<br/>"
+        "&nbsp;&nbsp;- (comped food and beverage + comped lodging + comped other)<br/>"
+        "output of department d = cash revenue of d + comped value of d<br/>"
+        "gaming tax = statutory schedule applied to GGR (no change)"))
+    el.append(body(
+        "Total revenue does not change. Only its division between the gambling coefficients and "
+        "the food, lodging and other coefficients changes. The effective gaming tax rate τ is "
+        "still the gaming tax divided by GGR. The items below use the smaller gaming output:"))
+    el.append(bullets([
+        "The gaming tax replaces the gaming part of the direct TOPI of the gaming stream (Section "
+        "7.1). The model calculates this TOPI on the smaller gaming output.",
+        "The gaming-tax adjustment of direct labor income (Section 6.4) uses τ on GGR. The model "
+        "applies it to the labor income of the smaller gaming output.",
+        "The national rate for direct gaming jobs (Section 6.3) uses τ on GGR. For commercial "
+        "casino hotels, the model applies the rate to the smaller gaming output. For commercial "
+        "stand-alone casinos, the model applies the rate to all of GGR.",
+        "The note for a high gaming tax (Section 6.4) compares the value added of the smaller "
+        "gaming output with the tax on GGR.",
+    ]))
+    el.append(body(
+        "The module applies only to land-based revenue by department. If the comps that you enter "
+        "are more than GGR, the model decreases them to GGR. If the fields are empty, the results "
+        "are the same as without the module. The Casino Revenue Forecaster can send estimates of "
+        "the comped value for its property archetypes (Section 2.1)."))
+    el.append(body(
+        "Enter all of GGR as gaming revenue, not GGR minus the comps. A smaller value gives a "
+        "gaming tax that is too low. Enter only cash revenue for lodging, food and other. If "
+        "department revenue includes comps, subtract them before you enter it. If you do not, "
+        "the model counts the comped value two times. Section 6.3 gives a limit of the jobs rate "
+        "for comps."))
 
     # --- 9. Data sources ----------------------------------------------------
     el.append(h1("9. Data sources"))

@@ -8,6 +8,7 @@ import gamingTaxRates from '../data/gamingTaxRates.json';
 import employmentTaxRates from '../data/employmentTaxRates.json';
 import incomeTaxRates from '../data/incomeTaxRates.json';
 import jobsRangeData from '../data/jobsRange.json';
+import directJobsRateData from '../data/directJobsRate.json';
 import fiscalAssumptions from '../data/fiscalAssumptions.json';
 import wageBasisData from '../data/wageBasis.json';
 import payrollAdjustmentData from '../data/payrollAdjustment.json';
@@ -50,6 +51,10 @@ const DEPARTMENT_ACTIVITY: Record<Department, ActivityKey> = {
 
 export interface KnownData { jobs: number | null; wages: number | null }
 
+/** Departments that receive complimentaries (comped rooms, meals, drinks, shows). */
+export const COMP_DEPARTMENTS = ['food', 'lodging', 'other'] as const;
+export type CompDepartment = (typeof COMP_DEPARTMENTS)[number];
+
 export interface Analysis {
   v: 3;
   state: string;
@@ -62,11 +67,18 @@ export interface Analysis {
   /** Observed direct jobs and cash wages ($M) by department. */
   known: Record<Department, KnownData>;
   gamingTax: { customRate: number | null; slotSharePct: number };
+  /**
+   * Optional: retail value ($M) of complimentaries by receiving department,
+   * included in gaming revenue (GGR). Empty = no reallocation.
+   */
+  comps: Record<CompDepartment, number | null>;
   /** Dollar year of the revenue inputs; null = latest complete CPI year. */
   dollarYear: number | null;
   netImpact: { enabled: boolean; nonResidentShare: number | null; recaptureShare: number };
   construction: { enabled: boolean; cost: number | null; localShare: number; years: number };
 }
+
+export const emptyComps = (): Record<CompDepartment, number | null> => ({ food: null, lodging: null, other: null });
 
 export const emptyKnown = (): Record<Department, KnownData> => ({
   gaming: { jobs: null, wages: null }, food: { jobs: null, wages: null },
@@ -84,6 +96,7 @@ export function defaultAnalysis(): Analysis {
     revenue: { gaming: 250, food: 40, lodging: 60, other: 10, total: null },
     known: emptyKnown(),
     gamingTax: { customRate: null, slotSharePct: 70 },
+    comps: emptyComps(),
     dollarYear: null,
     netImpact: { enabled: false, nonResidentShare: null, recaptureShare: 0 },
     construction: { enabled: false, cost: null, localShare: 60, years: 2 },
@@ -96,12 +109,18 @@ export const GAMING_TAX = gamingTaxRates as unknown as { metadata: Record<string
 const EMPLOYMENT_TAX = employmentTaxRates as unknown as { federal: FederalPayroll; states: Record<string, StatePayroll> };
 const INCOME_TAX = incomeTaxRates as unknown as IncomeTaxTables;
 
-interface RangeEntry { label: string; n: number; biasFactor: number; pValueNoBias: number; p05: number; p95: number }
+interface RangeEntry { label: string; n: number; biasFactor: number; pValueNoBias?: number; p05: number; p95: number }
 export const JOBS_RANGES = jobsRangeData as unknown as { gamingDepartmentProxy: string; propertyTypes: Record<string, RangeEntry> };
 export const WAGE_BASIS = wageBasisData as unknown as { sectors: Record<string, number>; private: number };
 export const PAYROLL_ADJUSTMENT = payrollAdjustmentData as unknown as {
   slope: number; slopeSE: number; slopeCI95: [number, number]; n: number;
   leaveOneOutMAE: { before: number; after: number };
+};
+export const DIRECT_JOBS_RATE = directJobsRateData as unknown as {
+  level: number; slope: number; slopeSE: number; n: number; states: number;
+  leaveOneStateOutMAE: { stateCoefficient: number; nationalRate: number };
+  propertyTypes: string[];
+  ranges: Record<string, RangeEntry>;
 };
 export const NON_GAMING_TOPI_SHARE: number = fiscalAssumptions.gamingTopi.nonGamingShare;
 
@@ -131,13 +150,41 @@ export function payrollFactor(rate: number, online: boolean, inputMode: Analysis
   return gamingStream ? Math.exp(-PAYROLL_ADJUSTMENT.slope * rate) : 1;
 }
 
+const isGamingStream = (inputMode: Analysis['inputMode'], stream: StreamKey): boolean =>
+  stream === 'gaming' || (inputMode === 'total' && stream === 'total');
+
 /**
- * Direct-jobs predictive range for a stream (jobsRange.json): the property
- * type's range in total mode; in department mode the gaming stream uses the
- * stand-alone casino range (the slot-parlor range for slot parlors). None for
- * bars with slots, tribal properties, online operators or other departments.
+ * Direct jobs per $1M of 2023 revenue for the gaming stream of a commercial
+ * stand-alone casino or casino hotel: level x exp(-slope x rate), estimated on
+ * 2022 Economic Census cells (directJobsRate.json). It replaces the state
+ * gambling coefficient, which has no relation to observed jobs per revenue
+ * dollar across states. Null for other streams and property types, which keep
+ * the coefficient.
+ */
+export function directJobsRate(rate: number, pt: PropertyType, ownership: Analysis['ownership'], inputMode: Analysis['inputMode'], stream: StreamKey): number | null {
+  if (ownership === 'tribal' || !DIRECT_JOBS_RATE.propertyTypes.includes(pt) || !isGamingStream(inputMode, stream)) return null;
+  return DIRECT_JOBS_RATE.level * Math.exp(-DIRECT_JOBS_RATE.slope * Math.max(0, rate || 0));
+}
+
+/**
+ * Direct-jobs predictive range for a stream. Streams on the national gaming
+ * rate use its ranges (directJobsRate.json): the property type's range in
+ * total mode, the gaming-department range in department mode. Slot parlors
+ * keep the range of the state coefficient (jobsRange.json). None for bars
+ * with slots in total mode, tribal properties, online operators or other
+ * departments.
  */
 export function jobsRangeFor(pt: PropertyType, ownership: Analysis['ownership'], inputMode: Analysis['inputMode'], stream: StreamKey): { p05: number; p95: number } | null {
+  if (ownership === 'tribal' || isOnline(pt)) return null;
+  if (DIRECT_JOBS_RATE.propertyTypes.includes(pt)) {
+    if (inputMode === 'total' && stream === 'total') return DIRECT_JOBS_RATE.ranges[pt] ?? null;
+    return stream === 'gaming' ? DIRECT_JOBS_RATE.ranges.gamingDepartment : null;
+  }
+  return coefficientRangeFor(pt, ownership, inputMode, stream);
+}
+
+/** Predictive range of direct jobs from the state gambling coefficient (jobsRange.json). */
+export function coefficientRangeFor(pt: PropertyType, ownership: Analysis['ownership'], inputMode: Analysis['inputMode'], stream: StreamKey): { p05: number; p95: number } | null {
   if (ownership === 'tribal' || isOnline(pt)) return null;
   const types = JOBS_RANGES.propertyTypes;
   if (inputMode === 'total' && stream === 'total') return types[pt] ?? null;
@@ -175,6 +222,23 @@ export interface GamingTaxResult {
   tribal: boolean;
 }
 
+/**
+ * Direct accounts of the gaming stream ($M). Direct value added has the
+ * national composition in every state, while the gaming tax is the state's
+ * own. Implied surplus = value added - compensation - gaming tax (or revenue
+ * share) - retained other taxes on production. A negative value means the
+ * state's tax is too high for the national cost structure: direct GDP is too
+ * low or supplier purchases are too high for this property.
+ */
+export interface GamingAccounts {
+  revenue: number;
+  valueAdded: number;
+  compensation: number;
+  gamingTax: number;
+  otherTopi: number;
+  impliedSurplus: number;
+}
+
 export interface ConstructionResult {
   cost: number;
   localSpend: number;
@@ -193,7 +257,11 @@ export interface ScenarioResult {
   gamingTax: GamingTaxResult | null;
   /** Rate used by the payroll adjustment, where it comes from, and the change in direct compensation. */
   payrollAdjustment: { rate: number; rateSource: 'computed' | 'custom' | 'blended'; factor: number; directChange: number } | null;
+  /** The national gaming rate that replaced the state jobs coefficient, where it applies. */
+  directJobsRate: { rate: number; rateSource: 'computed' | 'custom' | 'blended'; perMillion: number; stateCoefficient: number } | null;
   fiscal: Fiscal;
+  /** Accounts of the taxed gaming stream; implied surplus is negative where they exceed its value added. */
+  gamingAccounts: GamingAccounts | null;
   net: { share: number; totals: Record<ImpactMetric, Effects> } | null;
   construction: ConstructionResult | null;
   stateTax: StateGamingTax | undefined;
@@ -207,7 +275,43 @@ function vertical(pt: PropertyType): GamingVertical {
 
 const positive = (v: number | null | undefined): number => (v != null && v > 0 ? v : 0);
 
-export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResult | null {
+export interface CompsApplied {
+  /** Comped value moved out of the gaming stream into each department, $M. */
+  byDepartment: Record<CompDepartment, number>;
+  total: number;
+  /** Factor applied to the entered values; below 1 only when they exceed GGR. */
+  scale: number;
+}
+
+/**
+ * Complimentaries that move from the gaming stream to the departments that
+ * provide them. GGR includes the retail value of comped rooms, food, beverage
+ * and other items; when the user enters that value, the gaming stream's output
+ * is GGR less the comps and each department's output is its cash revenue plus
+ * its comps. The gaming tax stays on GGR. Applies only to land-based revenue
+ * entered by department; the entered values are scaled down if they exceed GGR.
+ * Null when nothing moves, so results are the same as without the input.
+ */
+export function compsApplied(a: Analysis): CompsApplied | null {
+  if (a.inputMode !== 'department' || isOnline(a.propertyType)) return null;
+  const entered = COMP_DEPARTMENTS.reduce((s, d) => s + positive(a.comps?.[d]), 0);
+  const ggr = positive(a.revenue.gaming);
+  if (!(entered > 0) || !(ggr > 0)) return null;
+  const scale = Math.min(1, ggr / entered);
+  const byDepartment = Object.fromEntries(COMP_DEPARTMENTS.map((d) => [d, positive(a.comps[d]) * scale])) as Record<CompDepartment, number>;
+  return { byDepartment, total: entered * scale, scale };
+}
+
+export interface ScenarioOptions {
+  /**
+   * 'coefficient' keeps the state gambling jobs coefficient for all streams
+   * (the model before the national gaming rate of November 2026).
+   */
+  directJobs?: 'rate' | 'coefficient';
+}
+
+export function computeScenario(a: Analysis, model: RegionalModel, options: ScenarioOptions = {}): ScenarioResult | null {
+  const useRate = options.directJobs !== 'coefficient';
   const online = isOnline(a.propertyType);
   const tribal = a.ownership === 'tribal' && !online;
   const dollarYear = a.dollarYear ?? LATEST_CPI_YEAR;
@@ -233,6 +337,9 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
 
   // Revenue streams.
   const plan: { key: StreamKey; label: string; activity: ActivityKey; revenue: number; known: KnownData }[] = [];
+  // Revenue that the national direct-jobs rate applies to, when it is not the
+  // gaming stream's own revenue (see below).
+  let gamingJobsRevenue: number | null = null;
   if (a.inputMode === 'total') {
     const sumKnown = (k: keyof KnownData) => DEPARTMENTS.reduce((s, d) => s + positive(a.known[d][k]), 0) || null;
     plan.push({
@@ -245,9 +352,19 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
       activity: 'online', revenue: positive(a.revenue.gaming), known: a.known.gaming,
     });
   } else {
+    // Optional complimentaries: out of the gaming stream, into the departments that provide them.
+    const comps = compsApplied(a);
+    const moved = (d: Department): number =>
+      !comps ? 0 : d === 'gaming' ? -comps.total : comps.byDepartment[d as CompDepartment];
     for (const d of DEPARTMENTS) {
-      plan.push({ key: d, label: DEPARTMENT_LABELS[d], activity: DEPARTMENT_ACTIVITY[d], revenue: positive(a.revenue[d]), known: a.known[d] });
+      plan.push({ key: d, label: DEPARTMENT_LABELS[d], activity: DEPARTMENT_ACTIVITY[d], revenue: Math.max(0, positive(a.revenue[d]) + moved(d)), known: a.known[d] });
     }
+    // The rate for stand-alone casinos comes from Census total receipts, in
+    // which complimentaries cancel between departments, so it is a rate per
+    // dollar of gross win: it applies to all of GGR. The casino-hotel cells
+    // use Census gaming receipts, which are mostly net of complimentaries, so
+    // for casino hotels the rate stays on the gaming stream's output.
+    if (comps && a.propertyType === '713210') gamingJobsRevenue = positive(a.revenue.gaming);
   }
 
   const streams: Stream[] = [];
@@ -261,8 +378,10 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
       // operators); all-private for supplier and induced effects.
       cashShare: { direct: WAGE_BASIS.sectors[ACTIVITIES[p.activity].sector] ?? WAGE_BASIS.private, ripple: WAGE_BASIS.private },
       compensationFactor: payrollFactor(taxRate, online, a.inputMode, p.key),
-      jobsRange: jobsRangeFor(a.propertyType, tribal ? 'tribal' : 'commercial', a.inputMode, p.key),
+      jobsRange: (useRate ? jobsRangeFor : coefficientRangeFor)(a.propertyType, tribal ? 'tribal' : 'commercial', a.inputMode, p.key),
       directFtePerJob: directFtePerJob(model, p.activity),
+      directJobsPerMillion: useRate ? directJobsRate(taxRate, a.propertyType, tribal ? 'tribal' : 'commercial', a.inputMode, p.key) : null,
+      directJobsRevenue: p.key === 'gaming' ? gamingJobsRevenue : null,
     });
     if (impact) streams.push({ key: p.key, label: p.label, activity: p.activity, revenue: p.revenue, impact });
   }
@@ -277,6 +396,12 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
     directChange: adjusted.reduce((s, x) => s + x.impact.compensation.direct - x.impact.compensationAdjustment!.modelDirect, 0),
   } : null;
 
+  const rated = streams.find((s) => s.impact.sources.jobs === 'rate');
+  const jobsRateSummary = rated ? {
+    rate: Math.max(0, taxRate), rateSource: rateSource as 'computed' | 'custom' | 'blended',
+    perMillion: rated.impact.basis.directJobsPerMillion!, stateCoefficient: rated.impact.basis.perMillion.jobs.direct,
+  } : null;
+
   // The gaming tax replaces direct TOPI of the stream it is levied on. For a
   // tribal property entered as total revenue, that is the whole enterprise.
   const gamingStream = streams.find((s) => s.key === 'gaming' || ((online || tribal) && s.key === 'total'));
@@ -286,6 +411,17 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
     gamingTax, tribal,
     gamingStreamTopi: (gamingTax || tribal) && gamingStream ? gamingStream.impact.topi.direct : 0,
   }, fiscalData);
+
+  let gamingAccounts: GamingAccounts | null = null;
+  if (gamingTax && gamingStream) {
+    const g = gamingStream.impact;
+    const otherTopi = tribal ? 0 : NON_GAMING_TOPI_SHARE * g.topi.direct;
+    gamingAccounts = {
+      revenue: gamingStream.revenue, valueAdded: g.gdp.direct, compensation: g.compensation.direct,
+      gamingTax: gamingTax.amount, otherTopi,
+      impliedSurplus: g.gdp.direct - g.compensation.direct - gamingTax.amount - otherTopi,
+    };
+  }
 
   const share = netShare(a.netImpact);
   const net = share != null ? { share, totals: scaleImpact(totals, share) } : null;
@@ -308,8 +444,8 @@ export function computeScenario(a: Analysis, model: RegionalModel): ScenarioResu
   }
 
   return {
-    analysis: a, dollarYear, deflator, streams, totals, gamingTax, payrollAdjustment,
-    fiscal, net, construction, stateTax,
+    analysis: a, dollarYear, deflator, streams, totals, gamingTax, payrollAdjustment, directJobsRate: jobsRateSummary,
+    fiscal, gamingAccounts, net, construction, stateTax,
   };
 }
 

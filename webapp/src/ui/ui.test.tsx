@@ -74,4 +74,16 @@ describe('views render', () => {
     expect(total).toMatch(/<p class="hint" id="[^"]+">The model uses the gambling coefficients for all of this revenue/);
     expect(total).toContain('<legend class="pair-label">');
   });
+
+  test('the optional complimentaries section shows the gaming output it implies', () => {
+    const a = defaultAnalysis();
+    const empty = renderToStaticMarkup(<InputsPanel analysis={a} update={() => {}} result={null} />);
+    expect(empty).toContain('Complimentaries (optional)');
+    expect(empty).not.toContain('GGR less');
+    const html = renderToStaticMarkup(<InputsPanel analysis={{ ...a, comps: { food: 10, lodging: 20, other: null } }} update={() => {}} result={null} />);
+    expect(html).toContain('2 entered');
+    expect(html).toContain('GGR less');
+    const total = renderToStaticMarkup(<InputsPanel analysis={{ ...a, inputMode: 'total' }} update={() => {}} result={null} />);
+    expect(total).not.toContain('Complimentaries (optional)');
+  });
 });

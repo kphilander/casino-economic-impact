@@ -4,10 +4,11 @@
  * (v1, v2) migrate to the current shape.
  */
 import {
-  DEPARTMENTS, PROPERTY_TYPES, defaultAnalysis, emptyKnown,
+  COMP_DEPARTMENTS, DEPARTMENTS, PROPERTY_TYPES, defaultAnalysis, emptyComps, emptyKnown,
   type Analysis, type Department, type PropertyType,
 } from './scenario';
 import { stateByName } from './data';
+import { CPI } from './prices';
 
 const URL_PARAM = 'a';
 const PROJECTS_KEY = 'gems_projects';
@@ -35,6 +36,8 @@ export function migrate(raw: unknown): Analysis | null {
   const tax = legacy
     ? { customRate: num(o.gamingTaxCustomRate), slotSharePct: num(o.slotRevenuePct) ?? 70 }
     : { customRate: num(o.gamingTax?.customRate), slotSharePct: num(o.gamingTax?.slotSharePct) ?? 70 };
+  const comps = emptyComps();
+  if (!legacy) for (const d of COMP_DEPARTMENTS) comps[d] = num(o.comps?.[d]);
   return {
     v: 3,
     state: typeof o.state === 'string' ? o.state : base.state,
@@ -48,6 +51,7 @@ export function migrate(raw: unknown): Analysis | null {
     } as Record<Department | 'total', number | null>,
     known,
     gamingTax: tax,
+    comps,
     dollarYear: num(legacy ? o.analysisYear : o.dollarYear),
     netImpact: {
       enabled: !!o.netImpact?.enabled,
@@ -104,7 +108,11 @@ export function analysisFromUrl(search = window.location.search): Analysis | nul
  * Pre-fill from the Casino Revenue Forecaster
  * (gamblingpolicy.com/tools/revenue-forecaster), which links here with
  * ?from=forecaster&state=&name=&propertyType=&gaming=&food=&lodging=&other=
- * (revenue in $M).
+ * (revenue in $M) and optionally &dollarYear= (the dollar year of that
+ * revenue; ignored unless it is a year in the CPI table) and &slotShare= (slot
+ * win as a percent of GGR; ignored unless it is between 0 and 100) and
+ * &compFood=&compLodging=&compOther= (retail value of complimentaries in $M,
+ * included in gaming; optional).
  */
 export function analysisFromForecaster(search = window.location.search): Analysis | null {
   const p = new URLSearchParams(search);
@@ -116,6 +124,8 @@ export function analysisFromForecaster(search = window.location.search): Analysi
     const n = num(p.get(k)?.replace(/,/g, ''));
     return n != null && n > 0 ? n : null;
   };
+  const year = num(p.get('dollarYear'));
+  const slotShare = num(p.get('slotShare'));
   return {
     ...a,
     state: state && stateByName(state) ? state : a.state,
@@ -123,6 +133,12 @@ export function analysisFromForecaster(search = window.location.search): Analysi
     propertyType: pt && pt in PROPERTY_TYPES ? (pt as PropertyType) : a.propertyType,
     inputMode: 'department',
     revenue: { gaming: rev('gaming'), food: rev('food'), lodging: rev('lodging'), other: rev('other'), total: null },
+    comps: { food: rev('compFood'), lodging: rev('compLodging'), other: rev('compOther') },
+    dollarYear: year != null && CPI[year] ? year : a.dollarYear,
+    gamingTax: {
+      ...a.gamingTax,
+      slotSharePct: slotShare != null && slotShare >= 0 && slotShare <= 100 ? slotShare : a.gamingTax.slotSharePct,
+    },
   };
 }
 

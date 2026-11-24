@@ -22,6 +22,9 @@
 library(stateior)
 library(tidyverse)
 
+source(file.path("scripts", "employment_satellite.R"))
+EMPLOYMENT_SATELLITE <- NULL
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -387,48 +390,35 @@ calculate_state_multipliers <- function(state_name, state_abbrev,
     # Employment Multipliers (true employment-weighted)
     # ========================================
 
-    # Get employment data for this state from QCEW
-    state_emp_data <- qcew_emp_data %>%
-      filter(state_name == !!state_name)
+    # Jobs, 2023 output and 2023 value added by sector, from the shared
+    # satellite (scripts/employment_satellite.R). It corrects the StateIO 2023
+    # division of retail output among 441, 445, 452 and 4A0 and fills
+    # suppressed QCEW cells; the browser export uses the same function.
+    if (is.null(EMPLOYMENT_SATELLITE)) {
+      EMPLOYMENT_SATELLITE <<- build_employment_satellite(
+        qcew_emp_data, employment_output_data, employment_use_data,
+        ind_output_data, va_data, common_ind
+      )
+    }
+    state_satellite <- EMPLOYMENT_SATELLITE[
+      EMPLOYMENT_SATELLITE$state_name == state_name, ]
+    state_satellite <- state_satellite[match(common_ind, state_satellite$io_sector), ]
 
-    # Build consistent-2023 employment satellite vectors for ALL sectors.
     # Jobs/output is the dimensionally correct coefficient for multiplying the
     # Leontief output requirements. Jobs/value added is retained separately for
     # the frontend's direct-GDP calculation.
-    employment_output_coef <- rep(0, n)
-    employment_va_coef <- rep(0, n)
-    employment_output_m <- rep(NA_real_, n)
-    employment_va_m <- rep(NA_real_, n)
-    names(employment_output_coef) <- names(employment_va_coef) <- common_ind
-    names(employment_output_m) <- names(employment_va_m) <- common_ind
-
-    available_employment_sectors <- intersect(common_ind, colnames(state_employment_use))
-    employment_va_m[available_employment_sectors] <-
-      colSums(state_employment_use[c("V001", "V002", "V003"),
-                                   available_employment_sectors, drop = FALSE]) / 1e6
-
-    employment_output_vector <- setNames(
-      as.numeric(state_employment_output[[1]]),
-      rownames(state_employment_output)
+    employment_output_m <- setNames(state_satellite$output / 1e6, common_ind)
+    employment_va_m <- setNames(state_satellite$value_added / 1e6, common_ind)
+    sector_jobs <- setNames(state_satellite$jobs, common_ind)
+    employment_output_coef <- ifelse(
+      !is.na(sector_jobs) & !is.na(employment_output_m) & employment_output_m > 0,
+      sector_jobs / employment_output_m, 0
     )
-    available_output_sectors <- intersect(common_ind, names(employment_output_vector))
-    employment_output_m[available_output_sectors] <-
-      as.numeric(employment_output_vector[available_output_sectors]) / 1e6
-
-    for (sector in common_ind) {
-      sector_emp <- state_emp_data %>%
-        filter(io_sector == sector)
-
-      if (nrow(sector_emp) > 0 && !is.na(sector_emp$employment[1])) {
-        sector_jobs <- sector_emp$employment[1]
-        if (!is.na(employment_output_m[sector]) && employment_output_m[sector] > 0) {
-          employment_output_coef[sector] <- sector_jobs / employment_output_m[sector]
-        }
-        if (!is.na(employment_va_m[sector]) && employment_va_m[sector] > 0) {
-          employment_va_coef[sector] <- sector_jobs / employment_va_m[sector]
-        }
-      }
-    }
+    employment_va_coef <- ifelse(
+      !is.na(sector_jobs) & !is.na(employment_va_m) & employment_va_m > 0,
+      sector_jobs / employment_va_m, 0
+    )
+    names(employment_output_coef) <- names(employment_va_coef) <- common_ind
 
     # QCEW private employment is unavailable for several synthetic/government
     # StateIO sectors. Treat those unsupported satellite entries as zero rather

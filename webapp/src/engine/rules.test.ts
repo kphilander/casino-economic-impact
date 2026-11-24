@@ -11,8 +11,8 @@ import { multipliers, type StateTables } from './io';
 import { householdSpendingRange } from './sensitivity';
 import { CPI, deflator } from './prices';
 import {
-  GAMING_TAX, PAYROLL_ADJUSTMENT, WAGE_BASIS, computeScenario, defaultAnalysis, fiscalDataFor,
-  jobsRangeFor, netShare, payrollFactor, type Analysis,
+  GAMING_TAX, PAYROLL_ADJUSTMENT, WAGE_BASIS, compsApplied, computeScenario, defaultAnalysis, fiscalDataFor,
+  DIRECT_JOBS_RATE, coefficientRangeFor, directJobsRate, jobsRangeFor, netShare, payrollFactor, type Analysis,
 } from './scenario';
 import { gamingTax, gamingTaxSteps, payrollTax, taxAtWage, incomeTax, taxRule, verticalSchedule, type GamingVertical } from './tax';
 import { buildFiscal } from './fiscal';
@@ -78,7 +78,7 @@ describe('gaming-tax payroll adjustment and jobs ranges', () => {
     expect(payrollFactor(0.2, true, 'total', 'total')).toBe(1);
   });
 
-  test('scenario lowers direct compensation by the factor and leaves jobs and GDP', async () => {
+  test('scenario lowers direct compensation by the factor and leaves GDP', async () => {
     const model = await loadModel('PA');
     const a: Analysis = { ...defaultAnalysis(), state: 'Pennsylvania', propertyType: '713210', revenue: { gaming: 200, food: null, lodging: null, other: null, total: null } };
     const r = computeScenario(a, model)!;
@@ -86,14 +86,18 @@ describe('gaming-tax payroll adjustment and jobs ranges', () => {
     const f = Math.exp(-PAYROLL_ADJUSTMENT.slope * r.gamingTax!.effectiveRate);
     expect(r.payrollAdjustment!.factor).toBeCloseTo(f, 12);
     expect(r.totals.compensation.direct).toBeCloseTo(noTax.totals.compensation.direct * f, 9);
-    expect(r.totals.jobs.direct).toBeCloseTo(noTax.totals.jobs.direct, 9);
+    // Direct jobs fall with the rate through the national gaming rate, not through this factor.
+    expect(r.totals.jobs.direct).toBeCloseTo(noTax.totals.jobs.direct * Math.exp(-DIRECT_JOBS_RATE.slope * r.gamingTax!.effectiveRate), 9);
     expect(r.totals.gdp.direct).toBeCloseTo(noTax.totals.gdp.direct, 9);
     expect(r.totals.jobs.induced).toBeLessThan(noTax.totals.jobs.induced);
   });
 
   test('ranges map to streams by property type, mode and ownership', () => {
     expect(jobsRangeFor('713290', 'commercial', 'total', 'total')!.p05).toBe(0.3261);
-    expect(jobsRangeFor('721120', 'commercial', 'department', 'gaming')!.p05).toBe(0.5605);
+    expect(jobsRangeFor('721120', 'commercial', 'department', 'gaming')!.p05).toBe(DIRECT_JOBS_RATE.ranges.gamingDepartment.p05);
+    expect(jobsRangeFor('721120', 'commercial', 'total', 'total')!.p95).toBe(DIRECT_JOBS_RATE.ranges['721120'].p95);
+    expect(jobsRangeFor('713210', 'commercial', 'total', 'total')!.p05).toBe(DIRECT_JOBS_RATE.ranges['713210'].p05);
+    expect(coefficientRangeFor('721120', 'commercial', 'department', 'gaming')!.p05).toBe(0.5605);
     expect(jobsRangeFor('713290', 'commercial', 'department', 'gaming')!.p95).toBe(2.7044);
     expect(jobsRangeFor('721120', 'commercial', 'department', 'lodging')).toBeNull();
     expect(jobsRangeFor('722410', 'commercial', 'total', 'total')).toBeNull();
@@ -239,6 +243,42 @@ describe('save and share', () => {
     expect(a.revenue).toEqual({ gaming: 149.4, food: 28.1, lodging: null, other: 31.5, total: null });
     expect(analysisFromForecaster('?from=forecaster&state=Atlantis&propertyType=XYZ')).toMatchObject({ state: 'Nevada', propertyType: '721120' });
     expect(analysisFromForecaster('?state=Ohio')).toBeNull();
+    // The link can carry the dollar year of the revenue; a year outside the CPI table is ignored.
+    expect(a.dollarYear).toBeNull();
+    expect(analysisFromForecaster('?from=forecaster&state=Ohio&gaming=100&dollarYear=2024')!.dollarYear).toBe(2024);
+    expect(analysisFromForecaster('?from=forecaster&state=Ohio&gaming=100&dollarYear=2031')!.dollarYear).toBeNull();
+  });
+
+  test('Revenue Forecaster links can set the slot share of GGR', () => {
+    const share = (q: string) => analysisFromForecaster(`?from=forecaster&state=Pennsylvania&gaming=100${q}`)!.gamingTax.slotSharePct;
+    expect(share('')).toBe(70);
+    expect(share('&slotShare=60')).toBe(60);
+    expect(share('&slotShare=0')).toBe(0);
+    expect(share('&slotShare=100')).toBe(100);
+    expect(share('&slotShare=93.5')).toBe(93.5);
+    // Out of range or not a number: the default stays.
+    expect(share('&slotShare=101')).toBe(70);
+    expect(share('&slotShare=-5')).toBe(70);
+    expect(share('&slotShare=abc')).toBe(70);
+    expect(share('&slotShare=')).toBe(70);
+    // The custom rate is not touched.
+    expect(analysisFromForecaster('?from=forecaster&gaming=100&slotShare=60')!.gamingTax.customRate).toBeNull();
+  });
+
+  test('a Revenue Forecaster export link sets the slot share used by a split gaming tax', async () => {
+    // Link built by the forecaster's buildEconomicImpactURL for a $293.5M mega_resort forecast.
+    const link = '?from=forecaster&state=Pennsylvania&name=Example&propertyType=721120&inputMode=department&gaming=293.5&food=160.3&lodging=191.4&other=101.3&archetype=mega_resort&slotShare=60&dollarYear=2025';
+    const a = analysisFromForecaster(link)!;
+    expect(a.revenue).toEqual({ gaming: 293.5, food: 160.3, lodging: 191.4, other: 101.3, total: null });
+    expect(a.gamingTax.slotSharePct).toBe(60);
+    expect(a.dollarYear).toBe(2025);
+    const model = await loadModel('PA');
+    const r = computeScenario(a, model)!;
+    const pa = GAMING_TAX.rates.Pennsylvania;
+    expect(r.gamingTax!.amount).toBeCloseTo(293.5 * (0.6 * pa.slotsRate! + 0.4 * pa.tableRate!), 9);
+    // Without the parameter the default 70% applies.
+    const old = computeScenario(analysisFromForecaster(link.replace('&slotShare=60', ''))!, model)!;
+    expect(old.gamingTax!.amount).toBeCloseTo(293.5 * (0.7 * pa.slotsRate! + 0.3 * pa.tableRate!), 9);
   });
 
   test('v2 links migrate to the current shape', () => {
@@ -367,5 +407,251 @@ describe('household closure (Type II)', () => {
     expect(rows[0].jobs).toBeLessThan(rows[1].jobs);
     expect(rows[1].jobs).toBeLessThan(rows[2].jobs);
     expect(rows[1].jobs).toBeCloseTo(computeScenario(defaultAnalysis(), m)!.totals.jobs.total, 9);
+  });
+});
+
+describe('corrections of November 2026', () => {
+  test('a slot share of 0 or 100 is used as entered; only a missing value takes the default', () => {
+    const pa = GAMING_TAX.rates.Pennsylvania;
+    expect(gamingTax(100, taxRule(pa, null, 0))).toBeCloseTo(100 * pa.tableRate!, 10);
+    expect(gamingTax(100, taxRule(pa, null, 100))).toBeCloseTo(100 * pa.slotsRate!, 10);
+    expect(gamingTax(100, taxRule(pa, null, 150))).toBeCloseTo(100 * pa.slotsRate!, 10);
+    expect(gamingTax(100, taxRule(pa, null, NaN))).toBeCloseTo(100 * (0.7 * pa.slotsRate! + 0.3 * pa.tableRate!), 10);
+  });
+
+  test('gaming accounts: implied surplus is negative at a high statutory rate, positive at a low one', async () => {
+    const pa = computeScenario({ ...defaultAnalysis(), state: 'Pennsylvania' }, await loadModel('PA'))!;
+    const nev = computeScenario(defaultAnalysis(), await nv())!;
+    const g = pa.gamingAccounts!;
+    expect(g.impliedSurplus).toBeCloseTo(g.valueAdded - g.compensation - g.gamingTax - g.otherTopi, 10);
+    expect(g.impliedSurplus).toBeLessThan(0);
+    expect(nev.gamingAccounts!.impliedSurplus).toBeGreaterThan(0);
+    const total = computeScenario({ ...defaultAnalysis(), inputMode: 'total', revenue: { ...defaultAnalysis().revenue, total: 300 } }, await nv())!;
+    expect(total.gamingAccounts).toBeNull();
+  });
+
+  test('the fallback income-tax line is in neither level subtotal', () => {
+    const f = buildFiscal({
+      cashWages: { direct: 10, indirect: 2, induced: 2, total: 14 }, jobs: { direct: 0, indirect: 0, induced: 0, total: 0 },
+      topi: { direct: 0, indirect: 0, induced: 0, total: 0 },
+    }, fiscalDataFor('Nevada'));
+    const combined = f.lines.find((l) => l.key === 'income_combined')!;
+    expect(combined.level).toBe('all');
+    expect(f.totals.all.total).toBeCloseTo(f.totals.federal.total + f.totals.stateLocal.total + combined.total, 10);
+  });
+
+  test('jobs satellite: plausible 2023 output and no sector with output but no jobs', async () => {
+    const loaders = import.meta.glob<StateTables>('../data/io/[A-Z][A-Z].json', { import: 'default' });
+    const noJobs = new Set(['HS', 'GFE', 'GSLE']);
+    for (const [path, load] of Object.entries(loaders)) {
+      const t = await load();
+      const model = await loadModel(t.abbrev);
+      const sum = (v: (number | null)[], codes: string[]) => codes.reduce((s, c) => s + (v[model.index[c]] ?? 0), 0);
+      const retail = ['441', '445', '452', '4A0'];
+      const growth = sum(t.output2023, retail) / sum(t.industryOutput, retail);
+      for (const c of retail) {
+        const i = model.index[c];
+        // Each retail sector grows with the state's retail total.
+        expect(t.output2023[i]! / t.industryOutput[i], `${path} ${c}`).toBeCloseTo(growth, 8);
+        // Lowest: other retail in Washington (large nonstore retailers), about 1.9.
+        expect(model.coefficients.jobs[i], `${path} ${c}`).toBeGreaterThan(1);
+        expect(model.coefficients.jobs[i], `${path} ${c}`).toBeLessThan(15);
+      }
+      model.industries.forEach((ind, i) => {
+        if (noJobs.has(ind.code) || !((t.output2023[i] ?? 0) > 0)) return;
+        // Railroads are outside QCEW; their national coefficient is close to zero.
+        if (ind.code !== '482') expect(model.coefficients.jobs[i], `${path} ${ind.code}`).toBeGreaterThan(0);
+      });
+    }
+  });
+});
+
+describe('optional complimentaries', () => {
+  const base = (): Analysis => ({
+    ...defaultAnalysis(), state: 'Nevada', propertyType: '721120',
+    revenue: { gaming: 293.5, food: 160.3, lodging: 191.4, other: 101.3, total: null },
+  });
+  const revenues = (r: ReturnType<typeof computeScenario>) => Object.fromEntries(r!.streams.map((s) => [s.key, s.revenue]));
+
+  test('empty complimentaries leave the analysis unchanged', async () => {
+    const model = await nv();
+    const a = base();
+    expect(a.comps).toEqual({ food: null, lodging: null, other: null });
+    expect(compsApplied(a)).toBeNull();
+    expect(compsApplied({ ...a, comps: { food: 0, lodging: null, other: 0 } })).toBeNull();
+    const r = computeScenario(a, model)!;
+    expect(revenues(r)).toEqual({ gaming: 293.5, food: 160.3, lodging: 191.4, other: 101.3 });
+  });
+
+  test('comps move from the gaming stream to the departments; the gaming tax stays on GGR', async () => {
+    const model = await nv();
+    const comps = { food: 39.6, lodging: 59.9, other: 4.1 };
+    const a = { ...base(), comps };
+    const r = computeScenario(a, model)!;
+    const total = 39.6 + 59.9 + 4.1;
+    const rev = revenues(r);
+    expect(rev.gaming).toBeCloseTo(293.5 - total, 12);
+    expect(rev.food).toBeCloseTo(160.3 + 39.6, 12);
+    expect(rev.lodging).toBeCloseTo(191.4 + 59.9, 12);
+    expect(rev.other).toBeCloseTo(101.3 + 4.1, 12);
+    // Total output is unchanged in revenue terms; the tax is on the full GGR.
+    expect(r.streams.reduce((s, x) => s + x.revenue, 0)).toBeCloseTo(293.5 + 160.3 + 191.4 + 101.3, 9);
+    const plain = computeScenario(base(), model)!;
+    expect(r.gamingTax!.ggr).toBe(293.5);
+    expect(r.gamingTax!.amount).toBeCloseTo(plain.gamingTax!.amount, 12);
+    // Each stream equals a plain analysis with the moved revenue, apart from the tax base.
+    const moved = computeScenario({ ...base(), revenue: { gaming: 293.5 - total, food: 160.3 + 39.6, lodging: 191.4 + 59.9, other: 101.3 + 4.1, total: null } }, model)!;
+    for (const k of ['food', 'lodging', 'other'] as const) {
+      const s1 = r.streams.find((s) => s.key === k)!, s2 = moved.streams.find((s) => s.key === k)!;
+      expect(s1.impact.output.total).toBeCloseTo(s2.impact.output.total, 9);
+      expect(s1.impact.jobs.total).toBeCloseTo(s2.impact.jobs.total, 9);
+    }
+    expect(r.gamingAccounts!.revenue).toBeCloseTo(293.5 - total, 12);
+    expect(r.gamingAccounts!.gamingTax).toBeCloseTo(plain.gamingTax!.amount, 12);
+  });
+
+  test('with comps, the national jobs rate applies to GGR less comps at the tax rate on GGR', async () => {
+    // Pennsylvania has a high gaming tax, so the tax base and the rate both matter.
+    const model = await loadModel('PA');
+    const comps = { food: 39.6, lodging: 59.9, other: 4.1 };
+    const total = 39.6 + 59.9 + 4.1;
+    const pa = (): Analysis => ({ ...base(), state: 'Pennsylvania', dollarYear: 2025 });
+    const plain = computeScenario(pa(), model)!;
+    const r = computeScenario({ ...pa(), comps }, model)!;
+    expect(r.deflator).not.toBe(1);
+    // The gaming tax and its effective rate are those of the full GGR.
+    expect(r.gamingTax!.ggr).toBe(293.5);
+    expect(r.gamingTax!.amount).toBeCloseTo(plain.gamingTax!.amount, 12);
+    expect(r.gamingTax!.effectiveRate).toBeCloseTo(plain.gamingTax!.effectiveRate, 12);
+    // Direct gaming jobs = national rate at that tax rate x (GGR - comps) in 2023 dollars.
+    const per = DIRECT_JOBS_RATE.level * Math.exp(-DIRECT_JOBS_RATE.slope * r.gamingTax!.effectiveRate);
+    const g = r.streams.find((s) => s.key === 'gaming')!;
+    expect(g.revenue).toBeCloseTo(293.5 - total, 12);
+    expect(g.impact.sources.jobs).toBe('rate');
+    expect(g.impact.jobs.direct).toBeCloseTo((293.5 - total) * r.deflator * per, 9);
+    const g0 = plain.streams.find((s) => s.key === 'gaming')!.impact;
+    expect(g.impact.jobs.direct / g0.jobs.direct).toBeCloseTo((293.5 - total) / 293.5, 12);
+    // The rate summary reports the same rate, its source and the per-$1M value.
+    expect(r.directJobsRate).toEqual({ ...plain.directJobsRate, perMillion: expect.any(Number) });
+    expect(r.directJobsRate!.rate).toBeCloseTo(r.gamingTax!.effectiveRate, 12);
+    expect(r.directJobsRate!.rateSource).toBe('computed');
+    expect(r.directJobsRate!.perMillion).toBeCloseTo(per, 12);
+    // The departments that receive comps keep their own coefficients.
+    for (const k of ['food', 'lodging', 'other'] as const) {
+      expect(r.streams.find((s) => s.key === k)!.impact.sources.jobs).toBe('model');
+    }
+  });
+
+  test('stand-alone casino with comps: the jobs rate applies to all of GGR', async () => {
+    const model = await loadModel('PA');
+    const casino = (): Analysis => ({
+      ...defaultAnalysis(), state: 'Pennsylvania', propertyType: '713210', dollarYear: 2025,
+      revenue: { gaming: 200, food: 20, lodging: null, other: 5, total: null },
+    });
+    const comps = { food: 12, lodging: null, other: 3 };
+    const plain = computeScenario(casino(), model)!;
+    const r = computeScenario({ ...casino(), comps }, model)!;
+    const g = r.streams.find((s) => s.key === 'gaming')!;
+    const g0 = plain.streams.find((s) => s.key === 'gaming')!;
+    // Output of the gaming stream is GGR less the comps; the tax is on GGR.
+    expect(g.revenue).toBeCloseTo(200 - 15, 12);
+    expect(r.gamingTax!.amount).toBeCloseTo(plain.gamingTax!.amount, 12);
+    // Direct gaming jobs and FTEs do not change: rate x all of GGR in 2023 dollars.
+    const per = DIRECT_JOBS_RATE.level * Math.exp(-DIRECT_JOBS_RATE.slope * r.gamingTax!.effectiveRate);
+    expect(g.impact.sources.jobs).toBe('rate');
+    expect(g.impact.basis.directJobsRevenue).toBe(200);
+    expect(g.impact.jobs.direct).toBeCloseTo(200 * r.deflator * per, 9);
+    expect(g.impact.jobs.direct).toBeCloseTo(g0.impact.jobs.direct, 9);
+    expect(g.impact.fte.direct).toBeCloseTo(g0.impact.fte.direct, 9);
+    // Everything else in the gaming stream follows the smaller output.
+    expect(g.impact.output.direct).toBeCloseTo(185, 12);
+    expect(g.impact.jobs.indirect / g0.impact.jobs.indirect).toBeCloseTo(185 / 200, 12);
+    // The departments that receive the comps gain jobs on them.
+    const food = r.streams.find((s) => s.key === 'food')!, food0 = plain.streams.find((s) => s.key === 'food')!;
+    expect(food.revenue).toBeCloseTo(32, 12);
+    expect(food.impact.jobs.direct / food0.impact.jobs.direct).toBeCloseTo(32 / 20, 12);
+    // Without comps the base is the stream's own revenue.
+    expect(g0.impact.basis.directJobsRevenue).toBe(200);
+    // A casino hotel keeps the rate on GGR less the comps.
+    const hotel = computeScenario({ ...casino(), propertyType: '721120', comps }, model)!;
+    const gh = hotel.streams.find((s) => s.key === 'gaming')!;
+    expect(gh.impact.basis.directJobsRevenue).toBeCloseTo(185, 12);
+    expect(gh.impact.jobs.direct).toBeCloseTo(185 * hotel.deflator * per, 9);
+  });
+
+  test('comps above GGR are scaled down; total mode and online ignore them', () => {
+    const a = { ...base(), revenue: { ...base().revenue, gaming: 50 }, comps: { food: 60, lodging: 40, other: null } };
+    const c = compsApplied(a)!;
+    expect(c.scale).toBeCloseTo(0.5, 12);
+    expect(c.total).toBeCloseTo(50, 12);
+    expect(c.byDepartment).toEqual({ food: 30, lodging: 20, other: 0 });
+    expect(compsApplied({ ...a, inputMode: 'total' })).toBeNull();
+    expect(compsApplied({ ...a, propertyType: 'ONLINE_CASINO' })).toBeNull();
+  });
+
+  test('forecaster links and share links carry complimentaries', () => {
+    const link = '?from=forecaster&state=Nevada&name=Example&propertyType=721120&inputMode=department&gaming=293.5&food=160.3&lodging=191.4&other=101.3&archetype=mega_resort&slotShare=60&dollarYear=2025&compFood=39.6&compLodging=59.9&compOther=4.1';
+    const a = analysisFromForecaster(link)!;
+    expect(a.comps).toEqual({ food: 39.6, lodging: 59.9, other: 4.1 });
+    expect(a.revenue.gaming).toBe(293.5);
+    expect(analysisFromForecaster('?from=forecaster&gaming=100&compFood=abc&compLodging=-3')!.comps).toEqual({ food: null, lodging: null, other: null });
+    expect(decodeAnalysis(encodeAnalysis(a))).toEqual(a);
+    // Saved analyses from before the input have no comps.
+    expect(migrate({ ...a, comps: undefined })!.comps).toEqual({ food: null, lodging: null, other: null });
+  });
+});
+
+describe('national gaming rate for direct jobs', () => {
+  const pa = (over: Partial<Analysis> = {}): Analysis => ({
+    ...defaultAnalysis(), state: 'Pennsylvania', propertyType: '713210',
+    revenue: { gaming: 200, food: 20, lodging: null, other: null, total: null }, ...over,
+  });
+
+  test('rate is level x exp(-slope x tax rate) for commercial casino gaming streams only', () => {
+    const { level, slope } = DIRECT_JOBS_RATE;
+    expect(directJobsRate(0, '713210', 'commercial', 'department', 'gaming')).toBeCloseTo(level, 12);
+    expect(directJobsRate(0.4, '721120', 'commercial', 'department', 'gaming')).toBeCloseTo(level * Math.exp(-slope * 0.4), 12);
+    expect(directJobsRate(0.4, '721120', 'commercial', 'total', 'total')).toBeCloseTo(level * Math.exp(-slope * 0.4), 12);
+    expect(directJobsRate(-1, '713210', 'commercial', 'total', 'total')).toBeCloseTo(level, 12);
+    expect(directJobsRate(0.4, '721120', 'commercial', 'department', 'lodging')).toBeNull();
+    expect(directJobsRate(0.4, '713290', 'commercial', 'department', 'gaming')).toBeNull();
+    expect(directJobsRate(0.4, '722410', 'commercial', 'department', 'gaming')).toBeNull();
+    expect(directJobsRate(0.1, '713210', 'tribal', 'department', 'gaming')).toBeNull();
+    expect(directJobsRate(0.2, 'ONLINE_CASINO', 'commercial', 'department', 'gaming')).toBeNull();
+  });
+
+  test('scenario replaces direct gaming jobs and FTEs and nothing else', async () => {
+    const model = await loadModel('PA');
+    const r = computeScenario(pa(), model)!;
+    const old = computeScenario(pa(), model, { directJobs: 'coefficient' })!;
+    const g = r.streams.find((s) => s.key === 'gaming')!.impact;
+    const g0 = old.streams.find((s) => s.key === 'gaming')!.impact;
+    const per = DIRECT_JOBS_RATE.level * Math.exp(-DIRECT_JOBS_RATE.slope * r.gamingTax!.effectiveRate);
+    expect(g.sources.jobs).toBe('rate');
+    expect(g.jobs.direct).toBeCloseTo(200 * r.deflator * per, 9);
+    expect(g.fte.direct / g.jobs.direct).toBeCloseTo(g0.fte.direct / g0.jobs.direct, 12);
+    expect(r.directJobsRate!.perMillion).toBeCloseTo(per, 12);
+    expect(r.directJobsRate!.stateCoefficient).toBeCloseTo(g0.jobs.direct / (200 * r.deflator), 12);
+    for (const m of ['output', 'gdp', 'compensation', 'cashWages', 'topi'] as const) expect(g[m]).toEqual(g0[m]);
+    expect(g.jobs.indirect).toBe(g0.jobs.indirect);
+    expect(g.jobs.induced).toBe(g0.jobs.induced);
+    const food = (x: typeof r) => x.streams.find((s) => s.key === 'food')!.impact;
+    expect(food(r).jobs).toEqual(food(old).jobs);
+    expect(food(r).sources.jobs).toBe('model');
+    expect(old.directJobsRate).toBeNull();
+  });
+
+  test('observed jobs replace the rate; slot parlors and tribal properties keep the coefficient', async () => {
+    const model = await loadModel('PA');
+    const known = computeScenario(pa({ known: { ...defaultAnalysis().known, gaming: { jobs: 700, wages: null } } }), model)!;
+    expect(known.streams[0].impact.jobs.direct).toBe(700);
+    expect(known.streams[0].impact.sources.jobs).toBe('user');
+    expect(known.directJobsRate).toBeNull();
+    for (const over of [{ propertyType: '713290' }, { ownership: 'tribal' }] as Partial<Analysis>[]) {
+      const r = computeScenario(pa(over), model)!;
+      const old = computeScenario(pa(over), model, { directJobs: 'coefficient' })!;
+      expect(r.totals.jobs).toEqual(old.totals.jobs);
+      expect(r.directJobsRate).toBeNull();
+    }
   });
 });

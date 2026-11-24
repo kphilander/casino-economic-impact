@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { STATES } from '../engine/data';
 import { CPI_YEARS, LATEST_CPI_YEAR } from '../engine/prices';
 import {
-  DEPARTMENTS, DEPARTMENT_LABELS, GAMING_TAX, PROPERTY_TYPES, defaultAnalysis, isOnline,
-  type Analysis, type Department, type PropertyType, type ScenarioResult,
+  COMP_DEPARTMENTS, DEPARTMENTS, DEPARTMENT_LABELS, GAMING_TAX, PROPERTY_TYPES, compsApplied, defaultAnalysis, isOnline,
+  type Analysis, type CompDepartment, type Department, type PropertyType, type ScenarioResult,
 } from '../engine/scenario';
 import { hasGamingTax, taxRule, verticalSchedule, type GamingVertical } from '../engine/tax';
 import { NumberField, Section, Segmented, SelectField, TextField, Toggle } from './fields';
@@ -37,6 +37,9 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
   const departments: readonly Department[] = online ? ['gaming'] : DEPARTMENTS;
   const revenueTotal = DEPARTMENTS.reduce((s, d) => s + (a.revenue[d] ?? 0), 0);
   const [confirmReset, setConfirmReset] = useState(false);
+  const setComp = (d: CompDepartment, val: number | null) => update((x) => ({ ...x, comps: { ...x.comps, [d]: val } }));
+  const compCount = COMP_DEPARTMENTS.filter((d) => a.comps[d] != null && a.comps[d]! > 0).length;
+  const comps = compsApplied(a);
 
   return (
     <div className="inputs">
@@ -99,6 +102,25 @@ export function InputsPanel({ analysis: a, update, result }: { analysis: Analysi
           hint="The model changes revenue to 2023 dollars (CPI-U) before it calculates jobs."
         />
       </Section>
+
+      {!online && a.inputMode === 'department' && (
+        <Section title="Complimentaries (optional)" collapsible badge={compCount ? `${compCount} entered` : undefined}>
+          <p className="note">
+            GGR includes the retail value of comped rooms, meals, drinks and other items. If you enter that value, the model counts it as output of the
+            department that provides it and takes it out of the gaming output. The gaming tax stays on the full GGR. Leave blank to model all GGR as gaming.
+            Enter the full GGR above, not GGR minus comps, and enter only cash revenue for the other departments.
+          </p>
+          {COMP_DEPARTMENTS.map((d) => (
+            <NumberField key={d} label={`Comps from ${DEPARTMENT_LABELS[d].toLowerCase()}`} unit="$M" min={0} value={a.comps[d]} onChange={(n) => setComp(d, n)} />
+          ))}
+          {comps && (
+            <p className="computed">
+              Gaming output: {money(Math.max(0, (a.revenue.gaming ?? 0) - comps.total))} ({money(a.revenue.gaming ?? 0)} GGR less {money(comps.total)} of comps)
+              {comps.scale < 1 ? '. The comps exceed GGR, so the model scales them down to GGR.' : ''}
+            </p>
+          )}
+        </Section>
+      )}
 
       <Section title={tribal ? 'Compact revenue share' : 'Gaming tax'}>
         {tribal ? (

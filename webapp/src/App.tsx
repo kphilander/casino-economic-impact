@@ -119,16 +119,21 @@ export function App() {
       <a className="skip" href="#results">Skip to results</a>
       <p className="sr-only" aria-live="polite">{announcement}</p>
       <header className="masthead">
-        <p className="eyebrow">{BRAND.publisher} · Economic analysis</p>
+        <div className="brand">
+          <a className="wordmark" href="https://gamblingpolicy.com/" target="_blank" rel="noopener noreferrer">
+            {BRAND.publisher}<span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          <span className="product">{PRODUCT_NAME_VERSIONED}<span className="product-scope"> · {BRAND.descriptor}</span></span>
+        </div>
+        <ShareBar analysis={analysis} onLoad={(a) => { setAnalysis(a); setTab('results'); }} onCompare={addScenario} />
+      </header>
+
+      <div className="intro">
         <h1>{PRODUCT_NAME_VERSIONED}: {BRAND.productFullName}</h1>
         <p className="lede">
           This calculator gives the direct, supplier and induced effects of casino and online gaming operations in each U.S. state. Your
           browser makes a regional input-output model from EPA StateIO tables and BLS employment data.
         </p>
-      </header>
-
-      <div className="toolbar">
-        <ShareBar analysis={analysis} onLoad={(a) => { setAnalysis(a); setTab('results'); }} onCompare={addScenario} />
       </div>
 
       {fromForecaster && (
@@ -173,6 +178,9 @@ export function App() {
           {PRODUCT_NAME_VERSIONED} · <a href={BRAND.repository}>Source code and data</a> ·{' '}
           <a href={`${BRAND.repository}/blob/main/docs/methodology.md`}>Methodology</a> ·{' '}
           <a href={`${BRAND.repository}/issues/new`}>Report an issue</a> · {BRAND.publisher}
+        </p>
+        <p>
+          Gaming revenue for a proposed casino: <a href="https://gamblingpolicy.com/tools/revenue-forecaster/">Casino Revenue Forecaster</a>
         </p>
         <p className="citation">Suggested citation: {suggestedCitation()}</p>
         <p className="citation">

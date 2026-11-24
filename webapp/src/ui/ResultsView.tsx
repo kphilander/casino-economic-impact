@@ -20,19 +20,69 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
+function niceCeil(x: number): number {
+  if (!(x > 0)) return 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(x)));
+  for (const s of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (s * mag >= x) return s * mag;
+  return 10 * mag;
+}
+
+/**
+ * Point value and range on a ruled axis from 0. The lower label sits to the
+ * left of its tick and the upper label to the right of its tick, so the two
+ * never overlap; the axis leaves room on the right for the upper label.
+ */
+function RangeAxis({ value, lower, upper, fmt, label }: {
+  value: number; lower: number; upper: number; fmt: (n: number) => string; label: string;
+}) {
+  const max = niceCeil(Math.max(upper, value) * 1.25);
+  const pos = (x: number) => Math.max(0, Math.min(100, (100 * x) / max));
+  const lo = pos(lower), hi = pos(upper), v = pos(value);
+  const loFar = lo > 18;
+  return (
+    <div className="axis" role="img" aria-label={label}>
+      <div className="axis-track" aria-hidden="true">
+        <div className="axis-rule" />
+        <div className="axis-band" style={{ left: `${lo}%`, width: `${hi - lo}%` }} />
+        <div className="axis-tick" style={{ left: `${lo}%` }} />
+        <div className="axis-tick" style={{ left: `${hi}%` }} />
+        <div className="axis-dot" style={{ left: `${v}%` }} />
+      </div>
+      <div className="axis-labels" aria-hidden="true">
+        {loFar && <span style={{ left: 0 }}>0</span>}
+        <span style={{ left: `${lo}%`, transform: loFar ? 'translateX(-100%)' : undefined, padding: loFar ? '0 6px 0 0' : '0 0 0 6px' }}>{fmt(lower)}</span>
+        <span style={{ left: `${hi}%`, paddingLeft: 6 }}>{fmt(upper)}</span>
+      </div>
+    </div>
+  );
+}
+
 function Headline({ r }: { r: ScenarioResult }) {
   const t = r.totals;
   const range = t.jobsRange;
   return (
-    <div className="headline">
-      <Stat label="Jobs supported" value={jobs(t.jobs.total)}
-        sub={range ? `90% range ${jobs(range.total[0])} to ${jobs(range.total[1])}` : `${jobs(t.jobs.direct)} direct`} />
-      <Stat label="GDP (value added)" value={money(t.gdp.total)} sub={`${money(t.gdp.direct)} direct`} />
-      <Stat label="Labor income" value={money(t.compensation.total)} sub="employee compensation" />
-      <Stat label="Output" value={money(t.output.total)} sub={`multiplier ${ratio(t.output.total / t.output.direct)}`} />
-      <Stat label="Tax revenue" value={money(r.fiscal.totals.all.total)}
-        sub={`${money(r.fiscal.totals.stateLocal.total)} state and local`} />
-    </div>
+    <section className="headline" aria-labelledby="headline-label">
+      <p className="hl-label" id="headline-label">Jobs supported</p>
+      <div className="hl-row">
+        <span className="hl-value">{jobs(t.jobs.total)}</span>
+        <span className="hl-unit">jobs in {r.analysis.state}, direct, supplier and induced</span>
+      </div>
+      {range && range.total[1] > range.total[0] && (
+        <RangeAxis value={t.jobs.total} lower={range.total[0]} upper={range.total[1]} fmt={jobs}
+          label={`${jobs(t.jobs.total)} jobs, 90% range ${jobs(range.total[0])} to ${jobs(range.total[1])}`} />
+      )}
+      <p className="hl-caption">
+        {range && <strong>90% range: {jobs(range.total[0])} to {jobs(range.total[1])} jobs. </strong>}
+        Direct jobs: {jobs(t.jobs.direct)}.
+      </p>
+      <div className="figures-strip">
+        <Stat label="GDP (value added)" value={money(t.gdp.total)} sub={`${money(t.gdp.direct)} direct`} />
+        <Stat label="Labor income" value={money(t.compensation.total)} sub="employee compensation" />
+        <Stat label="Output" value={money(t.output.total)} sub={`multiplier ${ratio(t.output.total / t.output.direct)}`} />
+        <Stat label="Tax revenue" value={money(r.fiscal.totals.all.total)}
+          sub={`${money(r.fiscal.totals.stateLocal.total)} state and local`} />
+      </div>
+    </section>
   );
 }
 
@@ -138,13 +188,13 @@ export function FiscalTable({ fiscal, showGamingNote }: { fiscal: Fiscal; showGa
     <>
       <div className="table-wrap">
         <table>
-          <thead><tr><th scope="col">Tax</th>{EFFECT_HEADS.map((h) => <th scope="col" key={h}>{h}</th>)}<th scope="col">Level</th></tr></thead>
+          <thead><tr><th scope="col">Tax</th>{EFFECT_HEADS.map((h) => <th scope="col" key={h}>{h}</th>)}<th scope="col" className="left">Level</th></tr></thead>
           <tbody>
             {fiscal.lines.map((l) => (
               <tr key={l.key}>
                 <th scope="row">{l.label}{l.note && <span className="row-note">{l.note}</span>}</th>
                 <EffectCells e={l} fmt={money} />
-                <td className="muted">{l.level === 'federal' ? 'Federal' : 'State and local'}</td>
+                <td className="muted left level">{l.level === 'federal' ? 'Federal' : 'State and local'}</td>
               </tr>
             ))}
             {subtotal('State and local', fiscal.totals.stateLocal, 'subtotal')}

@@ -43,8 +43,8 @@ suppressPackageStartupMessages({ library(tidyverse); library(jsonlite); library(
 
 year <- 2023L
 io_year <- 2019L
-output_file <- Sys.getenv("GEMS_HOUSEHOLD_SPENDING_FILE", unset = paste0("household_spending_", year, ".csv"))
-qcew_file <- Sys.getenv("GEMS_QCEW_ALL_SECTORS_FILE", unset = "employment_all_sectors_2023.csv")
+output_file <- Sys.getenv("GEMS_HOUSEHOLD_SPENDING_FILE", unset = paste0("data/household_spending_", year, ".csv"))
+qcew_file <- Sys.getenv("GEMS_QCEW_ALL_SECTORS_FILE", unset = "data/employment_all_sectors_2023.csv")
 if (!file.exists(qcew_file)) stop("QCEW employment file not found: ", qcew_file, "\nRun 08a_process_all_qcew_employment.R first.")
 
 # ---------------------------------------------------------------- national c

@@ -7,17 +7,17 @@ script_path <- normalizePath(sub("^--file=", "", file_arg[[1]]))
 repo_root <- dirname(dirname(script_path))
 
 detail <- read.csv(
-  file.path(repo_root, "bea_detail_coefficients.csv"),
+  file.path(repo_root, "data", "bea_detail_coefficients.csv"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 parents <- read.csv(
-  file.path(repo_root, "blended_parent_coefficients.csv"),
+  file.path(repo_root, "data", "blended_parent_coefficients.csv"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 ratios <- read.csv(
-  file.path(repo_root, "national_naics_ratios.csv"),
+  file.path(repo_root, "data", "national_naics_ratios.csv"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )

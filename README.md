@@ -302,54 +302,54 @@ Each metric is decomposed into **Direct**, **Indirect**, **Induced**, and **Tota
 
 ### R Scripts (Data Pipeline)
 
-Scripts are numbered to indicate execution order:
+The pipeline scripts are in `pipeline/` and are numbered to indicate execution order. Run them from the repository root (for example `Rscript pipeline/09_employment_multipliers_2023.R`); they read and write the files in `data/`. Helper scripts are in `scripts/`.
 
 | Script | Purpose |
 |--------|---------|
-| `07_process_qcew_employment_2023.R` | Optional compatibility extractor for the four target sectors from the complete QCEW satellite |
-| `08_state_multipliers_2023.R` | Build 2019 StateIO Leontief relationships and apply 2023 StateIO/QCEW jobs-per-output satellites for all 50 states |
-| `08a_process_all_qcew_employment.R` | Download/read the official BLS annual singlefile and build the complete 50-state × 71-sector employment satellite |
-| `08b_generate_bea_fte_ratios.R` | Download BEA NIPA employee-job and FTE series and build the 71-sector FTE/job crosswalk |
-| `08c_household_spending.R` | Download BEA NIPA PCE and disposable income (FRED) and build each state's household spending share for the Type II closure |
-| `09_employment_multipliers_2023.R` | Merge IO multipliers with QCEW employment data, calculate employment-weighted coefficients (direct, indirect, induced) |
-| `10_casino_impact_model.R` | Main impact calculation engine — takes revenue, sector, and state as input, returns full impact table with multiplier decomposition and tax estimates |
-| `11_property_impact_calculator.R` | Property-specific analysis and reporting script |
-| `12_gambling_specific_data.R` | Backward-compatible entry point for the canonical gambling generator |
-| `13_extract_national_naics_ratios.R` | Rebuild national BEA detail direct and supplier-increment ratios with `useeior` |
-| `13b_property_type_multipliers.R` | Assemble four descriptive land-based property labels from the canonical gambling dataset |
-| `14_online_gambling_multipliers.R` | Apply documented online scenario adjustments without scaling supplier/induced job intensity by the operator's direct jobs ratio |
-| `state_gaming_tax_rates.R` | Compile state-by-state gaming tax rates from state gaming commissions and AGA reports |
-| `generate_complete_multipliers.R` | Apply the single national gambling calibration to each state's StateIO 713 results |
-| `generate_multipliers_json.R` | Export the multiplier CSVs as one JSON file (`multipliers_with_tax.json`) |
+| `pipeline/07_process_qcew_employment_2023.R` | Optional compatibility extractor for the four target sectors from the complete QCEW satellite |
+| `pipeline/08_state_multipliers_2023.R` | Build 2019 StateIO Leontief relationships and apply 2023 StateIO/QCEW jobs-per-output satellites for all 50 states |
+| `pipeline/08a_process_all_qcew_employment.R` | Download/read the official BLS annual singlefile and build the complete 50-state × 71-sector employment satellite |
+| `pipeline/08b_generate_bea_fte_ratios.R` | Download BEA NIPA employee-job and FTE series and build the 71-sector FTE/job crosswalk |
+| `pipeline/08c_household_spending.R` | Download BEA NIPA PCE and disposable income (FRED) and build each state's household spending share for the Type II closure |
+| `pipeline/09_employment_multipliers_2023.R` | Merge IO multipliers with QCEW employment data, calculate employment-weighted coefficients (direct, indirect, induced) |
+| `pipeline/10_casino_impact_model.R` | Main impact calculation engine — takes revenue, sector, and state as input, returns full impact table with multiplier decomposition and tax estimates |
+| `pipeline/11_property_impact_calculator.R` | Property-specific analysis and reporting script |
+| `pipeline/12_gambling_specific_data.R` | Backward-compatible entry point for the canonical gambling generator |
+| `pipeline/13_extract_national_naics_ratios.R` | Rebuild national BEA detail direct and supplier-increment ratios with `useeior` |
+| `pipeline/13b_property_type_multipliers.R` | Assemble four descriptive land-based property labels from the canonical gambling dataset |
+| `pipeline/14_online_gambling_multipliers.R` | Apply documented online scenario adjustments without scaling supplier/induced job intensity by the operator's direct jobs ratio |
+| `pipeline/state_gaming_tax_rates.R` | Compile state-by-state gaming tax rates from state gaming commissions and AGA reports |
+| `pipeline/generate_complete_multipliers.R` | Apply the single national gambling calibration to each state's StateIO 713 results |
+| `pipeline/generate_multipliers_json.R` | Export the multiplier CSVs as one JSON file (`multipliers_with_tax.json`) |
 | `scripts/export_state_io.R` | Export each state's StateIO tables and the jobs satellite for the browser engine (`webapp/src/data/io/`) |
-| `generate_tax_multipliers.R` | Export tax columns from the canonical state multiplier build (compatibility) |
+| `pipeline/generate_tax_multipliers.R` | Export tax columns from the canonical state multiplier build (compatibility) |
 
 ### Data Files
 
-**CSV files** (used by R scripts and served as public data):
+**CSV files** (in `data/`; used by R scripts and served as public data):
 
 | File | Rows | Description |
 |------|------|-------------|
-| `employment_multipliers_2023.csv` | 200 | 50 states × 4 sectors — full multiplier dataset with employment coefficients |
-| `fte_ratios_2023.csv` | 71 | BEA national employee jobs, FTE employees, and FTE/job ratios mapped to StateIO sectors |
-| `household_spending_2023.csv` | 50 | Household spending share of compensation by state (after payroll and income taxes and saving), its range, and in-state consumption shares |
-| `gambling_multipliers_2023.csv` | 50 | Gambling-specific multipliers (one per state), adjusted from blended 713 |
-| `property_type_multipliers_2023.csv` | 200 | Four descriptive land-based property labels × 50 states, all using the canonical gambling coefficients |
-| `state_multipliers_with_tax.csv` | 200 | Backward-compatible tax-only export from the canonical state multiplier build |
-| `bea_detail_coefficients.csv` | 6 | Versioned USEEIO detail-sector coefficients used by the recovered property-type calibration |
-| `blended_parent_coefficients.csv` | 3 | Output-weighted 713, 721, and 722 parent benchmarks |
-| `national_naics_ratios.csv` | 4 | Canonical 713200-to-713 gaming ratios plus explicitly marked hospitality comparison rows |
+| `data/employment_multipliers_2023.csv` | 200 | 50 states × 4 sectors — full multiplier dataset with employment coefficients |
+| `data/fte_ratios_2023.csv` | 71 | BEA national employee jobs, FTE employees, and FTE/job ratios mapped to StateIO sectors |
+| `data/household_spending_2023.csv` | 50 | Household spending share of compensation by state (after payroll and income taxes and saving), its range, and in-state consumption shares |
+| `data/gambling_multipliers_2023.csv` | 50 | Gambling-specific multipliers (one per state), adjusted from blended 713 |
+| `data/property_type_multipliers_2023.csv` | 200 | Four descriptive land-based property labels × 50 states, all using the canonical gambling coefficients |
+| `data/state_multipliers_with_tax.csv` | 200 | Backward-compatible tax-only export from the canonical state multiplier build |
+| `data/bea_detail_coefficients.csv` | 6 | Versioned USEEIO detail-sector coefficients used by the recovered property-type calibration |
+| `data/blended_parent_coefficients.csv` | 3 | Output-weighted 713, 721, and 722 parent benchmarks |
+| `data/national_naics_ratios.csv` | 4 | Canonical 713200-to-713 gaming ratios plus explicitly marked hospitality comparison rows |
 
 Each row contains: state identifiers, QCEW employment and wage data, direct coefficients (VA, wage, tax, employment), Type I and Type II multipliers (output, VA, wage, tax), and employment coefficients (direct, indirect, induced).
 
-**JSON files:**
+**JSON files** (in `data/` unless a path is given):
 
 | File | Description |
 |------|-------------|
 | `webapp/src/data/io/{AB}.json`, `national.json` | State StateIO tables and national inputs read by the browser engine |
-| `multipliers_with_tax.json` | Convenience JSON export of the multiplier CSVs (not read by the web app) |
-| `state_gaming_tax_rates.json` | Full state tax rate configurations (flat, tiered, split) |
-| `gaming_tax_rates_frontend.json` | Frontend-optimized version of tax rates |
+| `data/multipliers_with_tax.json` | Convenience JSON export of the multiplier CSVs (not read by the web app) |
+| `data/state_gaming_tax_rates.json` | Full state tax rate configurations (flat, tiered, split) |
+| `data/gaming_tax_rates_frontend.json` | Frontend-optimized version of tax rates |
 
 ### Web Application
 
@@ -427,18 +427,18 @@ To regenerate all multiplier data from raw sources:
 3. **Run scripts in order:**
 
 ```r
-source("08a_process_all_qcew_employment.R")  # Process mapped private-industry QCEW sectors
-source("08b_generate_bea_fte_ratios.R")      # Build national BEA industry FTE/job ratios
-source("08c_household_spending.R")           # Household spending share for the Type II closure
-source("08_state_multipliers_2023.R")         # Calculate state IO multipliers (this downloads StateIO data)
-source("09_employment_multipliers_2023.R")    # Merge multipliers with employment data
-source("13_extract_national_naics_ratios.R")  # Rebuild detailed national ratio evidence
-source("generate_complete_multipliers.R")     # Apply canonical gambling calibration
-source("14_online_gambling_multipliers.R")    # Generate online scenario data
-source("13b_property_type_multipliers.R")     # Assemble land-based reporting labels
-source("generate_tax_multipliers.R")          # Optional compatibility tax export
-source("generate_multipliers_json.R")         # Optional JSON export of the CSVs
-source("scripts/export_state_io.R")           # State tables for the browser engine
+source("pipeline/08a_process_all_qcew_employment.R")   # Process mapped private-industry QCEW sectors
+source("pipeline/08b_generate_bea_fte_ratios.R")       # Build national BEA industry FTE/job ratios
+source("pipeline/08c_household_spending.R")            # Household spending share for the Type II closure
+source("pipeline/08_state_multipliers_2023.R")         # Calculate state IO multipliers (this downloads StateIO data)
+source("pipeline/09_employment_multipliers_2023.R")    # Merge multipliers with employment data
+source("pipeline/13_extract_national_naics_ratios.R")  # Rebuild detailed national ratio evidence
+source("pipeline/generate_complete_multipliers.R")     # Apply canonical gambling calibration
+source("pipeline/14_online_gambling_multipliers.R")    # Generate online scenario data
+source("pipeline/13b_property_type_multipliers.R")     # Assemble land-based reporting labels
+source("pipeline/generate_tax_multipliers.R")          # Optional compatibility tax export
+source("pipeline/generate_multipliers_json.R")         # Optional JSON export of the CSVs
+source("scripts/export_state_io.R")                    # State tables for the browser engine
 ```
 
 Then check that the browser engine reproduces the new CSVs:

@@ -15,7 +15,7 @@ Sources:
 
 import json
 
-with open('gaming_tax_rates_frontend.json') as f:
+with open('data/gaming_tax_rates_frontend.json') as f:
     data = json.load(f)
 
 rates = data['rates']
@@ -423,7 +423,7 @@ data['metadata']['notes'].append(
 )
 
 # Save
-with open('gaming_tax_rates_frontend.json', 'w') as f:
+with open('data/gaming_tax_rates_frontend.json', 'w') as f:
     json.dump(data, f, indent=2)
 
 print(f"Updated {len(rates)} states")

@@ -98,7 +98,7 @@ message("=== Loading QCEW Employment Data ===\n")
 
 qcew_all_sectors_file <- Sys.getenv(
   "GEMS_QCEW_ALL_SECTORS_FILE",
-  unset = "employment_all_sectors_2023.csv"
+  unset = "data/employment_all_sectors_2023.csv"
 )
 if (file.exists(qcew_all_sectors_file)) {
   QCEW_ALL_SECTORS <- read.csv(qcew_all_sectors_file, stringsAsFactors = FALSE)
@@ -129,7 +129,7 @@ if (any(QCEW_ALL_SECTORS$employment[
 # satellite. QCEW filled jobs remain the primary employment measure.
 fte_ratio_file <- Sys.getenv(
   "GEMS_FTE_RATIO_FILE",
-  unset = paste0("fte_ratios_", fte_ratio_year, ".csv")
+  unset = paste0("data/fte_ratios_", fte_ratio_year, ".csv")
 )
 if (!file.exists(fte_ratio_file)) {
   stop("FTE ratio file not found: ", fte_ratio_file,
@@ -151,7 +151,7 @@ if (nrow(FTE_RATIOS) != 71L || anyDuplicated(FTE_RATIOS$io_sector) ||
 # Household spending share of compensation for the Type II closure.
 household_spending_file <- Sys.getenv(
   "GEMS_HOUSEHOLD_SPENDING_FILE",
-  unset = paste0("household_spending_", fte_ratio_year, ".csv")
+  unset = paste0("data/household_spending_", fte_ratio_year, ".csv")
 )
 if (!file.exists(household_spending_file)) {
   stop("Household spending file not found: ", household_spending_file,
@@ -573,7 +573,7 @@ for (i in seq_along(state_names)) {
 # ============================================================================
 
 # Use 2023 in filename since this will be combined with 2023 employment data
-output_file <- "state_multipliers_2023.csv"
+output_file <- "data/state_multipliers_2023.csv"
 write.csv(all_results, output_file, row.names = FALSE)
 
 message("\n=== RESULTS SAVED ===")

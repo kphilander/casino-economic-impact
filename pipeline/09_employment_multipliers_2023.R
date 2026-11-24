@@ -29,14 +29,14 @@ library(tidyverse)
 my_year <- 2023
 
 # Input files (from previous scripts)
-multiplier_file <- paste0("state_multipliers_", my_year, ".csv")
+multiplier_file <- paste0("data/state_multipliers_", my_year, ".csv")
 employment_file <- Sys.getenv(
   "GEMS_QCEW_ALL_SECTORS_FILE",
-  unset = paste0("employment_all_sectors_", my_year, ".csv")
+  unset = paste0("data/employment_all_sectors_", my_year, ".csv")
 )
 
 # Output file
-output_file <- paste0("employment_multipliers_", my_year, ".csv")
+output_file <- paste0("data/employment_multipliers_", my_year, ".csv")
 
 # ============================================================================
 # LOAD DATA
@@ -252,7 +252,7 @@ message("\n=== Saving Results ===\n")
 
 # Construction (23) supports the one-time construction-phase module and is
 # written separately so the operating-sector table keeps its 200-row schema.
-construction_file <- paste0("construction_multipliers_", my_year, ".csv")
+construction_file <- paste0("data/construction_multipliers_", my_year, ".csv")
 write.csv(output_data[output_data$Sector == "23", ], construction_file, row.names = FALSE)
 message("Saved: ", construction_file, " (", sum(output_data$Sector == "23"), " records)")
 
@@ -363,7 +363,7 @@ print(nevada)
 # EXPORT SUMMARY TABLE
 # ============================================================================
 
-summary_file <- paste0("employment_multiplier_summary_", my_year, ".csv")
+summary_file <- paste0("data/employment_multiplier_summary_", my_year, ".csv")
 write.csv(sector_summary, summary_file, row.names = FALSE)
 message("\nSaved summary: ", summary_file)
 

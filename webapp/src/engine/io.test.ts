@@ -11,7 +11,7 @@ import { multipliers, type Multipliers } from './io';
 import { STATES, loadModel } from './data';
 import { activityResponse, type ActivityKey } from './activities';
 
-const repo = fileURLToPath(new URL('../../../', import.meta.url));
+const repo = fileURLToPath(new URL('../../../data/', import.meta.url));
 
 function readCsv(file: string): Record<string, string>[] {
   const lines = readFileSync(repo + file, 'utf8').trim().split(/\r?\n/);

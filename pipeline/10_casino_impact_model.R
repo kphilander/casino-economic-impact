@@ -19,7 +19,7 @@
 #   - BEA Detail IO (USEEIOv2.0.1-411) for gambling TOPI adjustment ratio
 #
 # Usage:
-#   source("10_casino_impact_model.R")
+#   source("pipeline/10_casino_impact_model.R")
 #   impact <- calculate_casino_impact(100, "713", "Nevada")
 #   print(impact)
 # ============================================================================
@@ -127,7 +127,7 @@ GAMBLING_TOPI_ADJUSTMENT <- list(
 # ============================================================================
 
 # Path to multiplier data file
-multiplier_data_file <- "employment_multipliers_2023.csv"
+multiplier_data_file <- "data/employment_multipliers_2023.csv"
 
 # Load on source (will be available as global)
 if (file.exists(multiplier_data_file)) {

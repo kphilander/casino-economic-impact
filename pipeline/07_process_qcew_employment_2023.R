@@ -11,11 +11,11 @@ library(dplyr)
 
 input_file <- Sys.getenv(
   "GEMS_QCEW_ALL_SECTORS_FILE",
-  unset = "employment_all_sectors_2023.csv"
+  unset = "data/employment_all_sectors_2023.csv"
 )
 output_file <- Sys.getenv(
   "GEMS_QCEW_TARGET_SECTORS_FILE",
-  unset = "employment_by_state_2023.csv"
+  unset = "data/employment_by_state_2023.csv"
 )
 
 if (!file.exists(input_file)) {

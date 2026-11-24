@@ -25,7 +25,7 @@ library(tidyverse)
 fte_year <- 2023L
 output_file <- Sys.getenv(
   "GEMS_FTE_RATIO_FILE",
-  unset = paste0("fte_ratios_", fte_year, ".csv")
+  unset = paste0("data/fte_ratios_", fte_year, ".csv")
 )
 
 # StateIO summary sectors align closely with the detail in NIPA tables 6.4D

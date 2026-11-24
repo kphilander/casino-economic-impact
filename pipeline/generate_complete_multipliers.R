@@ -22,15 +22,15 @@ library(tidyverse)
 
 employment_file <- Sys.getenv(
   "GEMS_EMPLOYMENT_MULTIPLIERS_FILE",
-  unset = "employment_multipliers_2023.csv"
+  unset = "data/employment_multipliers_2023.csv"
 )
 ratio_file <- Sys.getenv(
   "GEMS_NATIONAL_RATIO_FILE",
-  unset = "national_naics_ratios.csv"
+  unset = "data/national_naics_ratios.csv"
 )
 gambling_employment_file <- Sys.getenv(
   "GEMS_GAMBLING_EMPLOYMENT_FILE",
-  unset = "gambling_employment_by_state_2023.csv"
+  unset = "data/gambling_employment_by_state_2023.csv"
 )
 
 if (!file.exists(employment_file)) stop("Missing input: ", employment_file)
@@ -147,10 +147,10 @@ if (file.exists(gambling_employment_file)) {
     )
 }
 
-write.csv(gambling_multipliers, "gambling_multipliers_2023.csv", row.names = FALSE)
+write.csv(gambling_multipliers, "data/gambling_multipliers_2023.csv", row.names = FALSE)
 write.csv(
   bind_rows(employment_multipliers, gambling_multipliers) %>% arrange(State, Sector),
-  "employment_multipliers_2023_with_gambling.csv",
+  "data/employment_multipliers_2023_with_gambling.csv",
   row.names = FALSE
 )
 

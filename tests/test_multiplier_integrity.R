@@ -5,7 +5,7 @@ script_path <- normalizePath(sub("^--file=", "", file_arg[[1]]))
 repo_root <- dirname(dirname(script_path))
 
 read_repo_csv <- function(name) {
-  read.csv(file.path(repo_root, name), stringsAsFactors = FALSE,
+  read.csv(file.path(repo_root, "data", name), stringsAsFactors = FALSE,
            check.names = FALSE)
 }
 
